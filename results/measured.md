@@ -218,17 +218,24 @@ They target different stages — one in the renderer, one in the tracker — so 
 to add. Ought to is not a measurement. All three arms below ran on a single image
 containing both changes, selected by environment variable.
 
-| Arm | frame cache | focal search | mean wall (s) | vs baseline |
+| Arm | frame cache | focal search | mean wall (s) | paired vs baseline |
 |---|---|---|---:|---:|
 | j3base | off | off | 393.12 | baseline |
-| j3fc5 | **5** | off | 339.38 | **-13.67 %** |
+| j3fc5 | **5** | off | 339.38 | **-13.66 %** |
 | j3both | **5** | **on** | 304.02 | **-22.66 %** |
+
+Paired per clip against j3base, the baseline from the **same run** as the
+treated arms. An earlier version of this section used the previous run’s baseline
+because this one had not finished: that read -14.19 %
+and -23.13 %, so the figures moved about half a
+point when the right baseline landed. This one also ran **last**, so session drift works
+against the treated arms rather than for them.
 
 ### The renderer result replicated
 
-The cache-only arm gives **-13.67 %**. It was measured separately at
+The cache-only arm gives **-13.66 %**. It was measured separately at
 **-14.30 %** — a different image, a different mechanism for getting the code in, and
-a different person running it. The two land 0.63 points
+a different person running it. The two land 0.64 points
 apart. That is as close to a replication as this rig can produce, and it is the only
 result in this work that has one.
 
@@ -241,12 +248,18 @@ from its own comparison:
 ```
 393.12 - 53.74 - 33.45  =  305.93 s predicted
                       304.02 s actual
-                    shortfall -1.91 s = -0.49 % of the job
+                    faster than predicted by 1.91 s = 0.49 % of the job
 ```
 
-The combined effect is **-22.66 %**. The shortfall against a perfectly
-additive prediction is inside the run-to-run spread, so **additive is the right model**
-and the two do not interfere.
+The combined effect is **-22.66 %**, and it comes out
+1.91 s **better** than a perfectly additive prediction —
+0.49 % of the job, well inside the run-to-run spread. So **additive is the
+right model** and the two changes do not interfere.
+
+The focal saving used above is the **confirmed** variant’s own figure, which is what
+the combined arm actually ran. Predicting it from the unconfirmed variant’s larger
+saving would compare arms that were never run together — an apples-to-oranges
+prediction that happened to look like a shortfall rather than a surplus.
 
 The stage timings say why:
 

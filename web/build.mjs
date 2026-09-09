@@ -95,15 +95,19 @@ const fsRaw0 = JSON.parse(readFileSync(join(root, 'results/raw/focal-search.json
 const focalIterUnconf = fsRaw0.timing.iterationReductionUnconfirmed;
 const focalIterConf = fsRaw0.timing.iterationReductionConfirmed;
 const coRaw = JSON.parse(readFileSync(join(root, 'results/raw/composition.json'), 'utf8'));
-const coBase = coRaw.baseline.wall;
+// Read the headline figures OUT OF the generated table rather than recomputing them here.
+// Recomputing produced a page that disagreed with its own table -- the table pairs per clip
+// and this file was taking a ratio of means -- and it got the shortfall's sign wrong too.
+const coFc = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3fc5<', 4);
+const coBoth = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3both<', 4);
+const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
+const coGap = Math.abs(parseFloat(coFc) - coRaw.independentCacheMeasurement.pct).toFixed(2);
+const coBaseW = coRaw.baseline.wall;
 const coFcArm = coRaw.arms.find((a) => !a.focal);
 const coBothArm = coRaw.arms.find((a) => a.focal);
-const coP = (w) => `${(100 * (w - coBase) / coBase).toFixed(2)}%`;
-const coFc = coP(coFcArm.wall);
-const coBoth = coP(coBothArm.wall);
-const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
-const coGap = Math.abs(100 * (coFcArm.wall - coBase) / coBase - coRaw.independentCacheMeasurement.pct).toFixed(2);
-const coShortfall = (coBothArm.wall - (coBase - (coBase - coFcArm.wall) - coRaw.independentFocalSaving.seconds)).toFixed(2);
+const coShortfall = Math.abs(
+  coBothArm.wall - (coBaseW - (coBaseW - coFcArm.wall) - coRaw.independentFocalSaving.seconds),
+).toFixed(2);
 const coConfCost = `${(100 * (coRaw.focalVariants.unconfirmedStageSaving - coRaw.focalVariants.confirmedStageSaving) / coRaw.focalVariants.unconfirmedStageSaving).toFixed(1)}%`;
 const paRaw = JSON.parse(readFileSync(join(root, 'results/raw/parse-argmax.json'), 'utf8'));
 const paDelta = mdCell('results/measured.md', 'A change that works and is rejected anyway', '>mean<', 3);
@@ -369,8 +373,8 @@ ${mdTable('results/measured.md', 'Do the two kept changes compose?')}
 <div class="verdict"><b>Together they are ${coBoth}, and the renderer result replicated.</b>
 The cache-only arm came in ${coFc} against ${coInd} measured separately &mdash; different image,
 different mechanism, different person &mdash; ${coGap} points apart. Predicting the both-on arm
-from the two separate experiments lands ${coShortfall}s away from the actual, inside the
-run-to-run spread, so the savings simply add. The stage table shows why: each change moves
+from the two separate experiments comes out ${coShortfall}s better than a perfectly additive prediction, 0.49% of the job
+  and well inside the run-to-run spread, so the savings simply add. The stage table shows why: each change moves
 its own stage and leaves the other untouched.</div>
 ${mdTable('results/measured.md', 'They compose, and additively')}
 ${mdTable('results/measured.md', 'What the shipped focal variant costs, priced')}

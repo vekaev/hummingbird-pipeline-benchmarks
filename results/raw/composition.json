@@ -8,7 +8,7 @@
       398.5,
       391.37
     ],
-    "note": "same-run baseline: same script, same image, same session as both treatment arms, run LAST. Supersedes the j2off2 baseline (395.52 s) this file used until the same-run arm finished. j2off2 was a clean baseline on the same image but from the previous script invocation, so it carried an extra session gap; the effects it gave were -14.19% and -23.13%, about half a point larger than the same-run figures."
+    "note": "The baseline from the SAME run as the treated arms, which is the correct paired reference. An earlier version of this section used j2off2 (395.52) from the previous run because j3base had not finished; the two differ by 0.61 % and the figures here were restated when it landed. j3base also ran LAST, so drift works against the treated arms rather than for them."
   },
   "arms": [
     {
@@ -80,5 +80,9 @@
     "psnrMean": 39.52,
     "worstPixel": 60,
     "note": "At the build's own reproducibility floor -- two identical seeded runs share no bit-identical frames either -- so an end-to-end diff carries no information about either change. Both are output-neutral at the point of change instead, proven by unit test."
+  },
+  "alternateBaseline": {
+    "arm": "j2off2",
+    "wall": 395.52
   }
 }

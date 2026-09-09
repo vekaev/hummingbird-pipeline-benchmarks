@@ -297,20 +297,30 @@ if (diff) {
   P('to add. Ought to is not a measurement. All three arms below ran on a single image');
   P('containing both changes, selected by environment variable.\n');
 
-  P('| Arm | frame cache | focal search | mean wall (s) | vs baseline |');
+  // Paired per clip against the same-run baseline, not a ratio of means: every other
+  // comparison in this work is paired, and the two differ here by enough to matter.
+  const paired = (arm) => mean(arm.clips.map((w, i) => pct(w, co.baseline.clips[i])));
+  P('| Arm | frame cache | focal search | mean wall (s) | paired vs baseline |');
   P('|---|---|---|---:|---:|');
   P(`| ${co.baseline.arm} | off | off | ${fmt(base)} | baseline |`);
   for (const a of co.arms) {
     P(`| ${a.arm} | **${a.frameCache}** | ${a.focal ? '**on**' : 'off'} | ${fmt(a.wall)} `
-      + `| **${signed(pct(a.wall, base))} %** |`);
+      + `| **${signed(paired(a))} %** |`);
   }
   P('');
+  P(`Paired per clip against ${co.baseline.arm}, the baseline from the **same run** as the`);
+  P(`treated arms. An earlier version of this section used the previous run\u2019s baseline`);
+  P(`because this one had not finished: that read ${signed(pct(fc.wall, co.alternateBaseline.wall))} %`);
+  P(`and ${signed(pct(both.wall, co.alternateBaseline.wall))} %, so the figures moved about half a`);
+  P('point when the right baseline landed. This one also ran **last**, so session drift works');
+  P('against the treated arms rather than for them.\n');
 
   P('### The renderer result replicated\n');
   const ind = co.independentCacheMeasurement;
-  P(`The cache-only arm gives **${signed(pct(fc.wall, base))} %**. It was measured separately at`);
+  const fcPaired = mean(fc.clips.map((w, i) => pct(w, co.baseline.clips[i])));
+  P(`The cache-only arm gives **${signed(fcPaired)} %**. It was measured separately at`);
   P(`**${fmt(ind.pct)} %** — a different image, a different mechanism for getting the code in, and`);
-  P(`a different person running it. The two land ${fmt(Math.abs(pct(fc.wall, base) - ind.pct), 2)} points`);
+  P(`a different person running it. The two land ${fmt(Math.abs(fcPaired - ind.pct), 2)} points`);
   P('apart. That is as close to a replication as this rig can produce, and it is the only');
   P('result in this work that has one.\n');
 
@@ -321,11 +331,17 @@ if (diff) {
   P('```');
   P(`${fmt(base)} - ${fmt(cacheSaving)} - ${fmt(co.independentFocalSaving.seconds)}  =  ${fmt(predicted)} s predicted`);
   P(`${' '.repeat(22)}${fmt(both.wall)} s actual`);
-  P(`${' '.repeat(20)}shortfall ${fmt(shortfall)} s = ${fmt(100 * shortfall / base)} % of the job`);
+  P(`${' '.repeat(20)}${shortfall < 0 ? 'faster than predicted by' : 'short of prediction by'} `
+    + `${fmt(Math.abs(shortfall))} s = ${fmt(Math.abs(100 * shortfall / base))} % of the job`);
   P('```\n');
-  P(`The combined effect is **${signed(pct(both.wall, base))} %**. The shortfall against a perfectly`);
-  P('additive prediction is inside the run-to-run spread, so **additive is the right model**');
-  P('and the two do not interfere.\n');
+  P(`The combined effect is **${signed(mean(both.clips.map((w, i) => pct(w, co.baseline.clips[i]))))} %**, and it comes out`);
+  P(`${fmt(Math.abs(shortfall))} s **${shortfall < 0 ? 'better' : 'worse'}** than a perfectly additive prediction —`);
+  P(`${fmt(Math.abs(100 * shortfall / base))} % of the job, well inside the run-to-run spread. So **additive is the`);
+  P('right model** and the two changes do not interfere.\n');
+  P('The focal saving used above is the **confirmed** variant\u2019s own figure, which is what');
+  P('the combined arm actually ran. Predicting it from the unconfirmed variant\u2019s larger');
+  P('saving would compare arms that were never run together — an apples-to-oranges');
+  P('prediction that happened to look like a shortfall rather than a surplus.\n');
 
   P('The stage timings say why:\n');
   P('| Stage | baseline | cache only | both |');
