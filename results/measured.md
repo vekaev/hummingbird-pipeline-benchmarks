@@ -212,6 +212,55 @@ between two runs of the same configuration with the same seed. Seeding is necess
 a comparable A/B and is demonstrably not sufficient for reproducibility: the residual
 comes from CUDA-level nondeterminism outside the seeded generators.
 
+## A change that works and is rejected anyway
+
+The parsing stage reduced a 19-class, 512-square floating-point tensor **on the host,
+one frame at a time** — copying about 20 MB per frame across the bus and blocking on
+each copy. Reducing on the device first and shipping a single-byte class map instead is
+the same arithmetic in the other order.
+
+| Clip | host reduce (s) | device reduce (s) | delta |
+|---|---:|---:|---:|
+| hdtf01 | 391.52 | 378.39 | **-3.35 %** |
+| hdtf02 | 393.27 | 385.78 | **-1.90 %** |
+| hdtf03 | 388.07 | 377.53 | **-2.72 %** |
+| **mean** | **390.95** | **380.57** | **-2.66 %** |
+
+The stage it targets falls 37.19 s to 23.98 s,
+**-35.52 %**, and that 13.21 s
+covers the job’s 10.39 s. Every clip is faster, the effect is
+2.8x the repeat spread, and the treated arm ran second so drift
+works against it.
+
+| what moved across the bus | before | after |
+|---|---:|---:|
+| per frame | 19.9 MB | 262 KB |
+| per 751-frame job | 15.0 GB | 0.197 GB |
+| blocking transfers | 751 | 24 |
+
+That is 76x less traffic per frame. Output is unaffected:
+39.94 dB against the untreated arm, inside the same-configuration
+population, and 6 of 6 outputs pass the
+sanity checks.
+
+### And it is rejected, because the gate says so
+
+The rule applied to every candidate in this work is **at least 3 %
+paired improvement at the job level**. This is 2.66 %. By the rule as
+written it is **rejected**, and it is left rejected.
+
+The reason for saying that so plainly is that the gate was fixed before any of these
+measurements were taken, and three roadmap items were rejected against it. Reaching for
+a stage-level threshold at this point — because this happens to be a result worth
+having, and it clears a third of the stage it touches — is exactly how a rule set in
+advance stops meaning anything.
+
+**What the result does expose is a property of the rule.** A job-level threshold
+rejects any change confined to a stage worth less than that threshold, however complete
+the win inside it. This one removed a third of its stage and still failed. Whether the
+gate should be job-level at all is a decision worth making deliberately, and it is not
+one a measurement can make.
+
 ## The camera calibration does not agree with itself
 
 This began as a check on an optimization and ended somewhere more important.

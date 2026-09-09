@@ -280,6 +280,64 @@ if (diff) {
   }
 }
 
+// ---------------------------------------------------------------- parse argmax
+{
+  const pa = raw('parse-argmax');
+  const pct = (a, b) => 100 * (a - b) / b;
+  const clipD = pa.clips.map((c) => pct(c.on, c.off));
+  const meanOff = mean(pa.clips.map((c) => c.off));
+  const meanOn = mean(pa.clips.map((c) => c.on));
+  const meanD = mean(clipD);
+  const tr = pa.transfer;
+  const perFrameRatio = tr.logitBytesPerFrame / tr.classBytesPerFrame;
+
+  P('## A change that works and is rejected anyway\n');
+  P('The parsing stage reduced a 19-class, 512-square floating-point tensor **on the host,');
+  P('one frame at a time** — copying about 20 MB per frame across the bus and blocking on');
+  P('each copy. Reducing on the device first and shipping a single-byte class map instead is');
+  P('the same arithmetic in the other order.\n');
+
+  P('| Clip | host reduce (s) | device reduce (s) | delta |');
+  P('|---|---:|---:|---:|');
+  pa.clips.forEach((c, i) => {
+    P(`| ${c.clip} | ${fmt(c.off)} | ${fmt(c.on)} | **${signed(clipD[i])} %** |`);
+  });
+  P(`| **mean** | **${fmt(meanOff)}** | **${fmt(meanOn)}** | **${signed(meanD)} %** |`);
+  P('');
+  P(`The stage it targets falls ${fmt(pa.stage.off)} s to ${fmt(pa.stage.on)} s,`);
+  P(`**${signed(pct(pa.stage.on, pa.stage.off))} %**, and that ${fmt(pa.stage.off - pa.stage.on)} s`);
+  P(`covers the job\u2019s ${fmt(meanOff - meanOn)} s. Every clip is faster, the effect is`);
+  P(`${fmt(Math.abs(meanD) / 0.95, 1)}x the repeat spread, and the treated arm ran second so drift`);
+  P('works against it.\n');
+
+  P('| what moved across the bus | before | after |');
+  P('|---|---:|---:|');
+  P(`| per frame | ${fmt(tr.logitBytesPerFrame / 1e6, 1)} MB | ${fmt(tr.classBytesPerFrame / 1e3, 0)} KB |`);
+  P(`| per ${tr.frames}-frame job | ${fmt(tr.logitBytesPerFrame * tr.frames / 1e9, 1)} GB `
+    + `| ${fmt(tr.classBytesPerFrame * tr.frames / 1e9, 3)} GB |`);
+  P(`| blocking transfers | ${tr.syncsBefore} | ${tr.syncsAfter} |`);
+  P('');
+  P(`That is ${fmt(perFrameRatio, 0)}x less traffic per frame. Output is unaffected:`);
+  P(`${fmt(pa.outputDiff.psnr)} dB against the untreated arm, inside the same-configuration`);
+  P(`population, and ${pa.outputDiff.sanityPassed} of ${pa.outputDiff.sanityTotal} outputs pass the`);
+  P('sanity checks.\n');
+
+  P('### And it is rejected, because the gate says so\n');
+  P(`The rule applied to every candidate in this work is **at least ${fmt(pa.gate.thresholdPct, 0)} %`);
+  P(`paired improvement at the job level**. This is ${fmt(Math.abs(meanD))} %. By the rule as`);
+  P('written it is **rejected**, and it is left rejected.\n');
+  P('The reason for saying that so plainly is that the gate was fixed before any of these');
+  P('measurements were taken, and three roadmap items were rejected against it. Reaching for');
+  P('a stage-level threshold at this point — because this happens to be a result worth');
+  P('having, and it clears a third of the stage it touches — is exactly how a rule set in');
+  P('advance stops meaning anything.\n');
+  P('**What the result does expose is a property of the rule.** A job-level threshold');
+  P('rejects any change confined to a stage worth less than that threshold, however complete');
+  P('the win inside it. This one removed a third of its stage and still failed. Whether the');
+  P('gate should be job-level at all is a decision worth making deliberately, and it is not');
+  P('one a measurement can make.\n');
+}
+
 // ---------------------------------------------------------------- focal search
 {
   const fs = raw('focal-search');

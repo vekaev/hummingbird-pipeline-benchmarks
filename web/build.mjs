@@ -91,6 +91,11 @@ const ledger = `<dl class="ledger">${LEDGER.map(([dt, dd, small]) => `
 // --- numbers quoted in prose come out of the generated tables ---------------
 // The repeat spread, read from the generated table so the prose cannot disagree with it.
 // Frame-cache headline figures, read from the generated tables.
+const paRaw = JSON.parse(readFileSync(join(root, 'results/raw/parse-argmax.json'), 'utf8'));
+const paDelta = mdCell('results/measured.md', 'A change that works and is rejected anyway', '>mean<', 3);
+const paStage = `${(100 * (paRaw.stage.on - paRaw.stage.off) / paRaw.stage.off).toFixed(1)}%`;
+const paRatio = Math.round(paRaw.transfer.logitBytesPerFrame / paRaw.transfer.classBytesPerFrame);
+const paCv = (Math.abs(paRaw.clips.reduce((a, c) => a + 100 * (c.on - c.off) / c.off, 0) / paRaw.clips.length) / 0.95).toFixed(1);
 const fsRaw = JSON.parse(readFileSync(join(root, 'results/raw/focal-search.json'), 'utf8'));
 const seqReads = fsRaw.reads.filter((r) => r.path.startsWith('sequential'));
 const focalA = seqReads[0].focal;
@@ -336,6 +341,31 @@ ${mdTable('results/measured.md', 'Does it change the output?')}
     statistics did not. <strong>The cache is output-neutral</strong>, and it stays off by
     default anyway: switching it on is a deployment decision wanting a wider validation set,
     which is not the same as wanting more evidence of this kind.
+  </p>
+</div>
+
+<h3>A change that works and is rejected anyway</h3>
+<p>
+  The parsing stage reduced a 19-class, 512-square floating-point tensor on the host, one
+  frame at a time &mdash; about 20 MB across the bus per frame, with a blocking copy each
+  time. Reducing on the device and shipping a single-byte class map is the same arithmetic
+  in the other order.
+</p>
+${mdTable('results/measured.md', 'A change that works and is rejected anyway')}
+${mdTable('results/measured.md', 'A change that works and is rejected anyway', 2)}
+<div class="verdict"><b>It works, and the gate rejects it.</b> ${paDelta} at the job level
+against a threshold of 3%, while the stage it targets falls ${paStage} and bus traffic drops
+${paRatio}x. Every clip faster, ${paCv}x the repeat spread, output unaffected. The gate was fixed
+before any of these measurements and three roadmap items were rejected against it, so
+reaching for a stage-level threshold now &mdash; because this is a result worth having
+&mdash; is how a rule set in advance stops meaning anything. It stays rejected.</div>
+<div class="caveat">
+  <span class="caveat-label">What it exposes is the rule, not the change</span>
+  <p>
+    A job-level threshold rejects any change confined to a stage worth less than that
+    threshold, however complete the win inside it. This one removed a third of its stage and
+    still failed. Whether the gate should be job-level at all is a decision worth making
+    deliberately &mdash; and it is not one a measurement can make.
   </p>
 </div>
 

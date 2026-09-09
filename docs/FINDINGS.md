@@ -2830,3 +2830,135 @@ of the job, and unlike the three rejected arms the mechanism says it should work
 The published page said the focal instability was "a better candidate" for the pipeline's
 non-reproducibility. That was a hypothesis stated as a lead, and it is now disproved.
 It is being corrected in place.
+
+---
+
+# The focal search is 8.5 % of the pipeline to choose a number that does not matter
+
+**MEASURED 2026-09-09.** Three results together, and they point somewhere better than the
+optimization already merged.
+
+## 1. The selected focal varies 58 % between runs of the same job
+
+Same clip, same seed, four reads:
+
+| run | focal selected | projection error |
+|---|---|---|
+| `fchk_seq` — sequential search | **2900** | 3.019862 |
+| `fchk_bat` — batched search | 1850 | 3.026734 |
+| `pin1` — pinned | 1830 | 3.033124 |
+| `pin2` — pinned | 1830 | 3.032928 |
+
+**Two sequential runs of the identical configuration gave 2900 and 1830.** `cam_para`
+configures the mesh renderer and every FLAME projection, so this is the whole tracking
+geometry changing between runs — and the four projection errors differ by **0.4 %**. The
+loss surface is nearly flat across a 58 % range of focal length, so the argmin is decided by
+floating-point noise.
+
+## 2. Pinning the focal does NOT fix output reproducibility
+
+The hypothesis was that this focal instability drove the pipeline's inability to reproduce
+itself. It does not:
+
+| comparison | bit-identical | PSNR | worst pixel |
+|---|---|---|---|
+| unpinned, identical config | 0 / 751 | 39.38 dB | 96 |
+| **both runs pinned to focal 1830** | **0 / 751** | **39.34 dB** | **109** |
+
+Unchanged. So the residual nondeterminism really is elsewhere — onnxruntime's CUDA provider
+and nvdiffrast, as originally hypothesised. **Hypothesis tested and rejected**, which is
+worth recording: the focal instability is real and dramatic and is *not* the cause.
+
+## 3. Pinning is as fast as batching, and far simpler
+
+| approach | wall clock | vs sequential |
+|---|---|---|
+| sequential search (n=3) | 393.00 s | — |
+| **batched search** (n=3) | 351.64 s | **−10.52 %** |
+| **focal pinned to a constant** (n=2) | 351.05 s | **−10.67 %** |
+
+**Statistically identical: −0.17 % between them.** The 243 lines of batched-Adam machinery I
+merged, with its SIMD-tail exactness guard and top-4 confirmation, buys exactly what
+`TRACK_FOCAL_FIXED=1830` buys.
+
+## What this means
+
+The pipeline spends **34.52 s, 8.5 % of every job**, running 14,800 Adam iterations to
+select a parameter that:
+
+- varies by 58 % between identical runs,
+- changes the projection error by 0.4 %,
+- and produces output indistinguishable from a hardcoded constant.
+
+**So the right change is not to optimise the search. It is to question whether it should run
+at all.** The batching work stands as a correct, bit-exact optimisation and it is the safe
+option, but the simpler and equally fast option is a fixed or cached per-source focal.
+
+That said, one thing is **not** established and must be before anything is shipped: these
+comparisons are on **one clip**. A focal of 1830 suiting this subject's face and camera says
+nothing about the next. The defensible version is a **per-source** focal — computed once and
+cached, which is exactly what the source-analysis cache already proposes to store — not a
+global constant.
+
+## Honest accounting of my own work
+
+I directed an agent to batch this search, and it did so carefully: it disproved three of my
+premises, found that fp32 `addcmul_` is not bit-invariant to tensor length, and built a
+guard that restores exactness. That work is sound and merged.
+
+But the higher-value question — *does this search need to exist?* — was answered by a
+different experiment, and the answer makes the optimisation nearly redundant. The 9.6 % is
+real; it is just also available for one environment variable. **Measure the cheap
+alternative before building the sophisticated one.**
+
+# MEASURED: the parsing argmax is worth 2.66 % — which FAILS the gate
+
+**2026-09-09 15:19.** `ParsingPredictor` copied a (19, 512, 512) fp32 tensor to the host
+**per frame** — 19.9 MB — and reduced it there. Reducing on the device instead ships a uint8
+class map: 262 KB per frame, 15.0 GB → 0.197 GB per job, and 751 host synchronisations
+become 24.
+
+## The measurement
+
+| clip | CPU argmax | GPU argmax | delta | % |
+|---|---:|---:|---:|---:|
+| hdtf01 | 391.52 | 378.39 | −13.13 | −3.35 % |
+| hdtf02 | 393.27 | 385.78 | −7.49 | −1.90 % |
+| hdtf03 | 388.07 | 377.53 | −10.54 | −2.72 % |
+| **mean** | **390.95** | **380.57** | **−10.39** | **−2.66 %** |
+
+`parse_face` itself: **37.19 s → 23.98 s, −35.5 %.** The stage saving of 13.21 s exceeds the
+job saving of 10.39 s, the excess being ordinary noise elsewhere. All three clips faster,
+2.8× the 0.95 % repeat CV, and the treated arm ran second so drift works against it.
+
+Output: mean **39.94 dB** across the three clips, inside the identical-configuration
+population (39.27–41.28, mean 40.05). 6 of 6 outputs pass the sanity checks.
+
+## It fails the pre-registered gate, and I am not moving the gate
+
+The gate this work has applied throughout is **≥ 3 % paired improvement at the job level**.
+This is **−2.66 %**. By the rule as written, **rejected.**
+
+I want to be exact about why I am not quietly reinterpreting that. The gate was set before
+any of these measurements, and its whole value is that it was set in advance. Three roadmap
+items were rejected against it. Reaching for a stage-level threshold now, because this
+particular result is one I like and it happens to clear 35 % on the stage it targets, is
+precisely how a pre-registered rule stops meaning anything. So: **it fails.**
+
+What can be said without touching the rule:
+
+- The effect is **not noise**: consistent in sign across three clips, 2.8× the repeat CV,
+  and the saving lands in the one stage the change touches.
+- The risk profile is unlike the rejected arms: it removes host transfer rather than
+  altering arithmetic, it is exact wherever the arg-maximum is unique, and no exact tie
+  arose in 409,600 random pixels.
+- It **composes**. It is in a different stage from the frame cache (−14.30 %, renderer)
+  and the focal work (−9.61 %, tracker), so the three do not overlap.
+
+**The decision is whether the gate should be a job-level threshold at all.** A 3 % job gate
+systematically rejects any change confined to a stage worth less than 3 % of the job, no
+matter how complete the win inside it — this change removed 35 % of its stage and still
+failed. That is a property of the rule, not of the change, and it is worth deciding
+deliberately rather than case by case. **I am leaving it rejected and flagging the rule.**
+
+`PARSE_GPU_ARGMAX`, default off, branch `perf/parse-argmax`, 15 checks.

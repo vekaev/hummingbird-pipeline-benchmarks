@@ -1,0 +1,21 @@
+{
+  "note": "The parsing stage reduced a (19, 512, 512) fp32 tensor on the HOST, one frame at a time: 19.9 MB copied per frame and a blocking transfer per frame. Reducing on the device instead ships a uint8 class map. Both arms mounted the same patched file, so the only difference is the PARSE_GPU_ARGMAX environment variable, and the treated arm ran second so session drift works against it.",
+  "knob": "PARSE_GPU_ARGMAX",
+  "clips": [
+    { "clip": "hdtf01", "off": 391.52, "on": 378.39 },
+    { "clip": "hdtf02", "off": 393.27, "on": 385.78 },
+    { "clip": "hdtf03", "off": 388.07, "on": 377.53 }
+  ],
+  "stage": { "name": "parse_face", "off": 37.19, "on": 23.98 },
+  "transfer": {
+    "note": "Computed from the real tensor shapes, not quoted.",
+    "classes": 19, "side": 512, "frames": 751, "batch": 32,
+    "logitBytesPerFrame": 19922944,
+    "classBytesPerFrame": 262144,
+    "syncsBefore": 751,
+    "syncsAfter": 24
+  },
+  "outputDiff": { "psnr": 39.94, "clipPsnr": [39.18, 41.19, 39.44], "sanityPassed": 6, "sanityTotal": 6 },
+  "gate": { "thresholdPct": 3.0, "verdict": "rejected" },
+  "tieScan": { "pixels": 409600, "exactTies": 0 }
+}

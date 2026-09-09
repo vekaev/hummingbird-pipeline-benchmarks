@@ -172,6 +172,16 @@
       "section": "arms",
       "arm": "\u2014",
       "roadmap": false
+    },
+    {
+      "n": 20,
+      "change": "Reduce the parsing output on the device instead of on the host",
+      "what": "The stage copied a 19-class 512-square float tensor to the host per frame, about 20 MB with a blocking transfer each time, and reduced it there. Reducing first ships a single-byte class map.",
+      "effect": "measured",
+      "detail": "-2.66% at the job level and -35.5% on the stage, every clip faster, bus traffic down 76x and blocking transfers from 751 to 24. REJECTED: the gate is 3% at the job level and this is 2.66%. Left rejected rather than reinterpreting the gate",
+      "section": "arms",
+      "arm": "paoff/paon",
+      "roadmap": false
     }
   ],
   "configurations": [
