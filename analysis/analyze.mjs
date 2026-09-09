@@ -351,12 +351,45 @@ if (diff) {
   P('noticed this. One print statement exposed it. That is the second time in this work that');
   P('adding a single log line turned up a real defect — the first was a silent frame-dropping');
   P('bug on the shipping path.\n');
-  P('**It suggests a cause for something written off as irreducible.** This work measured');
-  P('that requesting deterministic kernels buys no reproducibility and concluded the residual');
-  P('lives in libraries outside the framework\u2019s control. An ill-conditioned selection');
-  P('amplifying a one-in-ten-million numerical difference into a large change in camera');
-  P('geometry is a better candidate, and unlike the earlier explanation it is testable by');
-  P('pinning the focal and re-running.\n');
+  P('**It looked like a cause for something written off as irreducible, and it is not.**');
+  P('This work measured that requesting deterministic kernels buys no reproducibility and');
+  P('concluded the residual lives in libraries outside the framework\u2019s control. An');
+  P('ill-conditioned selection amplifying a tiny numerical difference into a large change in');
+  P('camera geometry looked like a better candidate, and it was testable, so it was tested.\n');
+
+  const pn = fs.pinned;
+  const up = pn.unpinnedPopulation;
+  P('### Tested by pinning the focal, and refuted\n');
+  P('| comparison | PSNR | worst pixel | mean abs | frames identical |');
+  P('|---|---:|---:|---:|---:|');
+  P(`| **focal pinned to ${pn.focal}, two runs** | **${fmt(pn.diff.psnr)} dB** | **${pn.diff.worst}** `
+    + `| **${fmt(pn.diff.meanAbs, 1)}** | ${pn.diff.identical} of ${pn.diff.frames} |`);
+  P(`| *unpinned, same-configuration population* | ${fmt(up.psnrMin)} \u2013 ${fmt(up.psnrMax)} `
+    + `| ${up.worstMin} \u2013 ${up.worstMax} | ${fmt(up.meanAbsMin, 1)} \u2013 ${fmt(up.meanAbsMax, 1)} `
+    + `| 0 of ${pn.diff.frames} |`);
+  P('');
+  P('**The pinned pair sits inside the unpinned range on every statistic.** Removing the');
+  P('unstable focal removes none of the run-to-run variation, so the earlier explanation');
+  P('stands and this one is withdrawn.\n');
+
+  P('### The synthesis, which is worth more than either result alone\n');
+  P('Three measurements now fit together: the objective is **flat**, so the choice is');
+  P('**unstable**, and pinning it **changes nothing**. Those are one fact seen from three');
+  P('sides. A flat objective means the candidate focals are *genuinely equivalent fits* —');
+  P('pose and depth absorb the difference, the projections land in the same place, and the');
+  P('output cannot tell which focal was used. The calibration is **under-determined, not');
+  P('wrong**.\n');
+  P('So the large swing in the exported value is a real reproducibility defect **and** not a');
+  P('quality defect in the output. Both halves are measured, and either one alone would have');
+  P('been misleading.\n');
+  P('### What it does license\n');
+  P(`Pinning skipped the search entirely and ran ${fmt(100 * (mean(pn.runs.map((r) => r.wall_s)) - pn.sweepWall) / pn.sweepWall)} %`);
+  P(`faster than the sweep — slightly better than batching it, because it does no search at`);
+  P('all. If the output is insensitive to which focal is chosen, 46 solves are buying very');
+  P('little. A hardcoded focal is not the fix, since it would be wrong for a clip whose true');
+  P('focal differs; a coarser sweep, or a cheap initialisation plus one refinement, should');
+  P('land inside the same plateau at a fraction of the cost. Unlike the three rejected');
+  P('arms, the mechanism here predicts it should work.\n');
 }
 
 // ---------------------------------------------------------------- frame cache

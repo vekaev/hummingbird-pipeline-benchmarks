@@ -364,15 +364,26 @@ is withdrawn, and it now appears there was never a stable selection to preserve.
     frame-dropping bug on the shipping path.
   </p>
   <p>
-    <strong>It suggests a cause for something written off as irreducible.</strong> This work
-    measured that requesting deterministic kernels buys no reproducibility, and concluded
-    the residual lives in libraries outside the framework&rsquo;s control. An
-    ill-conditioned selection amplifying a one-in-ten-million difference into a large change
-    in camera geometry is a better candidate &mdash; and unlike that earlier explanation, it
-    is testable by pinning the focal and re-running. Two draws per path is not enough to
-    characterise how often or how widely this varies, and this is one clip.
+    <strong>It looked like a cause for something written off as irreducible &mdash; and it
+    is not.</strong> Deterministic kernels were measured to buy no reproducibility, and the
+    residual was attributed to libraries outside the framework&rsquo;s control. An
+    ill-conditioned selection amplifying a tiny difference into a large change in camera
+    geometry looked like a better candidate, so it was tested: with the focal pinned to a
+    constant, two runs agree no better than two unpinned ones, on every statistic. That
+    hypothesis is withdrawn and the original explanation stands.
+  </p>
+  <p>
+    Which produces the more useful result. The objective is <em>flat</em>, so the choice is
+    <em>unstable</em>, and pinning it <em>changes nothing</em> &mdash; one fact from three
+    sides. The candidate focals are genuinely equivalent fits: pose and depth absorb the
+    difference and the output cannot tell them apart. The calibration is
+    <strong>under-determined, not wrong</strong>, so the swing is a real reproducibility
+    defect in the value and not a quality defect in the output. Either half alone would have
+    misled. Two draws per path cannot say how often or how widely this varies, and this is
+    one clip.
   </p>
 </div>
+${mdTable('results/measured.md', 'Tested by pinning the focal, and refuted')}
 
 <h3>How precisely can this rig measure anything?</h3>
 <p>

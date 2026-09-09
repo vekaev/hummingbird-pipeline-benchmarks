@@ -275,12 +275,45 @@ noticed this. One print statement exposed it. That is the second time in this wo
 adding a single log line turned up a real defect — the first was a silent frame-dropping
 bug on the shipping path.
 
-**It suggests a cause for something written off as irreducible.** This work measured
-that requesting deterministic kernels buys no reproducibility and concluded the residual
-lives in libraries outside the framework’s control. An ill-conditioned selection
-amplifying a one-in-ten-million numerical difference into a large change in camera
-geometry is a better candidate, and unlike the earlier explanation it is testable by
-pinning the focal and re-running.
+**It looked like a cause for something written off as irreducible, and it is not.**
+This work measured that requesting deterministic kernels buys no reproducibility and
+concluded the residual lives in libraries outside the framework’s control. An
+ill-conditioned selection amplifying a tiny numerical difference into a large change in
+camera geometry looked like a better candidate, and it was testable, so it was tested.
+
+### Tested by pinning the focal, and refuted
+
+| comparison | PSNR | worst pixel | mean abs | frames identical |
+|---|---:|---:|---:|---:|
+| **focal pinned to 1830, two runs** | **39.34 dB** | **109** | **52.3** | 0 of 751 |
+| *unpinned, same-configuration population* | 39.27 – 41.28 | 65 – 109 | 36.2 – 55.1 | 0 of 751 |
+
+**The pinned pair sits inside the unpinned range on every statistic.** Removing the
+unstable focal removes none of the run-to-run variation, so the earlier explanation
+stands and this one is withdrawn.
+
+### The synthesis, which is worth more than either result alone
+
+Three measurements now fit together: the objective is **flat**, so the choice is
+**unstable**, and pinning it **changes nothing**. Those are one fact seen from three
+sides. A flat objective means the candidate focals are *genuinely equivalent fits* —
+pose and depth absorb the difference, the projections land in the same place, and the
+output cannot tell which focal was used. The calibration is **under-determined, not
+wrong**.
+
+So the large swing in the exported value is a real reproducibility defect **and** not a
+quality defect in the output. Both halves are measured, and either one alone would have
+been misleading.
+
+### What it does license
+
+Pinning skipped the search entirely and ran -10.17 %
+faster than the sweep — slightly better than batching it, because it does no search at
+all. If the output is insensitive to which focal is chosen, 46 solves are buying very
+little. A hardcoded focal is not the fix, since it would be wrong for a clip whose true
+focal differs; a coarser sweep, or a cheap initialisation plus one refinement, should
+land inside the same plateau at a fraction of the cost. Unlike the three rejected
+arms, the mechanism here predicts it should work.
 
 ## The change that was not null: caching decoded frames
 

@@ -2776,3 +2776,57 @@ What it does establish:
 whether the sweep needs a tolerance-aware selection (prefer the smallest focal within a
 tolerance of the best, say) so that the choice becomes deterministic and defensible instead
 of noise-driven.
+
+## REFUTED: the unstable focal does not explain the non-reproducibility
+
+**2026-09-09 14:16.** I proposed that the ill-conditioned focal `argmin` was a better
+explanation for the pipeline reproducing 0 of 751 frames than the onnxruntime/nvdiffrast
+account this file had settled on. **It is not.** Two runs with the focal pinned to a
+constant:
+
+| comparison | PSNR | worst pixel | mean abs | frames identical |
+|---|---:|---:|---:|---:|
+| **pinned focal 1830, two runs** | **39.34 dB** | **109** | **52.3** | 0 of 751 |
+| *unpinned, identical-config population* | 39.27 – 41.28 | 65 – 109 | 36.2 – 55.1 | 0 of 751 |
+
+**The pinned pair sits inside the unpinned range on every statistic.** Removing the
+unstable focal removes none of the run-to-run variation. The earlier conclusion stands: the
+residual nondeterminism lives elsewhere — onnxruntime's CUDA provider, nvdiffrast, and
+atomic kernels — and pinning the calibration does not touch it.
+
+### The synthesis, which is more interesting than either result alone
+
+Three measurements now fit together:
+
+1. The focal objective is **flat** — four focals spanning 1810–2900 sit within 0.48 % of
+   one another in projection error.
+2. So the `argmin` is **unstable** — two identical runs chose 2900 and 1830.
+3. And pinning it **changes nothing** in the output.
+
+All three are the same fact seen from different sides. A flat objective means the different
+focals are *genuinely equivalent fits*: pose and depth absorb the difference, the
+projections land in the same place, and the output cannot tell which focal was used. The
+calibration is **under-determined, not wrong.**
+
+So the 58 % swing in the exported focal is a real reproducibility defect in the value, and
+simultaneously **not a quality defect in the output.** Both halves of that sentence are
+measured, and I would have got this wrong in either direction without the pinned control.
+
+### What it does license: the sweep may be largely unnecessary
+
+If the output is insensitive to which focal the sweep picks, the sweep's 46 solves are
+buying very little. Pinning it — skipping the search entirely — was **−10.17 %** on wall
+clock (390.81 s → 351.05 s), slightly better than batching the sweep at −9.61 %, because it
+does no search at all.
+
+A hardcoded focal is not the fix; it would be wrong for any clip whose true focal differs.
+But this points at a real optimization with a quality argument behind it rather than a
+hope: a much coarser sweep, or a cheap closed-form initialisation followed by one refine,
+should land inside the same plateau and cost a fraction of the time. **Worth ~34 s, 8.7 %
+of the job, and unlike the three rejected arms the mechanism says it should work.**
+
+### Correction to the live page
+
+The published page said the focal instability was "a better candidate" for the pipeline's
+non-reproducibility. That was a hypothesis stated as a lead, and it is now disproved.
+It is being corrected in place.
