@@ -132,6 +132,16 @@
       "section": "arms",
       "arm": "det1/det2",
       "roadmap": false
+    },
+    {
+      "n": 16,
+      "change": "A third baseline, with the accumulated output cleared first",
+      "what": "Tests whether the session drift has an avoidable cause. The pipeline writes eighteen intermediate videos per job into one directory, which had reached 20 GB. Free space was ruled out first: the volume stayed 39 % full.",
+      "effect": "measured",
+      "detail": "Recovered 0.91 of the 1.85 points of drift, consistent in sign across all three clips. Smaller than the 2.28 % repeat spread, so it is treated as grounds for clearing the directory between arms, not as a result",
+      "section": "arms",
+      "arm": "arm0c",
+      "roadmap": false
     }
   ],
   "configurations": [

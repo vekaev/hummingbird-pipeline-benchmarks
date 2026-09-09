@@ -682,5 +682,56 @@
   "fps": null,
   "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
   "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm0c",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 395.04,
+  "clip": "hdtf01_RD_Radio11_001",
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121",
+  "note": "wall clock only; per-stage timings were not parsed for this pass"
+ },
+ {
+  "arm": "arm0c",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 394.73,
+  "clip": "hdtf02_RD_Radio32_000",
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121",
+  "note": "wall clock only; per-stage timings were not parsed for this pass"
+ },
+ {
+  "arm": "arm0c",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 388.82,
+  "clip": "hdtf03_RD_Radio42_000",
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121",
+  "note": "wall clock only; per-stage timings were not parsed for this pass"
  }
 ]

@@ -280,6 +280,67 @@ if (diff) {
   }
 }
 
+// ---------------------------------------------------------------- drift cause
+{
+  const arms = raw('arms');
+  const wall = (arm, clip) => {
+    const r = arms.find((x) => x.arm === arm && x.clip === clip);
+    return r ? r.wall_s : null;
+  };
+  const clips = [...new Set(arms.filter((r) => r.arm === 'arm0c').map((r) => r.clip))];
+  if (clips.length) {
+    const pct = (a, b) => 100 * (a - b) / b;
+    const rows = clips.map((c) => ({
+      clip: c.replace(/^hdtf\d+_/, ''),
+      a0: wall('arm0', c), a0b: wall('arm0b', c), a0c: wall('arm0c', c),
+    })).filter((r) => r.a0 && r.a0b && r.a0c);
+    const vs0 = rows.map((r) => pct(r.a0c, r.a0));
+    const vs0b = rows.map((r) => pct(r.a0c, r.a0b));
+    const m0 = mean(vs0), m0b = mean(vs0b);
+    const driftPct = pct(mean(rows.map((r) => r.a0b)), mean(rows.map((r) => r.a0)));
+
+    P('## Where the session drift came from\n');
+    P('The repeated baseline moved the whole session by a figure larger than every effect');
+    P('under test, so its cause is worth more than any of the arms. One hypothesis was');
+    P('mechanical: the pipeline writes eighteen intermediate videos per job into one');
+    P('directory, and that directory had grown to 20 GB over the session. So the baseline');
+    P('was run a third time with the directory cleared first, and nothing else changed.\n');
+    P('Free space was **not** the mechanism — the volume stayed 39 % full throughout, so');
+    P('any effect has to come from directory contents rather than from running out of room.\n');
+
+    P('| Clip | first baseline (s) | last baseline (s) | cleared (s) | cleared vs first | cleared vs last |');
+    P('|---|---:|---:|---:|---:|---:|');
+    for (let i = 0; i < rows.length; i++) {
+      P(`| ${rows[i].clip} | ${fmt(rows[i].a0)} | ${fmt(rows[i].a0b)} | ${fmt(rows[i].a0c)} | `
+        + `${signed(vs0[i])} % | ${signed(vs0b[i])} % |`);
+    }
+    P(`| **mean** | **${fmt(mean(rows.map((r) => r.a0)))}** | **${fmt(mean(rows.map((r) => r.a0b)))}** `
+      + `| **${fmt(mean(rows.map((r) => r.a0c)))}** | **${signed(m0)} %** | **${signed(m0b)} %** |`);
+    P('');
+
+    const recovered = driftPct - m0;
+    P(`Clearing the directory recovered **${fmt(recovered)} of the ${fmt(driftPct)} points** of`);
+    P(`drift, about ${Math.round(100 * recovered / driftPct)} % of it, and the direction is`);
+    P(`consistent: all ${rows.length} clips ran faster than the uncleared baseline and all`);
+    P(`${rows.length} still ran slower than the first one. So roughly half the drift is`);
+    P('accumulated output and roughly half remains unexplained.\n');
+
+    // The comparison figure is the repeat spread from the determinism pair, computed
+    // from its own samples rather than restated, so the two sections cannot disagree.
+    const detRuns = raw('determinism').runs.map((r) => r.wall_s);
+    const repeatPct = 100 * (Math.max(...detRuns) - Math.min(...detRuns)) / mean(detRuns);
+    P('### How much to trust this\n');
+    P(`Not very much, and the reason is stated above rather than buried. The effect is`);
+    P(`${fmt(recovered)} points, and the repeat spread measured on two identical runs is`);
+    P(`${fmt(repeatPct)} %. **The effect is smaller than the noise it is measured against**, at n=1 per`);
+    P('configuration. What survives is the consistent sign across clips and a plausible');
+    P('mechanism, which together are worth a cheap operational change and not a claim:\n');
+    P('* clear the output directory between arms. It costs nothing and removes a confound.');
+    P('* interleave a baseline between every arm, which is what should have happened here.');
+    P('* do not quote the split between explained and unexplained drift as a result.\n');
+  }
+}
+
 // ---------------------------------------------------------------- determinism
 {
   const det = raw('determinism');

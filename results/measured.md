@@ -212,6 +212,42 @@ between two runs of the same configuration with the same seed. Seeding is necess
 a comparable A/B and is demonstrably not sufficient for reproducibility: the residual
 comes from CUDA-level nondeterminism outside the seeded generators.
 
+## Where the session drift came from
+
+The repeated baseline moved the whole session by a figure larger than every effect
+under test, so its cause is worth more than any of the arms. One hypothesis was
+mechanical: the pipeline writes eighteen intermediate videos per job into one
+directory, and that directory had grown to 20 GB over the session. So the baseline
+was run a third time with the directory cleared first, and nothing else changed.
+
+Free space was **not** the mechanism — the volume stayed 39 % full throughout, so
+any effect has to come from directory contents rather than from running out of room.
+
+| Clip | first baseline (s) | last baseline (s) | cleared (s) | cleared vs first | cleared vs last |
+|---|---:|---:|---:|---:|---:|
+| RD_Radio11_001 | 388.74 | 396.07 | 395.04 | +1.62 % | -0.26 % |
+| RD_Radio32_000 | 393.43 | 398.69 | 394.73 | +0.33 % | -0.99 % |
+| RD_Radio42_000 | 385.46 | 394.45 | 388.82 | +0.87 % | -1.43 % |
+| **mean** | **389.21** | **396.40** | **392.86** | **+0.94 %** | **-0.89 %** |
+
+Clearing the directory recovered **0.91 of the 1.85 points** of
+drift, about 49 % of it, and the direction is
+consistent: all 3 clips ran faster than the uncleared baseline and all
+3 still ran slower than the first one. So roughly half the drift is
+accumulated output and roughly half remains unexplained.
+
+### How much to trust this
+
+Not very much, and the reason is stated above rather than buried. The effect is
+0.91 points, and the repeat spread measured on two identical runs is
+2.28 %. **The effect is smaller than the noise it is measured against**, at n=1 per
+configuration. What survives is the consistent sign across clips and a plausible
+mechanism, which together are worth a cheap operational change and not a claim:
+
+* clear the output directory between arms. It costs nothing and removes a confound.
+* interleave a baseline between every arm, which is what should have happened here.
+* do not quote the split between explained and unexplained drift as a result.
+
 ## Deterministic kernels: what they cost, and what they buy
 
 One clip run twice at one seed with deterministic kernels requested. The question was

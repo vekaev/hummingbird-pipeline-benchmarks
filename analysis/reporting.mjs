@@ -65,6 +65,10 @@ P(`|---|---:|${STAGES.map(() => '---:').join('|')}|---:|`);
 for (const c of ledger.configurations) {
   let runs;
   try { runs = raw(c.dataset); } catch { continue; }
+  // A run without parsed stage timings cannot contribute to a stage mean and must not
+  // be counted in n either, or the row would claim more evidence than it has. The
+  // drift-control pass (arm0c) is wall-clock only and lands here.
+  runs = runs.filter((r) => r.stages && Object.keys(r.stages).length);
   if (!runs.length) continue;
   const cells = STAGES.map((s) => {
     const v = runs.filter((r) => s in r.stages).map((r) => r.stages[s]);
@@ -102,7 +106,7 @@ for (const c of ledger.configurations) {
   if (runs.length < 2) continue;
   const v = c.dataset === 'arms'
     ? runs.filter((r) => r.arm === 'arm0' && r.wall_s).map((r) => r.wall_s)
-    : runs.map(pipelineOf);
+    : runs.filter((r) => r.stages && Object.keys(r.stages).length).map(pipelineOf);
   if (v.length < 2) continue;
   const c_ = cv(v);
   P(`| ${c.label} | ${v.length} | ${fmt(mean(v))} | ${fmt(stdev(v))} | ${fmt(c_, 3)} | ${c_ < 0.02 ? 'yes, paired' : 'no'} |`);

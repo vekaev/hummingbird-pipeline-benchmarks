@@ -151,7 +151,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
   <div><dt>Buildable again</dt><dd>green<small>First build of the repository that runs, after roughly sixteen months in which none did.</small></dd></div>
   <div><dt>Roadmap items tested</dt><dd>2 of 5<small>Plus 1 change not on the roadmap. All 3 measured arms rejected: none produced a gain the design could resolve.</small></dd></div>
   <div><dt>Output quality</dt><dd>unchanged<small>Every arm sits inside the noise floor of re-running the baseline. Verified on all 20 generated clips.</small></dd></div>
-  <div><dt>Pipeline runs measured</dt><dd>62<small>Across 5 configurations, production and dedicated hardware.</small></dd></div>
+  <div><dt>Pipeline runs measured</dt><dd>65<small>Across 5 configurations, production and dedicated hardware.</small></dd></div>
   <div><dt>Longest single run</dt><dd>674 s<small>One 1080p job end to end, excluding the container start it is billed for.</small></dd></div>
   <div><dt>GPU time spent measuring</dt><dd>6.4 h<small>Sum of every run on this page. The A/B share of it cost about $8.</small></dd></div></dl>
 </header>
@@ -182,7 +182,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
   <h2>What was done</h2>
 
 <p>
-  Twelve changes, in the order they were made. 14 carry a measured effect;
+  Twelve changes, in the order they were made. 15 carry a measured effect;
   the rest are implemented and instrumented with no number yet, and say so. Nothing here is
   credited with an estimate.
 </p>
@@ -202,6 +202,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
 <tr><td class="n">13</td><td>A baseline repeated as the last pass of the session</td><td>Produces no information about any optimization. Its only job is to measure how much the machine itself moved between the first arm and the last.</td><td>+1.85% slower than the identical first pass, on the same three clips with the same seed and no code change. This is the drift correction applied to every arm above, and it is why none of them was kept</td></tr>
 <tr><td class="n">14</td><td>The whole branch measured against the unmodified upstream code</td><td>Checks the reverse risk: that the accumulated changes cost something incidental even where each was individually null.</td><td>-0.47% against the adjacent baseline with mixed per-clip signs, and every output inside the noise floor: the branch is performance-neutral</td></tr>
 <tr><td class="n">15</td><td>Deterministic kernels behind a second flag</td><td>Asks torch for deterministic algorithms and a fixed cuBLAS workspace on top of the reseed, to test whether the pipeline can reproduce its own output exactly.</td><td>0 of 751 frames identical across two runs at one seed, and a 10.6% to 13.3% wall clock cost: the floor does not move, so the flag stays off. The nondeterminism sits outside torch, which is what decides the cache design</td></tr>
+<tr><td class="n">16</td><td>A third baseline, with the accumulated output cleared first</td><td>Tests whether the session drift has an avoidable cause. The pipeline writes eighteen intermediate videos per job into one directory, which had reached 20 GB. Free space was ruled out first: the volume stayed 39 % full.</td><td>Recovered 0.91 of the 1.85 points of drift, consistent in sign across all three clips. Smaller than the 2.28 % repeat spread, so it is treated as grounds for clearing the directory between arms, not as a result</td></tr>
 </tbody></table></div>
 <div class="verdict"><b>Net effect on the shipping system:</b> the build works again, and no
 optimization was kept. Both measurable roadmap items were rejected on their own numbers.</div>
@@ -1398,7 +1399,7 @@ anything.</div>
 <footer>
   <div>
     <p>
-      62 pipeline runs across production and dedicated hardware, 6.4 GPU-hours of
+      65 pipeline runs across production and dedicated hardware, 6.4 GPU-hours of
       measurement. Raw per-stage samples, the analysis scripts that reduce them, and the figure
       generators are published with this page; every number on it is produced by that chain at
       build time rather than written by hand.

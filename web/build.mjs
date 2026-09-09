@@ -56,7 +56,12 @@ const harvested = raw('lipsync-harvested');
 const allRuns = [...lipsync, ...wr, ...hdtfSelf, ...hdtfCross, ...harvested, ...arms];
 const measuredChanges = changes.changes.filter((c) => c.effect === 'measured').length;
 const armIds = [...new Set(arms.map((a) => a.arm))];
-const candidateArms = armIds.filter((a) => a !== 'arm0' && a !== 'arm0b' && a !== 'control_main');
+// Controls are not candidates. They deliberately change nothing, so counting one as a
+// rejected candidate would inflate how many optimizations were tried. arm0 is the
+// baseline, arm0b repeats it to measure drift, arm0c repeats it again with the output
+// directory cleared to test the drift's cause, and control_main is the unmodified code.
+const CONTROL_ARMS = new Set(['arm0', 'arm0b', 'arm0c', 'control_main']);
+const candidateArms = armIds.filter((a) => !CONTROL_ARMS.has(a));
 const gpuSeconds = allRuns.reduce((a, r) => a + (r.total ?? 0), 0);
 const longest = Math.max(...allRuns.map((r) => r.total ?? 0));
 
