@@ -212,6 +212,28 @@ between two runs of the same configuration with the same seed. Seeding is necess
 a comparable A/B and is demonstrably not sufficient for reproducibility: the residual
 comes from CUDA-level nondeterminism outside the seeded generators.
 
+## Were the arm outputs actually valid videos?
+
+Every verdict above rests on the arms having produced real video. A timing harness
+cannot see a black frame, a frozen output, or a face whose mouth never moves, so an
+arm that ran faster because it emitted garbage would read as a win. This was asserted
+in earlier versions of this page; here it is the measurement.
+
+| Arm | clips checked | frames each | lowest mean luma | frozen frames | lowest mouth motion | verdict |
+|---|---:|---:|---:|---:|---:|---|
+| arm0 | 3 | 751 | 104.8 | 0 | 2.42 | all pass |
+| arm0b | 3 | 751 | 104.8 | 0 | 2.39 | all pass |
+| arm1 | 3 | 751 | 104.7 | 0 | 2.40 | all pass |
+| arm2 | 3 | 751 | 104.7 | 0 | 2.35 | all pass |
+| arm3 | 3 | 751 | 104.8 | 0 | 2.37 | all pass |
+| control_main | 3 | 751 | 104.8 | 0 | 2.37 | all pass |
+
+**18 of 18 outputs pass, and nothing is marginal.**
+Every output is 751 frames, no run contains a single frozen frame, and the
+weakest lower-face motion is 2.35 against a static-mouth threshold of
+0.35 — a factor of 6.7 clear of it.
+So the nulls are nulls: every arm did the work and produced a talking face.
+
 ## Where the session drift came from
 
 The repeated baseline moved the whole session by a figure larger than every effect

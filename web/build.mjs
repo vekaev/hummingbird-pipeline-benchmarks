@@ -261,6 +261,7 @@ ${mdTable('results/measured.md', 'Arms, adjusted for drift')}
 ${mdTable('results/measured.md', 'The control: our code against the unmodified branch')}
 ${mdTable('results/measured.md', 'Output difference against the baseline')}
 ${mdTable('results/measured.md', 'Every arm sits inside the floor')}
+${mdTable('results/measured.md', 'Were the arm outputs actually valid videos?')}
 <div class="verdict"><b>No verdict changes, but one reason does.</b> Compared against a
 baseline interpolated to its own slot, the three effects are ${arm1Adj}, ${arm2Adj} and
 ${arm3Adj} — a tighter null than the raw numbers, and the largest raw effect turns out to be

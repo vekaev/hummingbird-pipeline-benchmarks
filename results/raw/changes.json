@@ -92,7 +92,7 @@
       "change": "Output sanity checks on every generated video",
       "what": "A timing harness cannot see a black frame, a frozen output, or a face whose mouth never moves. An arm that is faster because it produced garbage would otherwise read as a win.",
       "effect": "measured",
-      "detail": "16 of 16 open-dataset outputs pass, confirmed by automated checks and by frame inspection",
+      "detail": "18 of 18 A/B outputs and 16 of 16 open-dataset outputs pass. Nothing is marginal: no frozen frames anywhere, and the weakest lower-face motion is 6.7x clear of the static-mouth threshold",
       "section": "quality"
     },
     {

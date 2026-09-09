@@ -1924,6 +1924,15 @@ alone, so this supersedes the per-arm figures above for any statement about the 
 | mean GPU utilisation while a job was resident | 28 % |
 | samples at 0 % utilisation | 822, or 27 % of the time |
 
+**These are not in conflict with the 27 % / 33.3 % figures above, and neither supersedes
+the other — they are different windows.** The section above samples 1,191 points across the
+*arm runs only*, which is the right window for explaining the arm results. This one samples
+all 3,075 points where a job held memory across the *whole session*, including the
+determinism pairs and the cleared-directory baseline, which is the right window for a
+statement about the session. Idle share falls from 33.3 % to 27 % because the later passes
+included deterministic runs, which spend more time in GPU kernels. Quote the arm window
+when explaining the arms; quote this one when characterising the machine.
+
 **Unit correction.** Earlier notes restated 18,293 MiB as "18.3 GB". 18,293 MiB is 17.9 GiB.
 The 44.7 % share was right; only the gigabyte restatement was wrong, and it is fixed
 throughout. No conclusion changes: the peak is still under half the card, so two concurrent
@@ -1981,6 +1990,10 @@ recomputation agreeing.
 det1 and det2 are the same code, same clip, same seed, same flags, run back to back.
 
     det1 445.26 s · det2 435.23 s · difference 10.03 s = 2.28 %
+
+> **SUPERSEDED — see "Correction: the repeat spread was quoted from two samples" below.**
+> A second pair came in at 0.23 %. The figure to use is the four-run CV, **0.95 %**. The
+> conclusion drawn here survives; the number quoted for it does not.
 
 **Two identical configurations differ by 2.28 %.** Every candidate this session measured
 came in under 0.5 %. That gap is the honest summary of the whole A/B: at n=1 per
@@ -2219,3 +2232,34 @@ under test. It stays an observation.
 
 detA vs detB: **0 of 751 frames identical**, 39.27 dB, worst pixel 109 of 255. Two
 independent pairs, zero reproduced frames in both. The cache still has to store its bytes.
+
+---
+
+# `pip freeze` cannot detect the defect that broke the deploy
+
+Noticed while archiving the environment record. `pip freeze` from inside the working image
+reports:
+
+```
+torch==2.5.1
+torchaudio==2.5.1+cu121
+torchvision==0.20.1+cu121
+```
+
+**`torch` appears without its local version tag** while the other two keep theirs. The
+installed artefact is `torch-2.5.1+cu121` — the install log says so explicitly, and
+`torch.__version__` returns `2.5.1+cu121`. Only `pip freeze`'s rendering drops it.
+
+That is exactly the field that distinguished the working image from the broken one. The
+broken image had `torch 2.5.1` built against CUDA 12.4 beside `torchaudio 2.5.1+cu121`, and
+**`pip freeze` would have rendered that as `torch==2.5.1` too** — indistinguishable from
+correct.
+
+So the standard tool for capturing a Python environment is blind to the discriminating
+field, which is part of why the defect survived. `scripts/check_torch_stack.py` catches it
+because it reads `torch.__version__` and `torch.version.cuda` directly and compares the
+local tags across all three packages.
+
+Worth stating in the article: the lockfile could not express the build variant, and the
+environment-capture tool could not display it. Two layers of standard tooling, both blind to
+the same field.

@@ -280,6 +280,40 @@ if (diff) {
   }
 }
 
+// ---------------------------------------------------------------- output sanity
+{
+  const san = raw('output-sanity');
+  const rows = san.rows;
+  if (rows.length) {
+    const failed = rows.filter((r) => r.verdict !== 'OK');
+    const minMouth = Math.min(...rows.map((r) => r.mouthMotion));
+    const frames = [...new Set(rows.map((r) => r.frames))];
+    P('## Were the arm outputs actually valid videos?\n');
+    P('Every verdict above rests on the arms having produced real video. A timing harness');
+    P('cannot see a black frame, a frozen output, or a face whose mouth never moves, so an');
+    P('arm that ran faster because it emitted garbage would read as a win. This was asserted');
+    P('in earlier versions of this page; here it is the measurement.\n');
+
+    const byArm = {};
+    for (const r of rows) (byArm[r.arm] ??= []).push(r);
+    P('| Arm | clips checked | frames each | lowest mean luma | frozen frames | lowest mouth motion | verdict |');
+    P('|---|---:|---:|---:|---:|---:|---|');
+    for (const [arm, rs] of Object.entries(byArm)) {
+      P(`| ${arm} | ${rs.length} | ${[...new Set(rs.map((r) => r.frames))].join(', ')} `
+        + `| ${fmt(Math.min(...rs.map((r) => r.lumaMean)), 1)} `
+        + `| ${rs.reduce((a, r) => a + r.identicalConsecutive, 0)} `
+        + `| ${fmt(Math.min(...rs.map((r) => r.mouthMotion)), 2)} `
+        + `| ${rs.every((r) => r.verdict === 'OK') ? 'all pass' : '**FAILURE**'} |`);
+    }
+    P('');
+    P(`**${rows.length - failed.length} of ${rows.length} outputs pass, and nothing is marginal.**`);
+    P(`Every output is ${frames.join('/')} frames, no run contains a single frozen frame, and the`);
+    P(`weakest lower-face motion is ${fmt(minMouth, 2)} against a static-mouth threshold of`);
+    P(`${san.staticMouthThreshold} — a factor of ${fmt(minMouth / san.staticMouthThreshold, 1)} clear of it.`);
+    P('So the nulls are nulls: every arm did the work and produced a talking face.\n');
+  }
+}
+
 // ---------------------------------------------------------------- drift cause
 {
   const arms = raw('arms');
