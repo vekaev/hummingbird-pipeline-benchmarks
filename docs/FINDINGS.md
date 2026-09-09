@@ -1248,10 +1248,10 @@ destroying latency.
 
 ## Packing: my own VRAM measurement lands in the worst range
 
-Measured this session on the A100 40GB: **peak 18.3 GB of 40 GB** (batch 16 arm).
+Measured this session on the A100 40GB: **peak 18,293 MiB of 40,960 — 17.9 GiB, 44.7 % of the card** (batch 16 arm).
 
 At 16–24 GB per job, the 40 GB card packs **exactly one** job under the `0.7`
-memory-fraction cap. The packing lever collapses to "buy 80 GB cards", where 18.3 GB allows
+memory-fraction cap. The packing lever collapses to "buy 80 GB cards", where 17.9 GiB allows
 three or four.
 
 Three further constraints found in the process:
@@ -1308,7 +1308,7 @@ arriving as a measured result rather than an assertion.
 
 ## Consequences
 
-1. **`RENDER_BATCH_SIZE` stays at 4.** No reason to raise it, and batch 16 costs 18.3 GB of
+1. **`RENDER_BATCH_SIZE` stays at 4.** No reason to raise it, and batch 16 costs 17.9 GiB of
    VRAM against batch 4's smaller footprint — which is what puts the 40 GB card into the
    "packs exactly one job" range. Batch 4 may allow packing two.
 2. **The cost model's $11 per 1000 for this item is now $0.** Corrected.
@@ -1487,8 +1487,8 @@ A100 40GB. **1,191 samples over 39.7 minutes** of real pipeline execution.
 | samples at **0 %** utilization | **33.3 %** |
 | samples at ≤ 20 % | **50.6 %** |
 | samples at ≤ 50 % | 80.4 % |
-| peak VRAM | 18,293 MiB of 40,960 (**44.7 %**) |
-| mean VRAM | 13,735 MiB (33.5 %) |
+| peak VRAM | 18,293 MiB of 40,960 = **17.9 GiB, 44.7 %** |
+| mean VRAM | 13,735 MiB = 13.4 GiB (33.5 %) |
 
 **The GPU is completely idle for a third of the wall clock, and below 20 % utilized for
 half of it.** Observed directly during a run: `utilization.gpu 0 %` with a load average of
@@ -1520,7 +1520,7 @@ the article that the discipline was about *evidence*, not about the number being
 
 ## And it changes the packing answer
 
-The earlier note concluded that 18.3 GB peak VRAM puts a 40 GB card in the "packs exactly
+The earlier note concluded that 17.9 GiB peak VRAM puts a 40 GB card in the "packs exactly
 one job" range, because of the 0.7 memory-fraction cap. With utilization at 27 % mean and
 44.7 % peak VRAM, **two concurrent jobs on one 40 GB card should be close to free in compute
 terms** — the contention would be for CPU cores and video decode, not for the GPU.
@@ -1851,3 +1851,212 @@ The two runs that produced no information about any optimization — the repeate
 the control — are the two that made the other four interpretable. Between them they caught a
 1.85 % machine drift that had been read as a real effect, and disproved a fidelity claim.
 They cost about forty minutes of GPU time.
+
+---
+
+# The stage-level result is cleaner than the wall clock, and it is the whole story
+
+**MEASURED 2026-09-09.** All six runs recorded in `experiments.tsv`. `render_rgb` is the
+stage the batch-size and fp16 arms were specifically aimed at:
+
+| arm | `render_rgb` | vs arm0 | what changed |
+|---|---|---|---|
+| arm0 | 89.80 s | — | baseline |
+| arm1 | 89.90 s | **+0.11 %** | batch 4 → 16 |
+| arm2 | 89.10 s | **−0.78 %** | batch 16 + fp16 |
+| arm3 | 91.90 s | +2.34 % | cuDNN autotuning |
+| **arm0b** | **91.30 s** | **+1.67 %** | **nothing — a repeat of arm0** |
+| control | 92.70 s | +3.23 % | main's code |
+
+**The stage moved less under both treatments than it did under no treatment at all.**
+Quadrupling the batch changed the targeted stage by 0.11 %; a repeat of the baseline changed
+it by 1.67 %.
+
+This is the tightest form of the result. Wall clock includes download, transcode and upload,
+which add variance; `render_rgb` is the isolated 24.5 % of the pipeline that both arms were
+designed to accelerate, and it did not move.
+
+## The complete A/B result, in one table
+
+| item | timing | output vs arm0 | verdict |
+|---|---|---|---|
+| batch 4 → 16 | −0.14 % (drift-corrected) | 39.37 dB = floor | **null** |
+| batch 16 + fp16 | −0.41 % (drift-corrected) | 39.37 dB = floor | **null** |
+| cuDNN autotuning | +0.50 % (drift-corrected) | 39.59 dB = floor | **null** |
+| our whole branch vs main | −0.47 % | 39.40 dB = floor | **null** |
+| *session drift, same code* | *+1.85 %* | *39.38 dB* | *the confounder* |
+
+Three of the team's five roadmap items are measured. **All three are null on speed and null
+on output.** Our branch as a whole, with every knob at its production default, is
+indistinguishable from `main`.
+
+## Why this is a result and not a failure
+
+The measurement is precise enough to have found a win. The paired spread within an arm is
+0.33 pp; the arms differ from the baseline by less than the baseline differs from itself.
+What the session established, in order of confidence:
+
+1. **The GPU is idle 33 % of the time and 27 % utilized on average** — measured directly,
+   1,191 samples.
+2. **Both arithmetic-side optimizations target the 27 %, and neither touches the 73 %** —
+   the reason they are null, stated as a mechanism, not a guess.
+3. **The renderer is video-decode bound**, and the code path that makes it so is identified:
+   a backward seek per frame into a 250-frame GOP, each frame decoded five times.
+4. **Session drift, at 1.85 %, exceeded every effect** — caught only by running the control
+   twice.
+5. **Seeding does not deliver determinism on this build**, so the output floor is 39.38 dB,
+   and it is build-specific.
+
+Every one of those five is a measured fact that did not exist at the start of the day, and
+each one redirects effort away from the roadmap and toward the structural items — cold
+start, caching, CPU/GPU separation, and the decode path.
+
+## The whole-session VRAM and utilisation record
+
+Recomputed from all 6,298 samples of the session monitor rather than the batch-16 window
+alone, so this supersedes the per-arm figures above for any statement about the session.
+
+| quantity | value |
+|---|---|
+| samples with memory in use | 3,075 |
+| peak VRAM | 17.9 GiB of 40.0 (45 % of the card) |
+| mean VRAM | 11.3 GiB |
+| mean GPU utilisation while a job was resident | 28 % |
+| samples at 0 % utilisation | 822, or 27 % of the time |
+
+**Unit correction.** Earlier notes restated 18,293 MiB as "18.3 GB". 18,293 MiB is 17.9 GiB.
+The 44.7 % share was right; only the gigabyte restatement was wrong, and it is fixed
+throughout. No conclusion changes: the peak is still under half the card, so two concurrent
+jobs still fit in memory, and the packing lever still depends on cores rather than VRAM.
+
+**The utilisation figure is the one that matters.** A job holds the card for its whole
+duration but leaves it idle 27 % of the time and averages 28 % when resident. That is the
+headroom the rejected arms were trying to reach, and it explains why they could not: the
+gap is decode and host-side work, not arithmetic the GPU was too slow to finish.
+
+## Deterministic kernels: measured, and they buy nothing here
+
+One clip (hdtf01_RD_Radio11_001, 751 frames) run twice with `LIPSYNC_SEED=0` and
+`LIPSYNC_DETERMINISTIC=1`, which sets `torch.use_deterministic_algorithms(True,
+warn_only=True)` and `CUBLAS_WORKSPACE_CONFIG=:4096:8` on top of the full reseed.
+
+| quantity | det1 vs det2 | seeded only (arm0 vs arm0b) |
+|---|---|---|
+| bit-identical frames | **0 of 751** | 0 of 751 |
+| PSNR mean | 39.62 dB | 40.37 dB |
+| SSIM mean | 0.97333 | — |
+| worst pixel | 90 of 255 | 96 of 255 |
+
+**The floor does not move.** Asking torch for deterministic kernels leaves the
+run-to-run difference where seeding alone left it. Two runs of one clip at one seed
+still share zero identical frames.
+
+### What it costs
+
+| baseline for this clip | wall | determinism mean 440.25 s |
+|---|---|---|
+| arm0, first pass | 388.74 s | **+13.25 %** |
+| arm0b, last pass | 396.07 s | **+11.15 %** |
+| control, unmodified code | 397.91 s | **+10.64 %** |
+
+So it is a 10-13 % tax for no reproducibility gain. `LIPSYNC_DETERMINISTIC` stays off,
+and it should not be offered as a route to reproducible output.
+
+### Why, and what it means for the cache
+
+`repro.py`'s own docstring predicted this and the measurement confirms it: the
+nondeterminism is not in torch. The pipeline runs face detection and landmarks through
+onnxruntime's CUDA execution provider and rasterises through nvdiffrast, neither of which
+`torch.use_deterministic_algorithms` reaches. `warn_only=True` also lets any torch kernel
+without a deterministic implementation proceed rather than raise.
+
+**This settles the caching design.** A cache cannot be validated by recomputing a segment
+and checking it matches — recomputation does not reproduce bytes, with or without
+deterministic mode. A word-replacement cache must **store and return the bytes it
+computed**, and its correctness argument has to rest on key derivation, not on
+recomputation agreeing.
+
+### A second, unplanned result: the noise floor on wall-clock
+
+det1 and det2 are the same code, same clip, same seed, same flags, run back to back.
+
+    det1 445.26 s · det2 435.23 s · difference 10.03 s = 2.28 %
+
+**Two identical configurations differ by 2.28 %.** Every candidate this session measured
+came in under 0.5 %. That gap is the honest summary of the whole A/B: at n=1 per
+configuration this rig cannot resolve the effects the roadmap proposed, and the 3 % gate is
+only just above its own noise. The arms were rejected on the drift-adjusted paired
+comparison, which is stronger than this single pair, but nothing here would have detected a
+true 1 % win.
+
+## A production correctness bug, found by reading the stage I was optimising
+
+While instrumenting `paste_back` for the bbox work, its no-face branch turned out to be
+wrong in the arm that serves lipsync.
+
+```python
+if i in no_face_indices:
+    out_list.append(video_reader.seek(i))   # RAM arm gets the frame
+    continue                                # the writer never sees it
+```
+
+`paste_back` maintains two outputs. `out_list` feeds the in-memory return and the
+`VideoWriter` feeds the encoded file. On a frame where face detection failed there is
+nothing to composite, so the original frame passes through — but only into the list.
+
+**The arm that was broken is the one lipsync uses.** `hummingbird/inference.py` derives the
+choice from the input type:
+
+| workload | input | `use_ram` | arm taken | result |
+|---|---|---|---|---|
+| word replacement | list of frames | True | RAM | correct |
+| **lipsync** | **video path** | **False** | **disk writer** | **short output** |
+
+The encoded file came out short by exactly `len(no_face_indices)` frames. Audio is attached
+afterwards against a frame count that no longer matches, so everything after the first
+failed frame sits early against the audio and the drift persists to the end of the clip.
+
+### Measured before the fix
+
+`benchmarking/tests/test_paste_back_no_face.py`, CPU only, stubbed readers and writer:
+
+| no-face frames | frames in | RAM out | disk out | lost |
+|---:|---:|---:|---:|---:|
+| 0 | 12 | 12 | 12 | 0 |
+| 1 | 12 | 12 | 11 | 1 |
+| 2 | 12 | 12 | 10 | 2 |
+| 5 | 40 | 40 | 35 | 5 |
+| 17 | 40 | 40 | 23 | 17 |
+
+Exactly the no-face count, every time, disk arm only.
+
+### Why it survived: the condition is invisible in the logs
+
+`no_face_indices` was logged in exactly one place, and only for **total** failure:
+
+```python
+if len(no_face_indices) == len(out_list):
+    logger.info(f"Num no faces ... Exiting...")
+```
+
+A *partial* failure — the case where the bug fires — produced no log line at all. A job
+that silently dropped frames looked identical to a clean one. That also means the
+production logs cannot tell us how often this fired: **this work supplies no rate**, only
+the mechanism and the fix.
+
+### Fixed, in two parts
+
+1. The no-face frame is handed to both outputs, the same frame at the same loop position,
+   so no re-indexing is involved and the RAM arm is untouched. The `out_list` append is now
+   also conditional on `use_ram`, which stops the disk path building a frame list it throws
+   away.
+2. A partial failure now logs a warning with the count, the share of frames and the first
+   twenty indices, so the condition is visible and its rate becomes measurable from here on.
+
+The turbo pipeline is unaffected: it does not pass `no_face_indices` into `paste_back` and
+reconciles bad frames afterwards through `handle_bad_frames`.
+
+19 checks, wired in as gate 5 of `verify_local.sh`.
+
+**This is the most consequential thing in this file.** Every performance result here came
+back null. A silent correctness defect on the shipping path did not.

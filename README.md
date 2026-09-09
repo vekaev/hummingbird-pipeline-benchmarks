@@ -52,12 +52,25 @@ node web/pack.mjs              # -> web/results-pack.html
 node analysis/rasterize.mjs    # -> results/figures/png/*.png  (local only, drives headless Chrome)
 ```
 
+Or `npm run build`, which is the chain the deploy runs.
+
 Node 22 or later. No dependencies: everything uses Node builtins, which is why the deploy
-needs no install step. Re-extracting the samples needs the private repository:
+needs no install step.
+
+### The two steps the deploy cannot run
+
+Both read the private pipeline repository, which is not present on the build host, so they
+are deliberately outside `npm run build` and their outputs are committed instead:
 
 ```bash
-SRC=/path/to/pipeline node analysis/extract.mjs
+SRC=/path/to/pipeline node analysis/extract.mjs   # -> results/raw/*.json
+npm run sanitize                                  # -> docs/FINDINGS.md
 ```
+
+Because they are manual, `docs/FINDINGS.md` can fall behind the working record it is copied
+from without anything failing. **Use `npm run refresh`** — sanitize, then the full build —
+whenever the working record has changed. The deploy will still succeed with a stale copy;
+that is exactly the failure this note exists to prevent.
 
 ## Reading the numbers
 

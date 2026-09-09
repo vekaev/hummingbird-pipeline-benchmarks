@@ -5,13 +5,17 @@
   "type": "module",
   "description": "Per-stage profiling and paired A/B measurement of a production zero-shot lip-sync pipeline",
   "license": "MIT",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "extract": "node analysis/extract.mjs",
     "analyze": "node analysis/analyze.mjs && node analysis/reporting.mjs",
     "figures": "node analysis/figures.mjs",
     "png": "node analysis/rasterize.mjs",
     "web": "npm run analyze && npm run figures && node web/build.mjs && node web/pack.mjs",
-    "build": "npm run web"
+    "build": "npm run web",
+    "sanitize": "node analysis/sanitize-findings.mjs",
+    "refresh": "npm run sanitize && npm run build"
   }
 }
