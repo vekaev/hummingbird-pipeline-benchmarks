@@ -192,8 +192,14 @@ const TILES = [
   ['3D face tracking share', mdCell('results/measured.md', 'Stage profile, production lipsync', '3D face tracking', 3), 'T4'],
   ['Neural render share', mdCell('results/measured.md', 'Stage profile, production lipsync', 'Neural render', 3), 'T4'],
   ['Audio-to-expression share', mdCell('results/measured.md', 'Stage profile, production lipsync', 'Audio to expression', 3), 'T4'],
-  ['Batch 4 to 16, paired', mdCell('results/measured.md', 'Optimization arms', '>arm1<', 4), 'T8'],
-  ['fp16 autocast, paired', mdCell('results/measured.md', 'Optimization arms', '>arm2<', 4), 'T8'],
+  // Drift-adjusted, not raw: the repeated baseline moved 1.85% across the session, so the
+  // raw paired figures carry the machine in them. The ledger quotes the same corrected
+  // numbers, and these tiles must not disagree with it.
+  ['Batch 4 to 16, drift-adjusted', mdCell('results/measured.md', 'Arms, adjusted for drift', '>arm1<', 3), 'T8'],
+  ['fp16 autocast, drift-adjusted', mdCell('results/measured.md', 'Arms, adjusted for drift', '>arm2<', 3), 'T8'],
+  ['cuDNN autotuning, drift-adjusted', mdCell('results/measured.md', 'Arms, adjusted for drift', '>arm3<', 3), 'T8'],
+  ['Baseline repeat, no code change', mdCell('results/measured.md', 'Session drift', 'run last', 2), 'T8'],
+  ['Determinism, frames reproduced', mdCell('results/measured.md', 'Deterministic kernels', 'bit-identical', 1), 'T8'],
   ['Baseline arm CV', mdCell('results/reporting.md', 'Measurement precision', 'A/B arms', 4), 'T3'],
   ['Paste-back fit vs pixels', 'R² ' + mdCell('results/measured.md', 'Cost against input resolution', 'Paste-back compositing', 1), 'T10'],
   ['Quality gap, paired', mdCell('results/measured.md', 'Lip-sync error against ground truth', 'Paired gap', 1), 'T12'],
