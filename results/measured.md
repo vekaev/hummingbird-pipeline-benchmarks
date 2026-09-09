@@ -573,9 +573,34 @@ The first attempt at this measurement was corrupted by the instrumentation itsel
 
 The contaminated ratio was not reused either. 33/67 against the clean 28/72 looks close enough to rescale, but the contamination was uneven -- one phase inflated 38 %, the other 8 % -- so the ratio was wrong by five percentage points. Correcting it proportionally would have been wrong in a way that looked right.
 
+### Inside the larger phase
+
+The larger of the two phases, opened up. Six of its internal steps were instrumented and the run was repeated: the phase came back at 74.35 s against 74.42 s measured with only two decorators, 0.1 % apart, so the additional instrumentation again costs nothing measurable.
+
+| step | seconds | of the phase | kind |
+|---|---:|---:|---|
+| `optimize_wflw_lms_only` | 18.52 | 24.91 % | optimization loop |
+| `optimize_lms_only` | 17.77 | 23.90 % | optimization loop |
+| `calibrate_camera_gd` | 12.15 | 16.34 % | optimization loop, already optimized |
+| `preload_batched_data` | 3.13 | 4.21 % | setup |
+| `optimize_wflw_lms_only_eyelids` | 1.46 | 1.96 % | optimization loop |
+| **everything else** | **21.32** | **28.68 %** | reads, saves and writes |
+| the phase | 74.35 | 100 % | |
+
+**The leftover is the largest single item in the phase** — larger than either
+optimization loop. It is not compute. The phase also reads two videos in, saves its parameters, and writes three more videos out, and none of those three are among the writes the in-memory change eliminates -- so they are still written even with it on. That is the finding: inside the biggest compute stage in the pipeline, the biggest sub-item is still I/O.
+
+The 4 optimization loops come to 49.90 s in
+total, of which one has already been optimized in this work. Of the 3 untouched,
+2 are closely matched at 18.52 and 17.77 s and
+the third is negligible at 1.46 s.
+So the real target here is 36.29 s across two
+comparable loops, not one dominant one. That matters: the shape of any fix is two moderate
+changes rather than a single lever, which is a different piece of work to plan.
+
 ### What this makes the next target
 
-The remaining time sits in three gradient-descent loops totalling 1,100 iterations, inside the block that is a quarter of the job. The one prior success in this stage came from restructuring exactly this kind of loop, for a 9 % job-level saving. What is NOT established is that the same lever applies: batched data loading already exists here, so these loops may already run batched, in which case the question is whether 1,100 iterations are needed at all -- a convergence question rather than a batching one.
+Now measured rather than guessed. The two untouched optimization loops are the compute target, at about 18 seconds each, and the leftover I/O is larger than either of them. The one prior success in this stage came from restructuring a loop of exactly this kind, for a 9 % job-level saving, so the pattern is proven -- but it would have to be done twice here for a comparable return, and what is NOT established is that the same lever applies: batched data loading already exists in this phase, so these loops may already run batched, in which case the question is whether their iteration counts are needed at all. That is a convergence question, not a batching one, and it is answerable without a GPU by logging the loss curves.
 
 ## A change that works and is rejected anyway
 

@@ -27,7 +27,40 @@
     "ratioNote": "The contaminated ratio was not reused either. 33/67 against the clean 28/72 looks close enough to rescale, but the contamination was uneven -- one phase inflated 38 %, the other 8 % -- so the ratio was wrong by five percentage points. Correcting it proportionally would have been wrong in a way that looked right."
   },
   "nextTarget": {
-    "note": "The remaining time sits in three gradient-descent loops totalling 1,100 iterations, inside the block that is a quarter of the job. The one prior success in this stage came from restructuring exactly this kind of loop, for a 9 % job-level saving. What is NOT established is that the same lever applies: batched data loading already exists here, so these loops may already run batched, in which case the question is whether 1,100 iterations are needed at all -- a convergence question rather than a batching one.",
+    "note": "Now measured rather than guessed. The two untouched optimization loops are the compute target, at about 18 seconds each, and the leftover I/O is larger than either of them. The one prior success in this stage came from restructuring a loop of exactly this kind, for a 9 % job-level saving, so the pattern is proven -- but it would have to be done twice here for a comparable return, and what is NOT established is that the same lever applies: batched data loading already exists in this phase, so these loops may already run batched, in which case the question is whether their iteration counts are needed at all. That is a convergence question, not a batching one, and it is answerable without a GPU by logging the loss curves.",
     "loopIterations": 1100
+  },
+  "innerPhases": {
+    "note": "The larger of the two phases, opened up. Six of its internal steps were instrumented and the run was repeated: the phase came back at 74.35 s against 74.42 s measured with only two decorators, 0.1 % apart, so the additional instrumentation again costs nothing measurable.",
+    "parentSeconds": 74.35,
+    "parentSecondsPriorRun": 74.42,
+    "steps": [
+      {
+        "name": "optimize_wflw_lms_only",
+        "seconds": 18.52,
+        "kind": "optimization loop"
+      },
+      {
+        "name": "optimize_lms_only",
+        "seconds": 17.77,
+        "kind": "optimization loop"
+      },
+      {
+        "name": "calibrate_camera_gd",
+        "seconds": 12.15,
+        "kind": "optimization loop, already optimized"
+      },
+      {
+        "name": "preload_batched_data",
+        "seconds": 3.13,
+        "kind": "setup"
+      },
+      {
+        "name": "optimize_wflw_lms_only_eyelids",
+        "seconds": 1.46,
+        "kind": "optimization loop"
+      }
+    ],
+    "unaccountedNote": "It is not compute. The phase also reads two videos in, saves its parameters, and writes three more videos out, and none of those three are among the writes the in-memory change eliminates -- so they are still written even with it on. That is the finding: inside the biggest compute stage in the pipeline, the biggest sub-item is still I/O."
   }
 }

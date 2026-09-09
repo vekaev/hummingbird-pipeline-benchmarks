@@ -713,6 +713,39 @@ if (diff) {
   P(`${ct.note}\n`);
   P(`${ct.ratioNote}\n`);
 
+  // The larger phase, opened up. Everything computed, including what is left over.
+  const ip = ss.innerPhases;
+  if (ip) {
+    const parent = ip.parentSeconds;
+    const named = ip.steps.reduce((a, st) => a + st.seconds, 0);
+    const left = parent - named;
+    P('### Inside the larger phase\n');
+    P(`${ip.note}\n`);
+    P('| step | seconds | of the phase | kind |');
+    P('|---|---:|---:|---|');
+    for (const st of ip.steps) {
+      P(`| \`${st.name}\` | ${fmt(st.seconds)} | ${fmt(100 * st.seconds / parent)} % | ${st.kind} |`);
+    }
+    P(`| **everything else** | **${fmt(left)}** | **${fmt(100 * left / parent)} %** `
+      + '| reads, saves and writes |');
+    P(`| the phase | ${fmt(parent)} | 100 % | |`);
+    P('');
+    P(`**The leftover is the largest single item in the phase** — larger than either`);
+    P(`optimization loop. ${ip.unaccountedNote}\n`);
+    const loops = ip.steps.filter((st) => st.kind.startsWith('optimization'));
+    const fresh = loops.filter((st) => !st.kind.includes('already'));
+    const sorted = [...fresh].sort((a, b) => b.seconds - a.seconds);
+    const big = sorted.filter((st) => st.seconds >= 5);
+    const small = sorted.filter((st) => st.seconds < 5);
+    P(`The ${loops.length} optimization loops come to ${fmt(loops.reduce((a, st) => a + st.seconds, 0))} s in`);
+    P(`total, of which one has already been optimized in this work. Of the ${fresh.length} untouched,`);
+    P(`${big.length} are closely matched at ${big.map((st) => fmt(st.seconds)).join(' and ')} s and`);
+    P(`${small.length === 1 ? 'the third is negligible at ' + fmt(small[0].seconds) + ' s' : 'the rest are negligible'}.`);
+    P(`So the real target here is ${fmt(big.reduce((a, st) => a + st.seconds, 0))} s across two`);
+    P('comparable loops, not one dominant one. That matters: the shape of any fix is two moderate');
+    P('changes rather than a single lever, which is a different piece of work to plan.\n');
+  }
+
   P('### What this makes the next target\n');
   P(`${ss.nextTarget.note}\n`);
 }
