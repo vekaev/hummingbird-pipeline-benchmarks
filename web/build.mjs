@@ -91,6 +91,11 @@ const ledger = `<dl class="ledger">${LEDGER.map(([dt, dd, small]) => `
 // --- numbers quoted in prose come out of the generated tables ---------------
 // The repeat spread, read from the generated table so the prose cannot disagree with it.
 // Frame-cache headline figures, read from the generated tables.
+const fcRaw = JSON.parse(readFileSync(join(root, 'results/raw/frame-cache.json'), 'utf8'));
+const seekIdent = fcRaw.seekExactness.identical;
+const seekN = fcRaw.seekExactness.indices;
+const psnrGap = mdCell('results/measured.md', 'Does it change the output?', 'mean PSNR', 3)
+  .replace(/^.*?([\d.]+ dB) apart.*$/, '$1');
 const fcDelta = mdCell('results/measured.md', 'Wall clock, paired per clip', '>mean<', 4);
 const fcRender = mdCell('results/measured.md', 'The saving is where the mechanism predicts', 'render_rgb', 4);
 const repeatCv = mdCell('results/measured.md', 'The repeat spread', 'all four', 5);
@@ -290,7 +295,36 @@ alone accounts for the whole job. Nothing else moves by more than 3%. Both confo
 the slower arm &mdash; it ran first, and into a fresher output directory &mdash; so this is
 a floor. The three failed arms all made the arithmetic cheaper; the arithmetic was never
 where the time was going.</div>
+<p>
+  Whether it changes the output took a refuted hypothesis to settle. The two readers might
+  have <em>disagreed about what frame <code>i</code> is</em> &mdash; this library&rsquo;s
+  frame-index seek is widely reported to be inexact on H.264, which would make the cache
+  legitimately differ from the uncached path rather than merely faster. Measured on a real
+  pipeline output, ${seekIdent} of ${seekN} indices are identical whether reached by seeking or by
+  reading forward. Seeking is frame-exact here, so that is false &mdash; and the refutation
+  generalises the exactness argument: a hit returns what the decoder returned, decoding an
+  index is deterministic, so the cache matches the uncached reader for <em>any</em> access
+  pattern, not only the one the fixture replays.
+</p>
 ${mdTable('results/measured.md', 'Does it change the output?')}
+<div class="caveat">
+  <span class="caveat-label">A reading of my own, corrected</span>
+  <p>
+    With only the immediate repeat control in hand, this page concluded that the treatment
+    showed <strong>no overlap</strong> with run-to-run noise and therefore changed the
+    output. Against the full set of same-configuration comparisons above, that is wrong: it
+    overlaps on mean absolute difference, overlaps on worst pixel, and mean PSNR differs by
+    ${psnrGap}.
+  </p>
+  <p>
+    The error was the statistic. <strong>Worst pixel is a maximum over 751 frames and every
+    pixel of each</strong> &mdash; an extreme-value figure, heavy-tailed, and a poor
+    discriminator across three clips. It separated the two populations while the robust
+    statistics did not. <strong>The cache is output-neutral</strong>, and it stays off by
+    default anyway: switching it on is a deployment decision wanting a wider validation set,
+    which is not the same as wanting more evidence of this kind.
+  </p>
+</div>
 
 <h3>How precisely can this rig measure anything?</h3>
 <p>
