@@ -402,6 +402,19 @@ if (diff) {
   P('**Its equivalence is withdrawn**: the per-candidate losses are bit-identical, the');
   P('selection is not preserved, and it now appears there was never a stable selection to');
   P('preserve.\n');
+  if (t.variant === 'unconfirmed') {
+    P('### Which variant this number belongs to\n');
+    P(`**${fmt(mean(clipD))} % is a ceiling, not the shipped configuration.** It measures the`);
+    P('sweep batched outright. The implementation that was kept instead hands the top-ranked');
+    P('candidates back to the untouched sequential solver to confirm the winner — precisely');
+    P('because no batched formulation of this optimiser is bit-identical to the sequential');
+    P('one, which is the wall described above.\n');
+    P(`That confirmation step trades a ${t.iterationReductionUnconfirmed}x reduction in solver`);
+    P(`iterations for ${t.iterationReductionConfirmed}x, so the default should land materially`);
+    P('below the figure in the table. It is the better trade — it protects the one value the');
+    P('rest of the tracking stage depends on, at a third of the win. **The shipped');
+    P('configuration has not been timed separately, and this page does not estimate it.**\n');
+  }
 
   P('### Two things worth taking from this\n');
   P('**The value was invisible.** Not one line of that module\u2019s logging reaches any run');

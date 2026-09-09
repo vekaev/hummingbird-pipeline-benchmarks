@@ -316,6 +316,20 @@ sequential iterations become 1,600. The speedup is real.
 selection is not preserved, and it now appears there was never a stable selection to
 preserve.
 
+### Which variant this number belongs to
+
+**-9.61 % is a ceiling, not the shipped configuration.** It measures the
+sweep batched outright. The implementation that was kept instead hands the top-ranked
+candidates back to the untouched sequential solver to confirm the winner — precisely
+because no batched formulation of this optimiser is bit-identical to the sequential
+one, which is the wall described above.
+
+That confirmation step trades a 9.3x reduction in solver
+iterations for 3.7x, so the default should land materially
+below the figure in the table. It is the better trade — it protects the one value the
+rest of the tracking stage depends on, at a third of the win. **The shipped
+configuration has not been timed separately, and this page does not estimate it.**
+
 ### Two things worth taking from this
 
 **The value was invisible.** Not one line of that module’s logging reaches any run

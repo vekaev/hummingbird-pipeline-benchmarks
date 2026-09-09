@@ -2527,9 +2527,16 @@ measurement and it is one arm.
 
 ## Reproducibility is now good enough to trust these
 
-A repeat of the cache-on arm (`fcon2` vs `fcon`) came back at **−0.53 %** — against the
-+1.85 % session drift measured earlier in the day. So at this configuration the box
-reproduces to about half a percent, and both effects are 18× and 30× that.
+> **Corrected.** This section originally used the **0.53 %** range between one pair of
+> cache-on passes as "the noise", and called the effects 18× and 30× that. A range between
+> two runs is not a spread. The right reference is the **0.95 % CV over four identical
+> runs**, so the two effects are about **15×** and **10×** the noise. The conclusion is
+> unchanged; the multiple was overstated by using the narrowest available pair.
+
+Across four identical cache-on runs the coefficient of variation is **0.95 %**, against the
++1.85 % session drift measured earlier in the day. So the box reproduces to about one
+percent at this configuration, and the two measured effects — −14.30 % and −9.61 % — are
+roughly 15× and 10× that.
 
 ## What this does to the story
 
@@ -2962,3 +2969,95 @@ failed. That is a property of the rule, not of the change, and it is worth decid
 deliberately rather than case by case. **I am leaving it rejected and flagging the rule.**
 
 `PARSE_GPU_ARGMAX`, default off, branch `perf/parse-argmax`, 15 checks.
+
+---
+
+# The joint arm's first baseline is contaminated, and the bracketing design saves it
+
+**2026-09-09, 16:29.** Found two containers running concurrently on the box: the new joint
+run (`run_joint2.sh`, correct image) and **the earlier void run (`run_joint.sh`) still
+executing its third arm**. The void script had been left running after its results were
+discarded, and its wait-free sequential loop had 20 more minutes of work in it.
+
+So `j2off` — the joint test's *first* baseline — ran its first two clips against a GPU
+shared with an unrelated job. Measured at the moment of discovery: **utilization 73 %,
+21,987 MiB in use** — roughly two jobs' worth of memory against the 18.3 GB one job needs.
+
+Stale script and container killed. The remaining arms (`j2on`, `j2fc`, `j2off2`) run clean.
+
+## Why this does not cost the experiment
+
+The run was designed with **two baselines bracketing the treatment**, after session drift of
+1.85 % invalidated a cuDNN result earlier in the day. That decision now pays a second time
+for a different reason: `j2off2` is a clean baseline, so the comparison survives losing
+`j2off`.
+
+**`j2off` is excluded from the paired comparison.** Its clips 1 and 2 are contaminated;
+clip 3 ran after the kill and is clean. That gives a bonus check — clip 3 against clips 1
+and 2 of the same arm quantifies what the contention cost, which is a number this workstream
+has never had.
+
+## The process failure, which is mine
+
+I launched `run_joint2.sh` without checking whether the previous run was still executing. I
+had reported that run as void 30 minutes earlier and moved on, treating "the results are
+discarded" as though it meant "the process is gone". It did not: nothing had stopped it.
+
+That is the third scripting error of the day on this box, and all three share one shape —
+**assuming the state of a process rather than checking it.** The `pgrep` self-match, the
+flags passed to an image that could not read them, and now a stale run competing for the
+GPU. The fix each time was one command I did not run.
+
+Concretely, for the runbook: before starting any timed run, `sudo docker ps` and
+`ps -eo args | grep run_` must both be empty. Added to `GPU_SESSION.md`.
+
+## The first composition test was void, and what it accidentally measured
+
+**2026-09-09 16:29.** A parallel pass ran a joint arm to test whether the frame cache
+(`render_rgb`) and the focal batching (`track_face`) compose. Result: **+0.22 %** — no
+effect from either.
+
+**That reading would have been wrong.** The run passed `RENDER_FRAME_CACHE` and
+`FOCAL_BATCH` to `instant-model:latest`, which was built at the start of the session and
+predates both changes. Verified directly:
+
+    grep -c RENDER_FRAME_CACHE  .../abstraction.py     ->  0
+    grep -c cal_error_given_focals  .../face_tracker.py ->  0
+
+Neither flag had any code to consult, and no source was bind-mounted over the image. The
+arm measured **two identical baselines**. The parallel pass caught this itself and rebuilt
+as `instant-model-v2` from the merged branch; the second attempt is sound — v2 contains both
+changes and reads both variables.
+
+**The lesson generalises past this one run.** Every A/B on this box that patched behaviour
+did it by bind-mounting a single file, and I only trusted a null after confirming the mount
+took effect *inside* the container. An env flag against an image that predates the code is
+indistinguishable from a change that does nothing, and the second is the more flattering
+conclusion, which is exactly why it needs the check.
+
+**What it did measure, usefully:** a fifth identical-baseline pair. The population now:
+
+| pair | delta |
+|---|---:|
+| arm0 vs arm0b | +1.85 % |
+| det1 vs det2 | −2.25 % |
+| detA vs detB | +0.23 % |
+| fcon vs fcon2 | −0.53 % |
+| **jointoff vs jointon** | **+0.22 %** |
+
+Three of five pairs land inside ±0.6 %, two are near ±2 %. Consistent with the 0.95 % CV
+and a further reason not to quote any single pair as "the noise".
+
+## The published −9.61 % focal figure needs a qualifier
+
+The merged implementation is **not** the one I measured. Mine batched the sweep outright.
+The merged one hands the top-ranked candidates back to the untouched sequential solver for
+confirmation (`FOCAL_BATCH_CONFIRM`, default 4), because — as its own comment says, and as I
+found the hard way — no batched Adam formulation is bit-identical to the sequential one.
+That buys exactness back at **3.7× the iteration reduction instead of 9.3×**.
+
+So **−9.61 % is the unconfirmed ceiling, not the default configuration.** The default should
+land materially lower, roughly in proportion to the iteration reduction it gives up. That is
+a better engineering trade than mine — it keeps the one value the rest of `track_face`
+depends on — and the published figure must say which variant it belongs to. Correcting it on
+the site.

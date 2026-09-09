@@ -158,7 +158,7 @@
       "change": "Batch the focal-length search into one solve",
       "what": "The camera calibration evaluates 46 focal candidates, each a fresh 300-iteration solve on 9 KB tensors, so 14,800 iterations run one after another and never occupy the device. The candidates are independent, so they now share one solve.",
       "effect": "measured",
-      "detail": "-9.61% paired across three clips, all faster, and the tracking stage falls 29.8%. But the equivalence claim is WITHDRAWN: it selects a different focal on real data. The per-candidate losses are bit-identical; the selection is not preserved",
+      "detail": "-9.61% paired across three clips with the tracking stage down 29.8%, but that is the UNCONFIRMED variant and a ceiling. The implementation kept instead confirms the top candidates against the sequential solver, trading a 9.3x iteration reduction for 3.7x to protect exactness; that configuration is untimed and not estimated here",
       "section": "arms",
       "arm": "\u2014",
       "roadmap": false

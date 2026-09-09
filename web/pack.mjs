@@ -206,7 +206,7 @@ const TILES = [
     + `${mdCell('results/measured.md', 'Deterministic kernels', '>det1 vs det2<', 2)}`, 'T8'],
   ['Frame cache, paired', mdCell('results/measured.md', 'Wall clock, paired per clip', '>mean<', 4), 'T8'],
   ['Neural render, frame cache', mdCell('results/measured.md', 'The saving is where the mechanism predicts', 'render_rgb', 4), 'T8'],
-  ['Focal search batched, paired', mdCell('results/measured.md', 'What it cost to find, and what the batching is worth', '>mean<', 3), 'T8'],
+  ['Focal search batched (ceiling)', mdCell('results/measured.md', 'What it cost to find, and what the batching is worth', '>mean<', 3), 'T8'],
   ['Parsing reduce on device, paired', mdCell('results/measured.md', 'A change that works and is rejected anyway', '>mean<', 3), 'T8'],
   // Deliberately NOT a combined figure. The three kept-or-measured wins sit in three
   // different stages, so they ought to compose -- but "ought to" is not a measurement,

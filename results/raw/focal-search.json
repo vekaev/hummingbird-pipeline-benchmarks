@@ -49,7 +49,11 @@
     "trackFaceOff": 137.74,
     "trackFaceOn": 96.65,
     "iterationsSequential": 14800,
-    "iterationsBatched": 1600
+    "iterationsBatched": 1600,
+    "variant": "unconfirmed",
+    "variantNote": "IMPORTANT: this timing is for the UNCONFIRMED batched sweep -- the sweep batched outright, which is the variant that was measured. The implementation that was merged instead hands the top-ranked candidates back to the untouched sequential solver for confirmation (FOCAL_BATCH_CONFIRM, default 4), because no batched Adam formulation is bit-identical to the sequential one. That trades a 9.3x iteration reduction for 3.7x, so the DEFAULT configuration should land materially below the figure here. Treat -9.61% as the ceiling, not the shipped number.",
+    "iterationReductionUnconfirmed": 9.3,
+    "iterationReductionConfirmed": 3.7
   },
   "pinned": {
     "note": "Two runs with the focal pinned to a constant, to test whether the unstable selection explains the pipeline's non-reproducibility. It does not: the pinned pair sits inside the unpinned identical-config population on every statistic. Wall clock is a side effect -- pinning skips the search entirely.",
