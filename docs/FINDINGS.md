@@ -3061,3 +3061,171 @@ land materially lower, roughly in proportion to the iteration reduction it gives
 a better engineering trade than mine — it keeps the one value the rest of `track_face`
 depends on — and the published figure must say which variant it belongs to. Correcting it on
 the site.
+
+## The second composition test is also misconfigured: `RENDER_FRAME_CACHE` is a COUNT
+
+**2026-09-09 17:29.** The rebuilt joint test uses an image that genuinely contains both
+changes, so the earlier void is fixed. But its arms read:
+
+| arm | flags | mean wall |
+|---|---|---:|
+| j2off | 0, 0 | **503.47** — contended, see below |
+| j2on | 1, 1 | 360.02 |
+| j2fc | 1, 0 | **395.61** |
+
+**`j2fc` is the frame cache "on" and it shows no benefit at all** — 395.61 s against a clean
+baseline of 390–398 s, where I measured 341.38 s. That looks like my −14.30 % failing to
+reproduce. It is not.
+
+**`RENDER_FRAME_CACHE` is a frame count, not a boolean.** `frame_cache_size()` returns the
+integer verbatim; 0 disables. The script passes **1**, so both arms ran a **one-frame**
+cache.
+
+That is the one size guaranteed not to work. The renderer asks each reader for
+`[c−2 … c+2]` per item, and the expensive request is the *first* of each item — `c−1`, while
+the reader sits at `c+2`. A one-frame cache holds `c+2` at that moment, so it misses, every
+frame. **Size ≥ 4 is required** to retain the previous item's window; I measured 5. My own
+test covers sizes 1–3 and says a bad size costs speed rather than correctness — this is
+exactly that failure mode in the wild, and it is my fault for exposing a count through a
+name that reads like a switch.
+
+**What the arms do still show.** `j2on` against `j2fc` is **−9.00 %**, which is the focal
+effect alone, measured on top of a cache doing nothing — and it agrees closely with the
+−9.61 % I measured for it independently. That is a genuine cross-check of the focal result
+from a different image and a different implementation.
+
+**And `j2off` is unusable as a baseline**: 660.42, 460.08, 389.90 for three identical clips.
+The first two overlapped another container still running from the void attempt. Two jobs on
+one card invalidates both — the third clip, once alone, lands at 389.90 s, right where every
+other clean baseline sits.
+
+### What the composition question still needs
+
+One arm: `RENDER_FRAME_CACHE=5`, `FOCAL_BATCH=1`, against the clean `j2off2` baseline. That
+is ~20 minutes and it is the only outstanding question on this box.
+
+### The generalisable fix, which is mine to make
+
+A knob whose name reads as a switch but whose value is a size will be passed `1` by the next
+person, and `1` silently means "almost off". `frame_cache_size()` should treat any value
+below the renderer's window as an error rather than a quiet degradation — refuse it, or clamp
+it up to the minimum useful size and say so. Cheap, and it removes a trap I laid.
+
+---
+
+# Focal batching replicates on the merged code: −8.97 %, independently of −9.61 %
+
+**MEASURED 2026-09-09.** The joint run that failed its cache configuration still produced a
+clean, valuable result, because its focal arm and its final baseline were both uncontended
+and both ran on `instant-model-v2` — an image **built from the merged branch**, with no
+source bind-mounted over it.
+
+| arm | config | mean | paired | per-clip |
+|---|---|---|---|---|
+| `j2off2` | baseline, run last | 395.52 s | — | — |
+| `j2on` | focal batching on | **360.02 s** | **−8.97 %** | −9.91 / −7.96 / −9.05 |
+| `j2fc` | 1-frame cache only | 395.61 s | +0.03 % | −0.41 / −0.85 / +1.35 |
+
+## Two things this settles
+
+**1. Focal batching is real and it replicates.** Published: **−9.61 %**, measured against a
+different baseline on a different image with the patched source mounted in. Here:
+**−8.97 %**, on the merged code in a clean build. **Two independent measurements 0.64 pp
+apart**, each with all three clips in the same direction. That is the first time any effect
+in this workstream has been reproduced across images, baselines and code-delivery methods.
+
+The published figure stands. Nothing to correct — this is corroboration, not a revision.
+
+**2. A 1-frame cache is inert: +0.03 %.** `RENDER_FRAME_CACHE` is a **cache size**, not a
+boolean, and I set it to `1`. The renderer asks each reader for `[c-2 … c+2]`, a five-frame
+window, so a one-frame cache cannot span the backward step that causes the miss. Every seek
+still re-decoded from the keyframe.
+
+This is **not** a null result for the frame cache. It is a null result for a
+mis-sized one, and it is a decent accidental control: it shows the −14.30 % comes from
+spanning the window, not from some incidental side effect of touching that code path.
+
+## The flag-convention trap, worth fixing
+
+| flag | type | `=1` means |
+|---|---|---|
+| `FOCAL_BATCH` | boolean | on |
+| `RENDER_AMP` | boolean | on |
+| `RENDER_CUDNN_BENCHMARK` | boolean | on |
+| `LIPSYNC_INMEM` | tri-state | on |
+| **`RENDER_FRAME_CACHE`** | **frame count** | **a 1-frame cache — effectively off** |
+| `RENDER_BATCH_SIZE` | count | batch of 1 |
+| `GPU_MEMORY_FRACTION` | fraction | 100 % of the card |
+
+Four of these are booleans where `1` means "on", and three are magnitudes where `1` means
+"almost nothing". I read one convention and assumed the other. `run_local.py` should expose
+the cache as a named CLI flag with the working default, the way `--batch-size` already does,
+rather than leaving the units to be remembered — otherwise the next person measures a
+1-frame cache too.
+
+# MEASURED: the two wins compose, and the frame cache replicates independently
+
+**2026-09-09 18:30.** Third attempt at the composition test, with the cache size corrected
+to 5. This is the strongest result of the session.
+
+| arm | frame cache | focal | mean wall | vs baseline |
+|---|---|---|---:|---:|
+| j2off2 | 0 | 0 | 395.52 | baseline |
+| j3fc5 | **5** | 0 | 339.38 | **−14.19 %** |
+| j3both | **5** | on | 304.02 | **−23.13 %** |
+
+## The frame cache replicated
+
+`j3fc5` gives **−14.19 %**. I measured **−14.30 %** independently, on a different image, via
+a bind-mounted file, run by a different pass. Two implementations of the measurement, 0.11
+points apart. That is as good a replication as this rig can produce.
+
+## They compose, and very nearly additively
+
+Predicting `j3both` from the two *separate* experiments — the cache's 56.14 s saving here and
+the focal's 37.61 s saving from its own A/B:
+
+    395.52 − 56.14 − 37.61 = 301.77 s predicted
+                              304.02 s actual
+                              shortfall 2.25 s = 0.57 % of the job
+
+So the combined effect is **−23.13 %**, against −24 % if the savings were perfectly
+additive. The 0.57 % shortfall is within the run-to-run spread, so **additive is the right
+model** and there is no meaningful interference between them.
+
+That is what the stage attribution predicts, and it holds:
+
+| stage | baseline | cache only | both |
+|---|---:|---:|---:|
+| `render_rgb` | ~96.4 | **39.83** | 38.23 |
+| `track_face` | ~137.7 | 137.75 | **104.50** |
+
+Each change moves its own stage and leaves the other untouched. The cache does not slow the
+tracker; the focal work does not slow the renderer. They are disjoint, which is why they add.
+
+## The confirmed-variant qualifier, now quantified
+
+I flagged earlier that my **−9.61 %** was the *unconfirmed* focal variant and that the merged
+implementation — which confirms the top candidates against the sequential solver — should
+land lower. It does, and by how much is now measurable:
+
+| variant | `track_face` saving |
+|---|---:|
+| unconfirmed (mine) | 41.09 s |
+| **confirmed (merged, shipped)** | **33.20 s** |
+
+**The confirmation step costs 19.2 % of the stage saving** and buys back the guarantee on the
+one value the rest of `track_face` depends on. That is the trade, priced.
+
+## What now stands
+
+| change | effect | status |
+|---|---:|---|
+| decoded-frame cache | **−14.2 to −14.3 %** | replicated twice, output-neutral |
+| focal search, confirmed | **−10.4 %** on top of the cache | shipped variant |
+| **both together** | **−23.13 %** | measured, additive |
+| parsing reduce on device | −2.66 % | fails the 3 % gate, left rejected |
+
+Baseline note: this uses `j2off2` (395.52 s), a clean same-image baseline. `j3base` was still
+running at the time of writing; it should confirm and the figures will be restated against it
+if it differs.

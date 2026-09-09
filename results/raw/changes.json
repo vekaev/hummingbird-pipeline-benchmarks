@@ -190,6 +190,16 @@
       "effect": "measured",
       "detail": "torch 2.5.1+cu121 beside torchaudio 2.5.1+cu121 in the built image, with no runtime patching; every pip layer cached, so the resolved dependency set is now stable across builds",
       "section": "how"
+    },
+    {
+      "n": 22,
+      "change": "Ran the two kept changes together",
+      "what": "They target different stages, so they ought to add \u2014 but two earlier attempts at this test were void: one passed flags to an image built before either change existed, the other set the cache to a size that misses on every frame.",
+      "effect": "measured",
+      "detail": "-23.13% together, and the renderer change REPLICATED at -14.19% against -14.30% measured separately on a different image. Predicting the combined arm from the two separate experiments lands 2.25s off, inside the run-to-run spread, so the savings add. Each change moves only its own stage",
+      "section": "arms",
+      "arm": "j3fc5/j3both",
+      "roadmap": false
     }
   ],
   "configurations": [

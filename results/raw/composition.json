@@ -1,0 +1,15 @@
+{
+  "note": "Do the two kept optimizations compose? They target different stages -- the decoded-frame cache is in the renderer, the focal-search change is in the tracker -- so they ought to, but ought-to is not a measurement. All arms ran on one image containing both changes, selected by environment variable, so no bind-mounting is involved. IMPORTANT: RENDER_FRAME_CACHE is a frame COUNT, not a boolean; two earlier attempts at this test were void, the first because the image predated both changes and the second because the cache was set to 1, a size that misses on every frame. This is the third attempt.",
+  "baseline": { "arm": "j2off2", "wall": 395.52, "note": "clean same-image baseline, three clips" },
+  "arms": [
+    { "arm": "j3fc5", "frameCache": 5, "focal": false, "wall": 339.38, "clips": [343.71, 340.24, 334.20] },
+    { "arm": "j3both", "frameCache": 5, "focal": true, "wall": 304.02, "clips": [303.66, 306.94, 301.45] }
+  ],
+  "independentCacheMeasurement": { "wall": 341.38, "pct": -14.30, "note": "measured separately, different image, bind-mounted file" },
+  "independentFocalSaving": { "seconds": 37.61, "note": "from its own A/B, the UNCONFIRMED variant" },
+  "stages": [
+    { "stage": "render_rgb", "baseline": 96.41, "cacheOnly": 39.83, "both": 38.23 },
+    { "stage": "track_face", "baseline": 137.74, "cacheOnly": 137.75, "both": 104.50 }
+  ],
+  "focalVariants": { "unconfirmedStageSaving": 41.09, "confirmedStageSaving": 33.20 }
+}

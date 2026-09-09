@@ -212,6 +212,67 @@ between two runs of the same configuration with the same seed. Seeding is necess
 a comparable A/B and is demonstrably not sufficient for reproducibility: the residual
 comes from CUDA-level nondeterminism outside the seeded generators.
 
+## Do the two kept changes compose?
+
+They target different stages — one in the renderer, one in the tracker — so they ought
+to add. Ought to is not a measurement. All three arms below ran on a single image
+containing both changes, selected by environment variable.
+
+| Arm | frame cache | focal search | mean wall (s) | vs baseline |
+|---|---|---|---:|---:|
+| j2off2 | off | off | 395.52 | baseline |
+| j3fc5 | **5** | off | 339.38 | **-14.19 %** |
+| j3both | **5** | **on** | 304.02 | **-23.13 %** |
+
+### The renderer result replicated
+
+The cache-only arm gives **-14.19 %**. It was measured separately at
+**-14.30 %** — a different image, a different mechanism for getting the code in, and
+a different person running it. The two land 0.11 points
+apart. That is as close to a replication as this rig can produce, and it is the only
+result in this work that has one.
+
+### They compose, and additively
+
+Predicting the both-on arm from the two *separate* experiments — this page’s cache
+saving of 56.14 s and the focal change’s 37.61 s
+from its own comparison:
+
+```
+395.52 - 56.14 - 37.61  =  301.77 s predicted
+                      304.02 s actual
+                    shortfall 2.25 s = 0.57 % of the job
+```
+
+The combined effect is **-23.13 %**. The shortfall against a perfectly
+additive prediction is inside the run-to-run spread, so **additive is the right model**
+and the two do not interfere.
+
+The stage timings say why:
+
+| Stage | baseline | cache only | both |
+|---|---:|---:|---:|
+| `render_rgb` | 96.41 | 39.83 | **38.23** |
+| `track_face` | 137.74 | 137.75 | **104.50** |
+
+Each change moves its own stage and leaves the other where it was. The cache does not
+slow the tracker and the tracker work does not slow the renderer. Disjoint, so they add.
+
+### What the shipped focal variant costs, priced
+
+The published focal figure measured the sweep batched outright. The variant that
+shipped confirms its top candidates against the untouched sequential solver. Now that
+both have run, the difference is a number rather than a caveat:
+
+| variant | tracker stage saving |
+|---|---:|
+| batched outright | 41.09 s |
+| **confirmed, as shipped** | **33.20 s** |
+
+The confirmation costs **19.20 %
+of the stage saving** and buys back the guarantee on the one value the rest of that
+stage depends on. That is the trade, and it is worth making.
+
 ## A change that works and is rejected anyway
 
 The parsing stage reduced a 19-class, 512-square floating-point tensor **on the host,

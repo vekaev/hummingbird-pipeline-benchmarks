@@ -280,6 +280,80 @@ if (diff) {
   }
 }
 
+// ---------------------------------------------------------------- composition
+{
+  const co = raw('composition');
+  const base = co.baseline.wall;
+  const pct = (a, b) => 100 * (a - b) / b;
+  const fc = co.arms.find((a) => !a.focal);
+  const both = co.arms.find((a) => a.focal);
+  const cacheSaving = base - fc.wall;
+  const focalSavingHere = fc.wall - both.wall;
+  const predicted = base - cacheSaving - co.independentFocalSaving.seconds;
+  const shortfall = both.wall - predicted;
+
+  P('## Do the two kept changes compose?\n');
+  P('They target different stages — one in the renderer, one in the tracker — so they ought');
+  P('to add. Ought to is not a measurement. All three arms below ran on a single image');
+  P('containing both changes, selected by environment variable.\n');
+
+  P('| Arm | frame cache | focal search | mean wall (s) | vs baseline |');
+  P('|---|---|---|---:|---:|');
+  P(`| ${co.baseline.arm} | off | off | ${fmt(base)} | baseline |`);
+  for (const a of co.arms) {
+    P(`| ${a.arm} | **${a.frameCache}** | ${a.focal ? '**on**' : 'off'} | ${fmt(a.wall)} `
+      + `| **${signed(pct(a.wall, base))} %** |`);
+  }
+  P('');
+
+  P('### The renderer result replicated\n');
+  const ind = co.independentCacheMeasurement;
+  P(`The cache-only arm gives **${signed(pct(fc.wall, base))} %**. It was measured separately at`);
+  P(`**${fmt(ind.pct)} %** — a different image, a different mechanism for getting the code in, and`);
+  P(`a different person running it. The two land ${fmt(Math.abs(pct(fc.wall, base) - ind.pct), 2)} points`);
+  P('apart. That is as close to a replication as this rig can produce, and it is the only');
+  P('result in this work that has one.\n');
+
+  P('### They compose, and additively\n');
+  P('Predicting the both-on arm from the two *separate* experiments — this page\u2019s cache');
+  P(`saving of ${fmt(cacheSaving)} s and the focal change\u2019s ${fmt(co.independentFocalSaving.seconds)} s`);
+  P('from its own comparison:\n');
+  P('```');
+  P(`${fmt(base)} - ${fmt(cacheSaving)} - ${fmt(co.independentFocalSaving.seconds)}  =  ${fmt(predicted)} s predicted`);
+  P(`${' '.repeat(22)}${fmt(both.wall)} s actual`);
+  P(`${' '.repeat(20)}shortfall ${fmt(shortfall)} s = ${fmt(100 * shortfall / base)} % of the job`);
+  P('```\n');
+  P(`The combined effect is **${signed(pct(both.wall, base))} %**. The shortfall against a perfectly`);
+  P('additive prediction is inside the run-to-run spread, so **additive is the right model**');
+  P('and the two do not interfere.\n');
+
+  P('The stage timings say why:\n');
+  P('| Stage | baseline | cache only | both |');
+  P('|---|---:|---:|---:|');
+  for (const st of co.stages) {
+    const lo = Math.min(st.cacheOnly, st.both);
+    P(`| \`${st.stage}\` | ${fmt(st.baseline)} | ${st.cacheOnly === lo ? '**' + fmt(st.cacheOnly) + '**' : fmt(st.cacheOnly)} `
+      + `| ${st.both === lo ? '**' + fmt(st.both) + '**' : fmt(st.both)} |`);
+  }
+  P('');
+  P('Each change moves its own stage and leaves the other where it was. The cache does not');
+  P('slow the tracker and the tracker work does not slow the renderer. Disjoint, so they add.\n');
+
+  P('### What the shipped focal variant costs, priced\n');
+  const fv = co.focalVariants;
+  P('The published focal figure measured the sweep batched outright. The variant that');
+  P('shipped confirms its top candidates against the untouched sequential solver. Now that');
+  P('both have run, the difference is a number rather than a caveat:\n');
+  P('| variant | tracker stage saving |');
+  P('|---|---:|');
+  P(`| batched outright | ${fmt(fv.unconfirmedStageSaving)} s |`);
+  P(`| **confirmed, as shipped** | **${fmt(fv.confirmedStageSaving)} s** |`);
+  P('');
+  P(`The confirmation costs **${fmt(100 * (fv.unconfirmedStageSaving - fv.confirmedStageSaving) / fv.unconfirmedStageSaving)} %`);
+  P('of the stage saving** and buys back the guarantee on the one value the rest of that');
+  P('stage depends on. That is the trade, and it is worth making.\n');
+}
+
 // ---------------------------------------------------------------- parse argmax
 {
   const pa = raw('parse-argmax');

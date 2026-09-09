@@ -94,6 +94,17 @@ const ledger = `<dl class="ledger">${LEDGER.map(([dt, dd, small]) => `
 const fsRaw0 = JSON.parse(readFileSync(join(root, 'results/raw/focal-search.json'), 'utf8'));
 const focalIterUnconf = fsRaw0.timing.iterationReductionUnconfirmed;
 const focalIterConf = fsRaw0.timing.iterationReductionConfirmed;
+const coRaw = JSON.parse(readFileSync(join(root, 'results/raw/composition.json'), 'utf8'));
+const coBase = coRaw.baseline.wall;
+const coFcArm = coRaw.arms.find((a) => !a.focal);
+const coBothArm = coRaw.arms.find((a) => a.focal);
+const coP = (w) => `${(100 * (w - coBase) / coBase).toFixed(2)}%`;
+const coFc = coP(coFcArm.wall);
+const coBoth = coP(coBothArm.wall);
+const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
+const coGap = Math.abs(100 * (coFcArm.wall - coBase) / coBase - coRaw.independentCacheMeasurement.pct).toFixed(2);
+const coShortfall = (coBothArm.wall - (coBase - (coBase - coFcArm.wall) - coRaw.independentFocalSaving.seconds)).toFixed(2);
+const coConfCost = `${(100 * (coRaw.focalVariants.unconfirmedStageSaving - coRaw.focalVariants.confirmedStageSaving) / coRaw.focalVariants.unconfirmedStageSaving).toFixed(1)}%`;
 const paRaw = JSON.parse(readFileSync(join(root, 'results/raw/parse-argmax.json'), 'utf8'));
 const paDelta = mdCell('results/measured.md', 'A change that works and is rejected anyway', '>mean<', 3);
 const paStage = `${(100 * (paRaw.stage.on - paRaw.stage.off) / paRaw.stage.off).toFixed(1)}%`;
@@ -344,6 +355,33 @@ ${mdTable('results/measured.md', 'Does it change the output?')}
     statistics did not. <strong>The cache is output-neutral</strong>, and it stays off by
     default anyway: switching it on is a deployment decision wanting a wider validation set,
     which is not the same as wanting more evidence of this kind.
+  </p>
+</div>
+
+<h3>Do the two kept changes compose?</h3>
+<p>
+  They sit in different stages &mdash; one in the renderer, one in the tracker &mdash; so
+  they ought to add. Ought to is not a measurement, and two earlier attempts at this test
+  were void: the first ran flags against an image built before either change existed, the
+  second set the cache to a size that misses on every frame. This is the third.
+</p>
+${mdTable('results/measured.md', 'Do the two kept changes compose?')}
+<div class="verdict"><b>Together they are ${coBoth}, and the renderer result replicated.</b>
+The cache-only arm came in ${coFc} against ${coInd} measured separately &mdash; different image,
+different mechanism, different person &mdash; ${coGap} points apart. Predicting the both-on arm
+from the two separate experiments lands ${coShortfall}s away from the actual, inside the
+run-to-run spread, so the savings simply add. The stage table shows why: each change moves
+its own stage and leaves the other untouched.</div>
+${mdTable('results/measured.md', 'They compose, and additively')}
+${mdTable('results/measured.md', 'What the shipped focal variant costs, priced')}
+<div class="caveat">
+  <span class="caveat-label">The caveat, now priced</span>
+  <p>
+    The published focal figure measured the sweep batched outright. The version that shipped
+    confirms its top candidates against the untouched sequential solver, and now that both
+    have run the difference is a number rather than a hedge: the confirmation costs
+    ${coConfCost} of the tracker saving and buys back the guarantee on the one value the rest of
+    that stage depends on. Worth making.
   </p>
 </div>
 

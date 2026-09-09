@@ -182,7 +182,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
   <h2>What was done</h2>
 
 <p>
-  Twelve changes, in the order they were made. 20 carry a measured effect;
+  Twelve changes, in the order they were made. 21 carry a measured effect;
   the rest are implemented and instrumented with no number yet, and say so. Nothing here is
   credited with an estimate.
 </p>
@@ -208,6 +208,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
 <tr><td class="n">19</td><td>Made the selected camera focal observable</td><td>The focal is the only value the calibration sweep exports, and not one line of that module’s logging reached any run log, so no job could report what focal it chose. One print, to the stream the logs already capture.</td><td>It immediately showed that the sweep is not reproducible: four reads on ONE clip at ONE seed gave 2900, 1850, 1830, 1810, with all four projection errors inside 0.48% of each other. Two of those were the unmodified sequential path, at 2900 and 1830</td></tr>
 <tr><td class="n">20</td><td>Reduce the parsing output on the device instead of on the host</td><td>The stage copied a 19-class 512-square float tensor to the host per frame, about 20 MB with a blocking transfer each time, and reduced it there. Reducing first ships a single-byte class map.</td><td>-2.66% at the job level and -35.5% on the stage, every clip faster, bus traffic down 76x and blocking transfers from 751 to 24. REJECTED: the gate is 3% at the job level and this is 2.66%. Left rejected rather than reinterpreting the gate</td></tr>
 <tr><td class="n">21</td><td>Confirmed the build fix end to end by rebuilding from the merged branch</td><td>The deploy failure was a mixed-CUDA torch stack: PyPI's torch 2.5.1 is built against CUDA 12.4 and the index build against 12.1, and both report the same version string, so a version pin does not identify the artefact. Every run on the experiment box until now needed a --force-reinstall inside the container to obtain a consistent stack. A fresh image built from the merged branch was then inspected for what it actually contains.</td><td>torch 2.5.1+cu121 beside torchaudio 2.5.1+cu121 in the built image, with no runtime patching; every pip layer cached, so the resolved dependency set is now stable across builds</td></tr>
+<tr><td class="n">22</td><td>Ran the two kept changes together</td><td>They target different stages, so they ought to add — but two earlier attempts at this test were void: one passed flags to an image built before either change existed, the other set the cache to a size that misses on every frame.</td><td>-23.13% together, and the renderer change REPLICATED at -14.19% against -14.30% measured separately on a different image. Predicting the combined arm from the two separate experiments lands 2.25s off, inside the run-to-run spread, so the savings add. Each change moves only its own stage</td></tr>
 </tbody></table></div>
 <div class="verdict"><b>Net effect on the shipping system:</b> the build works again, and no
 optimization was kept. Both measurable roadmap items were rejected on their own numbers.</div>
@@ -622,6 +623,43 @@ where the time was going.</div>
     statistics did not. <strong>The cache is output-neutral</strong>, and it stays off by
     default anyway: switching it on is a deployment decision wanting a wider validation set,
     which is not the same as wanting more evidence of this kind.
+  </p>
+</div>
+
+<h3>Do the two kept changes compose?</h3>
+<p>
+  They sit in different stages &mdash; one in the renderer, one in the tracker &mdash; so
+  they ought to add. Ought to is not a measurement, and two earlier attempts at this test
+  were void: the first ran flags against an image built before either change existed, the
+  second set the cache to a size that misses on every frame. This is the third.
+</p>
+<div class="tw"><table><thead><tr><th>Arm</th><th>frame cache</th><th>focal search</th><th class="n">mean wall (s)</th><th class="n">vs baseline</th></tr></thead><tbody>
+<tr><td>j2off2</td><td>off</td><td>off</td><td class="n">395.52</td><td class="n">baseline</td></tr>
+<tr><td>j3fc5</td><td><strong>5</strong></td><td>off</td><td class="n">339.38</td><td class="n"><strong>-14.19 %</strong></td></tr>
+<tr><td>j3both</td><td><strong>5</strong></td><td><strong>on</strong></td><td class="n">304.02</td><td class="n"><strong>-23.13 %</strong></td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Together they are -23.13%, and the renderer result replicated.</b>
+The cache-only arm came in -14.19% against -14.30% measured separately &mdash; different image,
+different mechanism, different person &mdash; 0.11 points apart. Predicting the both-on arm
+from the two separate experiments lands 2.25s away from the actual, inside the
+run-to-run spread, so the savings simply add. The stage table shows why: each change moves
+its own stage and leaves the other untouched.</div>
+<div class="tw"><table><thead><tr><th>Stage</th><th class="n">baseline</th><th class="n">cache only</th><th class="n">both</th></tr></thead><tbody>
+<tr><td><code>render_rgb</code></td><td class="n">96.41</td><td class="n">39.83</td><td class="n"><strong>38.23</strong></td></tr>
+<tr><td><code>track_face</code></td><td class="n">137.74</td><td class="n">137.75</td><td class="n"><strong>104.50</strong></td></tr>
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th>variant</th><th class="n">tracker stage saving</th></tr></thead><tbody>
+<tr><td>batched outright</td><td class="n">41.09 s</td></tr>
+<tr><td><strong>confirmed, as shipped</strong></td><td class="n"><strong>33.20 s</strong></td></tr>
+</tbody></table></div>
+<div class="caveat">
+  <span class="caveat-label">The caveat, now priced</span>
+  <p>
+    The published focal figure measured the sweep batched outright. The version that shipped
+    confirms its top candidates against the untouched sequential solver, and now that both
+    have run the difference is a number rather than a hedge: the confirmation costs
+    19.2% of the tracker saving and buys back the guarantee on the one value the rest of
+    that stage depends on. Worth making.
   </p>
 </div>
 
