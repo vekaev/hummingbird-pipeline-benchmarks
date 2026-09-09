@@ -870,6 +870,47 @@ magnitude on every clip.</div>
     carry the same evidence as the individual results above it.
   </p>
 </div>
+
+<h3>What the largest stage is actually doing</h3>
+<p>
+  With every kept change on, one stage is still 35.47 % of the job &mdash; larger
+  than the next two combined &mdash; and nothing in this work had ever measured inside it.
+  The code has always emitted a split between its two phases. Nothing ever received it: the
+  pipeline logs to standard error, the harness captured only standard output, and the
+  wrapper filters dropped the rest. Grepping all 43 recorded run logs for that line returns
+  nothing. It is the third diagnostic here that the code emits and nobody reads, after the
+  encoder's rescale warning and the in-memory flag line.
+</p>
+<div class="tw"><table><thead><tr><th>phase</th><th class="n">seconds</th><th class="n">of the stage</th><th class="n">of the job</th></tr></thead><tbody>
+<tr><td><code>face_recon</code></td><td class="n">28.90</td><td class="n">27.97 %</td><td class="n">9.92 %</td></tr>
+<tr><td><code>face_track</code></td><td class="n">74.42</td><td class="n">72.04 %</td><td class="n">25.55 %</td></tr>
+<tr><td><strong>the stage</strong></td><td class="n"><strong>103.31</strong></td><td class="n"><strong>100 %</strong></td><td class="n"><strong>35.47 %</strong></td></tr>
+</tbody></table></div>
+<div class="verdict"><b><code>face_track</code> is 25.55 % of the job on its own
+&mdash; the largest single identifiable block in the pipeline</b>, larger than any whole
+stage except the one containing it. The two phases sum to the stage total exactly, and the
+instrumented total lands inside the range three uninstrumented runs of the same clip
+produced, so the decorators cost nothing measurable.</div>
+<div class="caveat">
+  <span class="caveat-label">The first attempt at this measurement was corrupted by the
+  measurement</span>
+  <p>
+    It reported a stage total 17% high and a job 15% high. A second change had been bundled
+    in &mdash; capturing standard error into the log, which looked like the fix for exactly
+    those invisible diagnostics. It was not. The logging library binds standard error when
+    it is configured, at import, so reassigning it afterwards never reaches it, and the
+    captured run contained zero such lines. It also cost time, because the capture flushes
+    to disk on every write. The cost is measured; the mechanism is inferred, and was not
+    isolated before reverting.
+  </p>
+  <p>
+    The contaminated ratio was not reused either. It was close enough to the clean one to
+    look rescalable, but the contamination was uneven &mdash; one phase inflated 38%, the
+    other 8% &mdash; so the ratio was wrong by five percentage points. Correcting it
+    proportionally would have been wrong in a way that looked right. The control that caught
+    all of this was three earlier runs of the same clip, kept for exactly this purpose.
+  </p>
+</div>
 <div class="caveat">
   <span class="caveat-label">The caveat, now priced</span>
   <p>

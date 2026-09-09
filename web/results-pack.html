@@ -166,7 +166,7 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <div class="shell pack">
 
 <header class="masthead">
-  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T30</p>
+  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T31</p>
   <h1>Results pack: every number, with the table it came from</h1>
   <p class="standfirst">
     The companion to the <a href="index.html">article page</a>. Each figure is followed by the
@@ -222,7 +222,8 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <li><a href="#t27"><span class="tag">T27</span>Fidelity against the source clip</a></li>
 <li><a href="#t28"><span class="tag">T28</span>All kept changes vs the unmodified branch</a></li>
 <li><a href="#t29"><span class="tag">T29</span>Which stages actually moved</a></li>
-<li><a href="#t30"><span class="tag">T30</span>Configuration key</a></li></ul>
+<li><a href="#t30"><span class="tag">T30</span>Inside the largest stage</a></li>
+<li><a href="#t31"><span class="tag">T31</span>Configuration key</a></li></ul>
   <h2>Carry with the numbers</h2>
   <ul>
     <li><a href="#measured">What was measured</a></li>
@@ -1575,6 +1576,17 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 
 <div class="item" id="t30">
   <span class="id">T30</span>
+  <h3>Inside the largest stage</h3>
+  <p class="meta">The stage that remains largest after every kept change, split into its two phases for the first time. The code had always emitted this split and nothing had ever captured it. Read the caveat on the page with it: the first attempt at this measurement was inflated ~15% by the instrumentation itself, caught by comparing against three earlier uninstrumented runs of the same clip, and the contaminated ratio was discarded rather than rescaled because the inflation was uneven.</p>
+  <div class="tw"><table><thead><tr><th>phase</th><th class="n">seconds</th><th class="n">of the stage</th><th class="n">of the job</th></tr></thead><tbody>
+<tr><td><code>face_recon</code></td><td class="n">28.90</td><td class="n">27.97 %</td><td class="n">9.92 %</td></tr>
+<tr><td><code>face_track</code></td><td class="n">74.42</td><td class="n">72.04 %</td><td class="n">25.55 %</td></tr>
+<tr><td><strong>the stage</strong></td><td class="n"><strong>103.31</strong></td><td class="n"><strong>100 %</strong></td><td class="n"><strong>35.47 %</strong></td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t31">
+  <span class="id">T31</span>
   <h3>Configuration key</h3>
   <p class="meta">What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.</p>
   <div class="tw"><table><thead><tr><th>Configuration</th><th>Hardware</th><th>Video parameters</th><th>Deployment</th><th>Protocol</th></tr></thead><tbody>

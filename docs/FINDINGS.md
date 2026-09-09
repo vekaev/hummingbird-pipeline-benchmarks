@@ -3728,6 +3728,37 @@ sign is the same on every clip.
    *not* switching it on is now a number: 2.16 dB of avoidable fidelity loss on every
    video, plus every frame silently scaled up two pixels.
 
+## The magnitude is softer than my decimals suggested
+
+A parallel session re-measured the same comparison independently and the result is worth
+recording against my own figures, because it corrects their precision:
+
+| path | mine | replication (per-frame) | replication (global MSE) |
+|---|---:|---:|---:|
+| disk, as it ships | 31.73 dB | 31.57 dB | 31.47 dB |
+| disk, both parameters set | 33.89 dB | 33.40 dB | 33.13 dB |
+| in memory | 34.96 dB | 34.25 dB | 33.93 dB |
+| **writer parameters alone** | **+2.16** | **+1.83** | **+1.66** |
+| **total recovery** | **+3.23** | **+2.68** | **+2.46** |
+
+**The ordering replicates on every convention, and so does the two-thirds / one-third
+decomposition. The magnitude lands 20-25 % lower.** Two causes, one of them worth naming
+because it is almost never stated: averaging per-frame PSNR and converting a mean squared
+error once are different numbers, worth about 0.2 dB here.
+
+The rest is now identified and checkable. There are **two** candidate reference files --
+`source_video_25fps` at 750 frames and `source_video_25fps_adjusted` at 751 -- and every
+output carries 751. The adjusted file is the correct reference, because it is what the
+pipeline was actually fed; comparing against the 750-frame file offsets every arm by one
+frame, which depresses all three roughly equally. That is exactly the pattern in the table
+above, and my measurement used the adjusted file.
+
+**So quote this result as "roughly +2 dB on the shipping path, about two thirds of a total
+recovery near +2.5 to +3 dB", not to two decimals.** The conclusion is unaffected in every
+respect that matters: the writer parameters are the larger term, they cost the shipping
+path real fidelity, and the fix is free. Only the decimals were overstated, and they were
+mine.
+
 ## What is still not claimed
 
 That any of this is perceptible to a viewer. PSNR against a generated face is a poor
@@ -3787,3 +3818,76 @@ thirds of a recovery that totals around +2.5 to +3 dB", not +2.16 and +3.23 exac
 conclusion is unaffected and remains the cheapest quality change in this work. The precise
 figure needs the two methods reconciled — same frame alignment, same averaging convention,
 stated — before it goes on a page. **Not published until then.**
+
+---
+
+# The largest block in the pipeline, named for the first time
+
+**2026-09-09.** After all three kept changes, `track_face` is still **103.31 s of a
+291.25 s job -- 35.5 %** -- larger than the next two stages combined, and no recorded run in
+this workstream had any instrumentation inside it.
+
+The code has always emitted a split. `facetrack/predict.py` times `face_recon` and
+`face_track` separately and logs both. **Nothing ever received it**: the pipeline logs
+through loguru, which writes to stderr, `run_local` teed only stdout, and the wrapper greps
+dropped the rest. Grepping all 43 arm logs on the box for `Face reconstruction took`
+returns nothing. That is the third diagnostic in this session that the code emits and
+nobody reads, after the encoder's rescale warning and the `use_ram` line.
+
+Both phases now carry the same `@timer` as every other stage, so they reach
+`print_timing_info()` and `parse_timings.py` regardless of how logging is configured.
+
+| | seconds | of `track_face` | of the job |
+|---|---:|---:|---:|
+| `face_recon` | 28.90 | 28.0 % | 9.9 % |
+| `face_track` | **74.42** | **72.0 %** | **25.6 %** |
+| `track_face` | 103.31 | 100 % | 35.5 % |
+
+The parts sum to 103.31 s against a measured 103.31 s -- **nothing unaccounted for** -- and
+103.31 s sits inside the 102.52 / 104.44 / 104.05 s that three comparable runs of the same
+clip produced without any of this instrumentation, so the decorators cost nothing
+measurable.
+
+**`face_track` at 25.6 % of the job is the largest single identifiable block in the
+pipeline**, bigger than any whole stage except the one containing it.
+
+## MY OWN INSTRUMENTATION CORRUPTED THE FIRST ATTEMPT, and the control caught it
+
+The first run of this measurement reported `face_recon` 39.87 s and `face_track` 80.55 s,
+summing to a `track_face` of 120.42 s and a job of 336.9 s. Against the three comparable
+runs above -- 102.5 to 104.4 s on the stage, ~292 s on the job -- that is **+15 % on the
+job and +17 % on the stage, caused by the measurement rather than by the code**.
+
+The cause was a second change bundled in: teeing **stderr** into the per-case log, which
+looked like the right fix for the invisible diagnostics. It was not, for two reasons.
+
+1. **It does not work.** loguru binds `sys.stderr` when it is configured, at import, so
+   reassigning `sys.stderr` afterwards never reaches it. The instrumented run captured zero
+   loguru lines, which is what prompted the check.
+2. **It is expensive.** `Tee.write` flushes to disk on every call. *The cost is measured;
+   the mechanism is inferred* -- most likely the progress bars, which write to stderr
+   thousands of times per job -- and I did not isolate it before reverting.
+
+Reverted. The `@timer` decorators stayed, because they do not depend on log capture at all.
+
+**The contaminated split was not published, and the ratio was not reused either.** It would
+have been tempting: 39.87 / 80.55 is 33 / 67, close to the clean 28 / 72. But the
+contamination was **uneven** -- `face_recon` was inflated 38 % and `face_track` 8 % -- so the
+ratio was wrong too, by five percentage points. A proportional correction would have been
+wrong in a way that looked right.
+
+## What this makes the next target, and what it does not prove
+
+`forward_face_track` runs four gradient-descent phases: `calibrate_camera_gd` (the focal
+search, already optimized for -8.97 % by restructuring it), then `optimize_lms_only` at 500
+iterations, `optimize_wflw_lms_only` at 500, and eyelids or eyes at 100.
+
+So the remaining 74.42 s sits in three optimization loops totalling 1,100 iterations, in the
+block that is a quarter of the job. That is the largest well-defined target left, and the
+one prior success in this stage came from restructuring exactly this kind of loop.
+
+**What is NOT established** is that batching is the lever. `preload_batched_data` exists, so
+these loops may already operate on batched frames, in which case the question is whether 500
+iterations are needed at all -- a convergence question, not a batching one. Which of the
+three loops dominates is being measured now; until that lands, "74 s in three loops" is the
+honest resolution. [PARTIALLY MEASURED]

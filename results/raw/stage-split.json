@@ -1,0 +1,33 @@
+{
+  "note": "After all three kept changes, the face-tracking stage is still the largest in the pipeline by a wide margin, and no recorded run in this work had any instrumentation inside it. The code has always emitted a split -- the two phases are timed separately and both are logged -- and nothing ever received it: the pipeline logs to standard error, the harness captured only standard output, and the wrapper filters dropped the rest. Grepping all 43 recorded run logs for that line returns nothing. It is the third diagnostic in this work that the code emits and nobody reads. Both phases now carry the same timing decorator as every other stage, so they are collected regardless of how logging is configured.",
+  "jobSeconds": 291.25,
+  "phases": [
+    {
+      "name": "face_recon",
+      "seconds": 28.9
+    },
+    {
+      "name": "face_track",
+      "seconds": 74.42
+    }
+  ],
+  "stageSeconds": 103.31,
+  "comparableRuns": [
+    102.52,
+    104.44,
+    104.05
+  ],
+  "comparableNote": "So the decorators cost nothing measurable.",
+  "contaminated": {
+    "note": "The first attempt at this measurement was corrupted by the instrumentation itself, and the control caught it. A second change had been bundled in -- capturing standard error into the per-case log, which looked like the fix for those invisible diagnostics. It was not: the logging library binds standard error when it is configured, at import, so reassigning it afterwards never reaches it, and the captured run contained zero such lines. It also cost time, because the capture flushes to disk on every write. The cost is measured; the mechanism is inferred and was not isolated before reverting.",
+    "faceReconSeconds": 39.87,
+    "faceTrackSeconds": 80.55,
+    "stageSeconds": 120.42,
+    "jobSeconds": 336.9,
+    "ratioNote": "The contaminated ratio was not reused either. 33/67 against the clean 28/72 looks close enough to rescale, but the contamination was uneven -- one phase inflated 38 %, the other 8 % -- so the ratio was wrong by five percentage points. Correcting it proportionally would have been wrong in a way that looked right."
+  },
+  "nextTarget": {
+    "note": "The remaining time sits in three gradient-descent loops totalling 1,100 iterations, inside the block that is a quarter of the job. The one prior success in this stage came from restructuring exactly this kind of loop, for a 9 % job-level saving. What is NOT established is that the same lever applies: batched data loading already exists here, so these loops may already run batched, in which case the question is whether 1,100 iterations are needed at all -- a convergence question rather than a batching one.",
+    "loopIterations": 1100
+  }
+}

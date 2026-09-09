@@ -675,6 +675,48 @@ if (diff) {
   }
 }
 
+// ------------------------------------------------------- the largest block, split
+{
+  const ss = raw('stage-split');
+  const total = ss.stageSeconds;
+  const share = (v) => 100 * v / total;
+  const jobShare = (v) => 100 * v / ss.jobSeconds;
+
+  P('## What the largest stage is actually doing\n');
+  P(`${ss.note}\n`);
+  P('| phase | seconds | of the stage | of the job |');
+  P('|---|---:|---:|---:|');
+  for (const ph of ss.phases) {
+    P(`| \`${ph.name}\` | ${fmt(ph.seconds)} | ${fmt(share(ph.seconds))} % `
+      + `| ${fmt(jobShare(ph.seconds))} % |`);
+  }
+  P(`| **the stage** | **${fmt(total)}** | **100 %** | **${fmt(jobShare(total))} %** |`);
+  P('');
+  const parts = ss.phases.reduce((a, ph) => a + ph.seconds, 0);
+  const cr = ss.comparableRuns;
+  P(`The parts sum to ${fmt(parts)} s against a measured ${fmt(total)} s, so nothing is`);
+  P(`unaccounted for, and the instrumented total lands inside the`);
+  P(`${cr.map((v) => fmt(v)).join(' / ')} s that three runs without any of this`);
+  P(`instrumentation produced on the same clip. ${ss.comparableNote}\n`);
+  const biggest = ss.phases.reduce((a, b) => (a.seconds > b.seconds ? a : b));
+  P(`**\`${biggest.name}\` at ${fmt(jobShare(biggest.seconds))} % of the job is the largest`);
+  P('single identifiable block in the pipeline** — larger than any whole stage except the one');
+  P('containing it.\n');
+
+  const ct = ss.contaminated;
+  P('### The first attempt was corrupted by the instrumentation, and the control caught it\n');
+  P(`It reported ${fmt(ct.faceReconSeconds)} s and ${fmt(ct.faceTrackSeconds)} s, a stage total`);
+  P(`of ${fmt(ct.stageSeconds)} s and a job of ${fmt(ct.jobSeconds)} s. Against the runs above`);
+  P(`that is **${signed(100 * (ct.stageSeconds - total) / total)} %** on the stage and`);
+  P(`**${signed(100 * (ct.jobSeconds - ss.jobSeconds) / ss.jobSeconds)} %** on the job — caused by`);
+  P('the measurement rather than by the code being measured.\n');
+  P(`${ct.note}\n`);
+  P(`${ct.ratioNote}\n`);
+
+  P('### What this makes the next target\n');
+  P(`${ss.nextTarget.note}\n`);
+}
+
 // ---------------------------------------------------------------- parse argmax
 {
   const pa = raw('parse-argmax');

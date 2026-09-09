@@ -140,6 +140,10 @@ const imGtMean = `${(imRaw.groundTruth.perClipAdvantageDb.reduce((a, b) => a + b
 const cumEff = mdCell('results/measured.md', 'Where all three changes land, against the unmodified branch', '>mean<', 3);
 const cumBefore = mdCell('results/measured.md', 'Where all three changes land, against the unmodified branch', '>mean<', 1);
 const cumAfter = mdCell('results/measured.md', 'Where all three changes land, against the unmodified branch', '>mean<', 2);
+const ssRaw = JSON.parse(readFileSync(join(root, 'results/raw/stage-split.json'), 'utf8'));
+const ssBig = ssRaw.phases.reduce((a, b) => (a.seconds > b.seconds ? a : b));
+const ssBigShare = mdCell('results/measured.md', 'What the largest stage is actually doing', `>${ssBig.name}<`, 3);
+const ssStageShare = mdCell('results/measured.md', 'What the largest stage is actually doing', '>the stage<', 3);
 const coFc = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3fc5<', 4);
 const coBoth = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3both<', 4);
 const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
@@ -588,6 +592,43 @@ ${mdTable('results/measured.md', 'Where all three changes land, against the unmo
     in-memory change, but not re-run against the trunk. It is the sum of three separately
     bracketed effects and it agrees with them, which is why it is quoted, but it does not
     carry the same evidence as the individual results above it.
+  </p>
+</div>
+
+<h3>What the largest stage is actually doing</h3>
+<p>
+  With every kept change on, one stage is still ${ssStageShare} of the job &mdash; larger
+  than the next two combined &mdash; and nothing in this work had ever measured inside it.
+  The code has always emitted a split between its two phases. Nothing ever received it: the
+  pipeline logs to standard error, the harness captured only standard output, and the
+  wrapper filters dropped the rest. Grepping all 43 recorded run logs for that line returns
+  nothing. It is the third diagnostic here that the code emits and nobody reads, after the
+  encoder's rescale warning and the in-memory flag line.
+</p>
+${mdTable('results/measured.md', 'What the largest stage is actually doing')}
+<div class="verdict"><b><code>${ssBig.name}</code> is ${ssBigShare} of the job on its own
+&mdash; the largest single identifiable block in the pipeline</b>, larger than any whole
+stage except the one containing it. The two phases sum to the stage total exactly, and the
+instrumented total lands inside the range three uninstrumented runs of the same clip
+produced, so the decorators cost nothing measurable.</div>
+<div class="caveat">
+  <span class="caveat-label">The first attempt at this measurement was corrupted by the
+  measurement</span>
+  <p>
+    It reported a stage total 17% high and a job 15% high. A second change had been bundled
+    in &mdash; capturing standard error into the log, which looked like the fix for exactly
+    those invisible diagnostics. It was not. The logging library binds standard error when
+    it is configured, at import, so reassigning it afterwards never reaches it, and the
+    captured run contained zero such lines. It also cost time, because the capture flushes
+    to disk on every write. The cost is measured; the mechanism is inferred, and was not
+    isolated before reverting.
+  </p>
+  <p>
+    The contaminated ratio was not reused either. It was close enough to the clean one to
+    look rescalable, but the contamination was uneven &mdash; one phase inflated 38%, the
+    other 8% &mdash; so the ratio was wrong by five percentage points. Correcting it
+    proportionally would have been wrong in a way that looked right. The control that caught
+    all of this was three earlier runs of the same clip, kept for exactly this purpose.
   </p>
 </div>
 <div class="caveat">

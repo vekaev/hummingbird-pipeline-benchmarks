@@ -542,6 +542,41 @@ in-memory change but not re-run against the trunk. The figure is the sum of thre
 separately bracketed effects, and it agrees with them, but it is not itself a bracketed
 measurement.
 
+## What the largest stage is actually doing
+
+After all three kept changes, the face-tracking stage is still the largest in the pipeline by a wide margin, and no recorded run in this work had any instrumentation inside it. The code has always emitted a split -- the two phases are timed separately and both are logged -- and nothing ever received it: the pipeline logs to standard error, the harness captured only standard output, and the wrapper filters dropped the rest. Grepping all 43 recorded run logs for that line returns nothing. It is the third diagnostic in this work that the code emits and nobody reads. Both phases now carry the same timing decorator as every other stage, so they are collected regardless of how logging is configured.
+
+| phase | seconds | of the stage | of the job |
+|---|---:|---:|---:|
+| `face_recon` | 28.90 | 27.97 % | 9.92 % |
+| `face_track` | 74.42 | 72.04 % | 25.55 % |
+| **the stage** | **103.31** | **100 %** | **35.47 %** |
+
+The parts sum to 103.32 s against a measured 103.31 s, so nothing is
+unaccounted for, and the instrumented total lands inside the
+102.52 / 104.44 / 104.05 s that three runs without any of this
+instrumentation produced on the same clip. So the decorators cost nothing measurable.
+
+**`face_track` at 25.55 % of the job is the largest
+single identifiable block in the pipeline** — larger than any whole stage except the one
+containing it.
+
+### The first attempt was corrupted by the instrumentation, and the control caught it
+
+It reported 39.87 s and 80.55 s, a stage total
+of 120.42 s and a job of 336.90 s. Against the runs above
+that is **+16.56 %** on the stage and
+**+15.67 %** on the job — caused by
+the measurement rather than by the code being measured.
+
+The first attempt at this measurement was corrupted by the instrumentation itself, and the control caught it. A second change had been bundled in -- capturing standard error into the per-case log, which looked like the fix for those invisible diagnostics. It was not: the logging library binds standard error when it is configured, at import, so reassigning it afterwards never reaches it, and the captured run contained zero such lines. It also cost time, because the capture flushes to disk on every write. The cost is measured; the mechanism is inferred and was not isolated before reverting.
+
+The contaminated ratio was not reused either. 33/67 against the clean 28/72 looks close enough to rescale, but the contamination was uneven -- one phase inflated 38 %, the other 8 % -- so the ratio was wrong by five percentage points. Correcting it proportionally would have been wrong in a way that looked right.
+
+### What this makes the next target
+
+The remaining time sits in three gradient-descent loops totalling 1,100 iterations, inside the block that is a quarter of the job. The one prior success in this stage came from restructuring exactly this kind of loop, for a 9 % job-level saving. What is NOT established is that the same lever applies: batched data loading already exists here, so these loops may already run batched, in which case the question is whether 1,100 iterations are needed at all -- a convergence question rather than a batching one.
+
 ## A change that works and is rejected anyway
 
 The parsing stage reduced a 19-class, 512-square floating-point tensor **on the host,

@@ -158,7 +158,9 @@ const TABLES = [
     note: 'The headline comparison: every kept change on, against the unmodified trunk, same clips and seed. Read the caveat with it — the treated column is a single pass, bracketed for the in-memory change but not re-run against the trunk, so this is the sum of three separately bracketed effects rather than a bracketed measurement in its own right. It agrees with the parts.' },
   { id: 'T29', file: 'results/measured.md', heading: 'Where all three changes land, against the unmodified branch', nth: 2, title: 'Which stages actually moved',
     note: 'The distribution is the control on the row above. Two stages carry almost all of the saving and nothing else moves much; a change that shifted every stage would indicate a measurement artefact rather than an optimization. Both of those two stages came out of the per-stage profile, and neither appeared on the optimization roadmap.' },
-  { id: 'T30', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
+  { id: 'T30', file: 'results/measured.md', heading: 'What the largest stage is actually doing', title: 'Inside the largest stage',
+    note: 'The stage that remains largest after every kept change, split into its two phases for the first time. The code had always emitted this split and nothing had ever captured it. Read the caveat on the page with it: the first attempt at this measurement was inflated ~15% by the instrumentation itself, caught by comparing against three earlier uninstrumented runs of the same clip, and the contaminated ratio was discarded rather than rescaled because the inflation was uneven.' },
+  { id: 'T31', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
     note: 'What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.' },
 ];
 
