@@ -238,11 +238,12 @@ accumulated output and roughly half remains unexplained.
 
 ### How much to trust this
 
-Not very much, and the reason is stated above rather than buried. The effect is
-0.91 points, and the repeat spread measured on two identical runs is
-2.28 %. **The effect is smaller than the noise it is measured against**, at n=1 per
-configuration. What survives is the consistent sign across clips and a plausible
-mechanism, which together are worth a cheap operational change and not a claim:
+Not much, and the reason is stated here rather than buried. The effect is
+0.91 points against a repeat spread of 0.95 % CV, measured over
+4 runs of one identical configuration. **The effect is about the size of the
+noise it is measured against**, at n=1 per configuration. What survives is the
+consistent sign across clips and a plausible mechanism, which together are worth a
+cheap operational change and not a claim:
 
 * clear the output directory between arms. It costs nothing and removes a confound.
 * interleave a baseline between every arm, which is what should have happened here.
@@ -250,33 +251,33 @@ mechanism, which together are worth a cheap operational change and not a claim:
 
 ## Deterministic kernels: what they cost, and what they buy
 
-One clip run twice at one seed with deterministic kernels requested. The question was
-whether the pipeline can be made to reproduce its own output bit for bit, because a
-cache that reuses computed segments would otherwise have no way to verify itself.
+One clip run four times at one seed with deterministic kernels requested, as two
+independent pairs. The question was whether the pipeline can be made to reproduce its
+own output bit for bit, because a cache that reuses computed segments would otherwise
+have no way to verify itself.
 
-| | value |
-|---|---:|
-| frames compared | 751 |
-| **bit-identical frames** | **0 of 751** |
-| PSNR mean | 39.62 dB |
-| SSIM mean | 0.97333 |
-| worst pixel | 90 of 255 |
+| pair | machine state | frames | bit-identical | PSNR mean | worst pixel |
+|---|---|---:|---:|---:|---:|
+| det1 vs det2 | uncleared output directory | 751 | **0** | 39.62 dB | 90 of 255 |
+| detA vs detB | cleared output directory | 751 | **0** | 39.27 dB | 109 of 255 |
 
-The seeded-only floor measured above is 40.37 dB. Deterministic mode gives
-39.62 dB, a difference of -0.75 dB. **The floor does not move.**
-Asking torch for deterministic kernels leaves run-to-run variation where seeding alone
-left it, and zero frames match either way.
+**Zero frames reproduced, in both pairs.** Asking torch for deterministic kernels leaves
+run-to-run variation where seeding alone left it.
+
+For comparison the seeded-only floor is 40.37 dB, so the deterministic pairs at
+39.45 dB are no closer to reproducing themselves than
+an ordinary re-run is.
 
 ### What it costs
 
 | baseline for this clip | wall (s) | determinism vs it |
 |---|---:|---:|
-| arm0, first pass | 388.74 | **+13.25 %** |
-| arm0b, last pass | 396.07 | **+11.15 %** |
-| control, unmodified code | 397.91 | **+10.64 %** |
+| arm0, first pass | 388.74 | **+13.42 %** |
+| arm0b, last pass | 396.07 | **+11.33 %** |
+| arm0c, cleared directory | 395.04 | **+11.62 %** |
 
-Determinism mean is 440.25 s over 2 runs. So it is a
-double-digit tax for no reproducibility gain, and it stays off.
+Determinism mean is 440.92 s over 4 runs: a double-digit tax for
+no reproducibility gain, so it stays off.
 
 ### Why, and what it decides about the cache
 
@@ -290,17 +291,28 @@ segment and checking the result matches, because recomputation does not reproduc
 bytes. It has to store and return what it computed, and rest its correctness on how
 keys are derived rather than on agreement after the fact.
 
-### The repeat spread, which frames every other number here
+### The repeat spread, and a correction to how it was first quoted
 
-The two runs are the same code, same clip, same seed, same flags, back to back. They
-differ by 10.03 s, or 2.28 %.
+All four runs are the same code, same clip, same seed, same flags.
 
-Every candidate optimization measured in this work came in under half a percent. A rig
-whose repeat spread is larger than that cannot resolve them individually, which is why
-the arms were judged on a paired, drift-corrected comparison instead. It also means no
-result here licenses the conclusion that there is nothing to gain — only that these
-changes did not gain anything measurable, and that two of them were premised on a
-bottleneck the utilisation trace says is not there.
+| | mean (s) | range (s) | range % |
+|---|---:|---:|---:|
+| pair with uncleared output directory | 440.25 | 10.03 | 2.28 % |
+| pair with cleared output directory | 441.61 | 1.03 | 0.23 % |
+| **all four** | **440.92** | **10.03** | **2.27 %** |
+
+**The repeat spread is best quoted as the four-run CV, 0.95 %.** The first pair was
+published here as a 2.28 % repeat spread, which
+was a range taken from two samples — an unstable estimate of variance, and this page
+said so more confidently than two points can support. The second pair came in ten times
+tighter at 0.23 %, while the two pairs’ *means* differ by only
+0.31 %.
+
+Two pairs cannot establish that clearing the output directory reduces variance, and the
+tighter pair is confounded with running later. What the four runs do support is the
+headline: at a 0.95 % CV this rig cannot resolve the candidate effects, which came
+in at 0.14, 0.41 and 0.50 %. That conclusion is unchanged, and it is the only one the
+sample size carries.
 
 ## Cost against input resolution
 

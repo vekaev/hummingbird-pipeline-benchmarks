@@ -325,16 +325,18 @@ if (diff) {
     P(`${rows.length} still ran slower than the first one. So roughly half the drift is`);
     P('accumulated output and roughly half remains unexplained.\n');
 
-    // The comparison figure is the repeat spread from the determinism pair, computed
-    // from its own samples rather than restated, so the two sections cannot disagree.
+    // Compared against the four-run CV of the repeat pairs, not a single pair's range:
+    // a range from two samples is an unstable variance estimate. Computed from those
+    // samples so this cannot drift from the determinism section.
     const detRuns = raw('determinism').runs.map((r) => r.wall_s);
-    const repeatPct = 100 * (Math.max(...detRuns) - Math.min(...detRuns)) / mean(detRuns);
+    const repeatCv = 100 * stdev(detRuns) / mean(detRuns);
     P('### How much to trust this\n');
-    P(`Not very much, and the reason is stated above rather than buried. The effect is`);
-    P(`${fmt(recovered)} points, and the repeat spread measured on two identical runs is`);
-    P(`${fmt(repeatPct)} %. **The effect is smaller than the noise it is measured against**, at n=1 per`);
-    P('configuration. What survives is the consistent sign across clips and a plausible');
-    P('mechanism, which together are worth a cheap operational change and not a claim:\n');
+    P(`Not much, and the reason is stated here rather than buried. The effect is`);
+    P(`${fmt(recovered)} points against a repeat spread of ${fmt(repeatCv)} % CV, measured over`);
+    P(`${detRuns.length} runs of one identical configuration. **The effect is about the size of the`);
+    P('noise it is measured against**, at n=1 per configuration. What survives is the');
+    P('consistent sign across clips and a plausible mechanism, which together are worth a');
+    P('cheap operational change and not a claim:\n');
     P('* clear the output directory between arms. It costs nothing and removes a confound.');
     P('* interleave a baseline between every arm, which is what should have happened here.');
     P('* do not quote the split between explained and unexplained drift as a result.\n');
@@ -349,38 +351,40 @@ if (diff) {
     const r = arms.find((x) => x.arm === arm && String(x.clip).includes(det.clip.replace(/^1_/, '')));
     return r ? r.wall_s : null;
   };
-  const detWalls = det.runs.map((r) => r.wall_s);
-  const detMean = mean(detWalls);
-  const spread = Math.max(...detWalls) - Math.min(...detWalls);
+  const walls = det.runs.map((r) => r.wall_s);
+  const detMean = mean(walls);
+  const detCv = 100 * stdev(walls) / detMean;
+  const range = (v) => Math.max(...v) - Math.min(...v);
+  const byPair = {};
+  for (const r of det.runs) (byPair[r.pair] ??= []).push(r.wall_s);
 
   P('## Deterministic kernels: what they cost, and what they buy\n');
-  P('One clip run twice at one seed with deterministic kernels requested. The question was');
-  P('whether the pipeline can be made to reproduce its own output bit for bit, because a');
-  P('cache that reuses computed segments would otherwise have no way to verify itself.\n');
+  P('One clip run four times at one seed with deterministic kernels requested, as two');
+  P('independent pairs. The question was whether the pipeline can be made to reproduce its');
+  P('own output bit for bit, because a cache that reuses computed segments would otherwise');
+  P('have no way to verify itself.\n');
 
-  P('| | value |');
-  P('|---|---:|');
-  P(`| frames compared | ${det.diff.frames} |`);
-  P(`| **bit-identical frames** | **${det.diff.identical} of ${det.diff.frames}** |`);
-  P(`| PSNR mean | ${fmt(det.diff.psnr)} dB |`);
-  P(`| SSIM mean | ${fmt(det.diff.ssim, 5)} |`);
-  P(`| worst pixel | ${det.diff.worst} of 255 |`);
+  P('| pair | machine state | frames | bit-identical | PSNR mean | worst pixel |');
+  P('|---|---|---:|---:|---:|---:|');
+  for (const d of det.diffs) {
+    P(`| ${d.pair} | ${d.state} output directory | ${d.frames} | **${d.identical}** | `
+      + `${fmt(d.psnr)} dB | ${d.worst} of 255 |`);
+  }
   P('');
+  P('**Zero frames reproduced, in both pairs.** Asking torch for deterministic kernels leaves');
+  P('run-to-run variation where seeding alone left it.\n');
 
-  // compare against the seeded-only floor computed above, from the same raw file
   const dd = raw('output-diff');
   const fl = dd.rows.filter((r) => r.arm === 'arm0b');
   if (fl.length) {
     const flPsnr = mean(fl.map((r) => r.psnr));
-    const delta = det.diff.psnr - flPsnr;
-    P(`The seeded-only floor measured above is ${fmt(flPsnr)} dB. Deterministic mode gives`);
-    P(`${fmt(det.diff.psnr)} dB, a difference of ${signed(delta)} dB. **The floor does not move.**`);
-    P('Asking torch for deterministic kernels leaves run-to-run variation where seeding alone');
-    P('left it, and zero frames match either way.\n');
+    P(`For comparison the seeded-only floor is ${fmt(flPsnr)} dB, so the deterministic pairs at`);
+    P(`${fmt(mean(det.diffs.map((d) => d.psnr)))} dB are no closer to reproducing themselves than`);
+    P('an ordinary re-run is.\n');
   }
 
   const rows = [['arm0, first pass', wall('arm0')], ['arm0b, last pass', wall('arm0b')],
-    ['control, unmodified code', wall('control_main')]].filter((r) => r[1]);
+    ['arm0c, cleared directory', wall('arm0c')]].filter((r) => r[1]);
   if (rows.length) {
     P('### What it costs\n');
     P('| baseline for this clip | wall (s) | determinism vs it |');
@@ -389,8 +393,8 @@ if (diff) {
       P(`| ${label} | ${fmt(w)} | **${signed(100 * (detMean - w) / w)} %** |`);
     }
     P('');
-    P(`Determinism mean is ${fmt(detMean)} s over ${det.runs.length} runs. So it is a`);
-    P('double-digit tax for no reproducibility gain, and it stays off.\n');
+    P(`Determinism mean is ${fmt(detMean)} s over ${walls.length} runs: a double-digit tax for`);
+    P('no reproducibility gain, so it stays off.\n');
   }
 
   P('### Why, and what it decides about the cache\n');
@@ -403,15 +407,26 @@ if (diff) {
   P('bytes. It has to store and return what it computed, and rest its correctness on how');
   P('keys are derived rather than on agreement after the fact.\n');
 
-  P('### The repeat spread, which frames every other number here\n');
-  P(`The two runs are the same code, same clip, same seed, same flags, back to back. They`);
-  P(`differ by ${fmt(spread)} s, or ${fmt(100 * spread / detMean)} %.\n`);
-  P('Every candidate optimization measured in this work came in under half a percent. A rig');
-  P('whose repeat spread is larger than that cannot resolve them individually, which is why');
-  P('the arms were judged on a paired, drift-corrected comparison instead. It also means no');
-  P('result here licenses the conclusion that there is nothing to gain \u2014 only that these');
-  P('changes did not gain anything measurable, and that two of them were premised on a');
-  P('bottleneck the utilisation trace says is not there.\n');
+  P('### The repeat spread, and a correction to how it was first quoted\n');
+  P('All four runs are the same code, same clip, same seed, same flags.\n');
+  P('| | mean (s) | range (s) | range % |');
+  P('|---|---:|---:|---:|');
+  for (const [state, v] of Object.entries(byPair)) {
+    P(`| pair with ${state} output directory | ${fmt(mean(v))} | ${fmt(range(v))} | ${fmt(100 * range(v) / mean(v))} % |`);
+  }
+  P(`| **all four** | **${fmt(detMean)}** | **${fmt(range(walls))}** | **${fmt(100 * range(walls) / detMean)} %** |`);
+  P('');
+  P(`**The repeat spread is best quoted as the four-run CV, ${fmt(detCv)} %.** The first pair was`);
+  P(`published here as a ${fmt(100 * range(byPair.uncleared ?? walls) / mean(byPair.uncleared ?? walls))} % repeat spread, which`);
+  P('was a range taken from two samples — an unstable estimate of variance, and this page');
+  P('said so more confidently than two points can support. The second pair came in ten times');
+  P(`tighter at ${fmt(100 * range(byPair.cleared ?? walls) / mean(byPair.cleared ?? walls))} %, while the two pairs\u2019 *means* differ by only`);
+  P(`${fmt(Math.abs(100 * (mean(byPair.cleared ?? walls) - mean(byPair.uncleared ?? walls)) / mean(byPair.uncleared ?? walls)))} %.\n`);
+  P('Two pairs cannot establish that clearing the output directory reduces variance, and the');
+  P('tighter pair is confounded with running later. What the four runs do support is the');
+  P(`headline: at a ${fmt(detCv)} % CV this rig cannot resolve the candidate effects, which came`);
+  P('in at 0.14, 0.41 and 0.50 %. That conclusion is unchanged, and it is the only one the');
+  P('sample size carries.\n');
 }
 
 // ---------------------------------------------------------------- resolution model

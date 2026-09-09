@@ -1,20 +1,61 @@
 {
-  "note": "Two runs of ONE clip with LIPSYNC_SEED=0 and LIPSYNC_DETERMINISTIC=1, which sets torch.use_deterministic_algorithms(True, warn_only=True) and CUBLAS_WORKSPACE_CONFIG=:4096:8 on top of the full reseed. Run back to back on the dedicated machine. The frame comparison is det1 against det2, from benchmarking/compare_outputs.py. Wall clock is compared against this same clip's rows in arms.json rather than against a typed baseline.",
+  "note": "Four runs of ONE clip with LIPSYNC_SEED=0 and LIPSYNC_DETERMINISTIC=1, which sets torch.use_deterministic_algorithms(True, warn_only=True) and CUBLAS_WORKSPACE_CONFIG=:4096:8 on top of the full reseed. Two independent pairs: det1/det2 ran while the shared output directory held ~20 GB of accumulated intermediates, detA/detB after it was cleared. Each pair also has its own frame comparison from benchmarking/compare_outputs.py. Wall clock is compared against this clip's rows in arms.json rather than against a typed baseline. IMPORTANT: quote the four-run CV as the repeat spread, not a single pair's range -- a range from two samples is an unstable variance estimate, and the two pairs' ranges differ tenfold.",
   "clip": "1_RD_Radio11_001",
   "clipFrames": 751,
-  "flags": { "LIPSYNC_SEED": 0, "LIPSYNC_DETERMINISTIC": 1 },
+  "flags": {
+    "LIPSYNC_SEED": 0,
+    "LIPSYNC_DETERMINISTIC": 1
+  },
   "runs": [
-    { "run": "det1", "wall_s": 445.26 },
-    { "run": "det2", "wall_s": 435.23 }
+    {
+      "run": "det1",
+      "wall_s": 445.26,
+      "pair": "uncleared",
+      "outputDirGB": 20
+    },
+    {
+      "run": "det2",
+      "wall_s": 435.23,
+      "pair": "uncleared",
+      "outputDirGB": 20
+    },
+    {
+      "run": "detA",
+      "wall_s": 441.09,
+      "pair": "cleared",
+      "outputDirGB": 0
+    },
+    {
+      "run": "detB",
+      "wall_s": 442.12,
+      "pair": "cleared",
+      "outputDirGB": 0
+    }
   ],
-  "diff": {
-    "frames": 751,
-    "identical": 0,
-    "psnr": 39.62,
-    "psnrMin": 37.87,
-    "ssim": 0.97333,
-    "ssimMin": 0.96539,
-    "worst": 90,
-    "worstMean": 46.0
-  }
+  "diffs": [
+    {
+      "pair": "det1 vs det2",
+      "state": "uncleared",
+      "frames": 751,
+      "identical": 0,
+      "psnr": 39.62,
+      "psnrMin": 37.87,
+      "ssim": 0.97333,
+      "ssimMin": 0.96539,
+      "worst": 90,
+      "worstMean": 46.0
+    },
+    {
+      "pair": "detA vs detB",
+      "state": "cleared",
+      "frames": 751,
+      "identical": 0,
+      "psnr": 39.27,
+      "psnrMin": 37.18,
+      "ssim": 0.9723,
+      "ssimMin": 0.9646,
+      "worst": 109,
+      "worstMean": 55.1
+    }
+  ]
 }

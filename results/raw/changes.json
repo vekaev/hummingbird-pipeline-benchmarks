@@ -126,11 +126,11 @@
     {
       "n": 15,
       "change": "Deterministic kernels behind a second flag",
-      "what": "Asks torch for deterministic algorithms and a fixed cuBLAS workspace on top of the reseed, to test whether the pipeline can reproduce its own output exactly.",
+      "what": "Asks torch for deterministic algorithms and a fixed cuBLAS workspace on top of the reseed, to test whether the pipeline can reproduce its own output exactly. Run as two independent pairs.",
       "effect": "measured",
-      "detail": "0 of 751 frames identical across two runs at one seed, and a 10.6% to 13.3% wall clock cost: the floor does not move, so the flag stays off. The nondeterminism sits outside torch, which is what decides the cache design",
+      "detail": "0 of 751 frames identical in BOTH pairs, and an 11% to 13% wall clock cost: the floor does not move, so the flag stays off. The nondeterminism sits outside torch, which is what decides the cache design",
       "section": "arms",
-      "arm": "det1/det2",
+      "arm": "det1/det2, detA/detB",
       "roadmap": false
     },
     {
@@ -138,7 +138,7 @@
       "change": "A third baseline, with the accumulated output cleared first",
       "what": "Tests whether the session drift has an avoidable cause. The pipeline writes eighteen intermediate videos per job into one directory, which had reached 20 GB. Free space was ruled out first: the volume stayed 39 % full.",
       "effect": "measured",
-      "detail": "Recovered 0.91 of the 1.85 points of drift, consistent in sign across all three clips. Smaller than the 2.28 % repeat spread, so it is treated as grounds for clearing the directory between arms, not as a result",
+      "detail": "Recovered 0.91 of the 1.85 points of drift, consistent in sign across all three clips. About the size of the 0.95% repeat CV, so it is grounds for clearing the directory between arms, not a result",
       "section": "arms",
       "arm": "arm0c",
       "roadmap": false

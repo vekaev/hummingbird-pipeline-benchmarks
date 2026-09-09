@@ -199,7 +199,13 @@ const TILES = [
   ['fp16 autocast, drift-adjusted', mdCell('results/measured.md', 'Arms, adjusted for drift', '>arm2<', 3), 'T8'],
   ['cuDNN autotuning, drift-adjusted', mdCell('results/measured.md', 'Arms, adjusted for drift', '>arm3<', 3), 'T8'],
   ['Baseline repeat, no code change', mdCell('results/measured.md', 'Session drift', 'run last', 2), 'T8'],
-  ['Determinism, frames reproduced', mdCell('results/measured.md', 'Deterministic kernels', 'bit-identical', 1), 'T8'],
+  // Both halves are read from the table: the identical count and the frame count, so the
+  // "N of M" phrasing types neither number.
+  ['Determinism, frames reproduced',
+    `${mdCell('results/measured.md', 'Deterministic kernels', '>det1 vs det2<', 3)} of `
+    + `${mdCell('results/measured.md', 'Deterministic kernels', '>det1 vs det2<', 2)}`, 'T8'],
+  ['Repeat spread, 4 identical runs',
+    mdCell('results/measured.md', 'The repeat spread', 'all four', 3), 'T8'],
   ['Baseline arm CV', mdCell('results/reporting.md', 'Measurement precision', 'A/B arms', 4), 'T3'],
   ['Paste-back fit vs pixels', 'R² ' + mdCell('results/measured.md', 'Cost against input resolution', 'Paste-back compositing', 1), 'T10'],
   ['Quality gap, paired', mdCell('results/measured.md', 'Lip-sync error against ground truth', 'Paired gap', 1), 'T12'],

@@ -2060,3 +2060,124 @@ reconciles bad frames afterwards through `handle_bad_frames`.
 
 **This is the most consequential thing in this file.** Every performance result here came
 back null. A silent correctness defect on the shipping path did not.
+
+## The drift has a partial, avoidable cause
+
+`arm0b` measured a +1.85 % session drift with no code change, which is larger than every
+effect under test and is what withdrew arm3. So the baseline was run a **third** time,
+`arm0c`, with one change: the accumulated output directory cleared first. The pipeline
+writes 18 intermediate videos per job into it and it had reached 20 GB.
+
+**Free space is not the mechanism.** The volume stayed 39 % full throughout, so anything
+here comes from directory contents, not from running out of room.
+
+| clip | arm0 first | arm0b last | arm0c cleared | vs arm0 | vs arm0b |
+|---|---:|---:|---:|---:|---:|
+| hdtf01 | 388.74 | 396.07 | 395.04 | +1.62 % | −0.26 % |
+| hdtf02 | 393.43 | 398.69 | 394.73 | +0.33 % | −0.99 % |
+| hdtf03 | 385.46 | 394.45 | 388.82 | +0.87 % | −1.43 % |
+| **mean** | **389.21** | **396.40** | **392.86** | **+0.94 %** | **−0.89 %** |
+
+Clearing recovered **0.91 of the 1.85 points**, about half. The sign is consistent: all
+three clips beat the uncleared baseline, and all three were still slower than the first.
+
+### How far this goes, stated plainly
+
+The effect is 0.91 points. The repeat spread measured on det1/det2 is **2.28 %**. **The
+effect is smaller than the noise it is measured against**, at n=1 per configuration. Note
+also the confound that cuts the other way: `arm0c` ran *later* than `arm0b`, so pure
+time-ordered drift would have predicted it slower, and it was faster on every clip. That
+strengthens the direction without fixing the magnitude.
+
+What this earns is procedure, not a number:
+
+1. **Clear the output directory between arms.** Free, and removes a confound.
+2. **Interleave a baseline between every arm.** This session's whole correction exercise
+   exists because that was not done.
+3. **Do not quote the explained/unexplained split as a result.** It is inside the noise.
+
+### Why it was worth spending the GPU time on a pass that tests nothing
+
+`arm0c`, like `arm0b` and the branch control, measures no optimization at all. Three of the
+six passes this session were controls, and they produced every conclusion that survived:
+the drift correction, the withdrawal of two of my own claims, the confirmation that the
+branch is performance-neutral, and now a partial cause for the drift. The three passes that
+tested actual optimizations all returned null.
+
+---
+
+# Determinism is unreachable through torch flags — and attempting it costs 13 %
+
+**MEASURED 2026-09-09.** Two runs of one clip with **both** `LIPSYNC_SEED=0` **and**
+`LIPSYNC_DETERMINISTIC=1`, which calls `torch.use_deterministic_algorithms(True,
+warn_only=True)` and sets `CUBLAS_WORKSPACE_CONFIG=:4096:8`.
+
+| comparison | bit-identical | PSNR | worst pixel |
+|---|---|---|---|
+| seeded only (arm0 vs arm0b) | 0 / 751 | 39.38 dB | 96 / 255 |
+| **seeded + deterministic kernels (detA vs detB)** | **0 / 751** | **39.27 dB** | **109 / 255** |
+
+**Deterministic kernels did not help at all.** The output floor is unchanged, and the worst
+pixel deviation is slightly *larger*. Meanwhile:
+
+| run | wall clock | vs baseline |
+|---|---|---|
+| arm0 baseline | 389.21 s | — |
+| det (first attempt) | 445.31 / 435.28 s | +14.4 % / +11.9 % |
+| detA / detB (rerun) | 441.14 / 442.17 s | **+13.4 %** |
+
+**Requesting determinism costs 13 % and delivers none of it.** That is the largest single
+effect measured in the entire session — an order of magnitude bigger than anything the three
+roadmap arms produced — and it is a pure cost.
+
+## Where the residual must live
+
+`torch.use_deterministic_algorithms` governs PyTorch kernels only. The remaining
+nondeterminism is therefore outside PyTorch:
+
+- **ONNX Runtime's CUDA execution provider** — the face detector and landmark runner
+  (`LivePortrait/src/utils/human_landmark_runner.py`, `cropper.py`). Torch flags cannot
+  reach it; it needs its own session options.
+- **nvdiffrast** — rasterisation with atomic accumulation, no deterministic mode.
+- Anything else allocating and reducing outside the torch allocator.
+
+## What this does and does not do to the caching plan
+
+This is a distinction worth getting right, because the earlier note in this file overstated
+it.
+
+**It does NOT make the source-analysis cache unsound.** That cache stores the artefacts of a
+real analysis run and hands them back. Those artefacts are valid — they *are* the output of
+crop, landmark, parse and track on that video. The animator still runs fresh on the new
+audio, so no stitch seam is created. Determinism is not required for the cache to be
+*correct*.
+
+**It does make the cache unverifiable.** You can never assert "restored equals freshly
+computed", because two fresh runs do not equal each other either. The design's answer — a
+witness digest over the frames actually analysed, with `crop_face` still running on a hit —
+becomes the only available check, and it verifies *the key*, not the bytes. That was the
+right design decision and this measurement is why.
+
+**It does rule out a segment-output cache.** Splicing a cached generated segment against a
+fresh one needs the two motion trajectories to agree at the join, and they cannot.
+
+**And it removes the 13 % option.** Buying determinism to make caching verifiable is not
+available at any price, because the price does not buy the thing.
+
+## Correction to an earlier entry in this file
+
+An earlier section said the cache "is only sound if the sampler is seeded". That conflated
+two caches. Precisely:
+
+- **Source-analysis cache** (the one proposed): needs the *inputs* to be reproducible so the
+  key can match — which is the time-warp RNG problem, fixable by seeding that one call. It
+  does **not** need the pipeline to be bit-reproducible.
+- **Segment-output cache** (not proposed): would need full determinism, which is now
+  measured to be unavailable.
+
+## Consequence for every quality gate in this package
+
+`compare_outputs.py` can never assert bit-exactness for any change on this build. Its
+thresholds must be set from the measured per-build floor — **39.3 dB PSNR, worst pixel ~109**
+— and any change whose deviation sits inside that is simply unmeasurable, not verified as
+safe. The three arms all sat inside it.
