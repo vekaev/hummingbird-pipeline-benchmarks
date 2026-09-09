@@ -182,6 +182,14 @@
       "section": "arms",
       "arm": "paoff/paon",
       "roadmap": false
+    },
+    {
+      "n": 21,
+      "change": "Confirmed the build fix end to end by rebuilding from the merged branch",
+      "what": "The deploy failure was a mixed-CUDA torch stack: PyPI's torch 2.5.1 is built against CUDA 12.4 and the index build against 12.1, and both report the same version string, so a version pin does not identify the artefact. Every run on the experiment box until now needed a --force-reinstall inside the container to obtain a consistent stack. A fresh image built from the merged branch was then inspected for what it actually contains.",
+      "effect": "measured",
+      "detail": "torch 2.5.1+cu121 beside torchaudio 2.5.1+cu121 in the built image, with no runtime patching; every pip layer cached, so the resolved dependency set is now stable across builds",
+      "section": "how"
     }
   ],
   "configurations": [
