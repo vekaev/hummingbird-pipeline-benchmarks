@@ -468,6 +468,35 @@ the same sign every time — against a run-to-run spread on this measure of just
 parameters that the sibling function in the same file already passes, at no performance
 cost. It is the cheapest quality change in this work.
 
+### The same measurement, run independently
+
+A claim this cheap and this large should not rest on one measurement, so it was made
+again, separately, on the same clip against the same source.
+
+| path | first measurement | replication | replication, other convention |
+|---|---:|---:|---:|
+| disk, as it ships | 31.73 dB | 31.57 | 31.47 |
+| disk, both parameters set | 33.89 dB | 33.40 | 33.13 |
+| stage boundaries in memory | 34.96 dB | 34.25 | 33.93 |
+| **writer parameters alone** | **+2.16** | **+1.83** | **+1.66** |
+| **total recovery** | **+3.23** | **+2.68** | **+2.46** |
+
+**The ordering replicates on every convention, and so does the decomposition** —
+about two thirds of the recovery from the writer parameters, one third from skipping
+the intermediates. The **magnitude does not**: the replication lands 20 to 25 % lower
+throughout.
+
+Part of that is a convention rarely named. Averaging per-frame values and converting
+a mean error once are not the same number, and the difference is worth about 0.2 dB
+here. The rest is most likely frame alignment: the outputs carry one more frame than
+the source, and which frame pairs with which moves a figure of this size.
+
+**So the honest form of this result is "roughly +2 dB on the shipping path, about two
+thirds of a recovery totalling somewhere near +2.5 to +3 dB" — not the decimals.** The
+conclusion is untouched: the writer parameters are the cheapest quality change here.
+The exact figure needs both measurements run with the same alignment and the same
+averaging convention, stated.
+
 Both parameters nevertheless **default to what they were**, because changing them changes
 the dimensions and bitrate of delivered video and that decision belongs to whoever owns the
 deployment. What has changed is that the cost of leaving it alone is now a number.

@@ -581,6 +581,40 @@ if (diff) {
   P(`${signed(gt.bothKnobsDb - gt.shippingDb)} dB on the *shipping* path, from passing two`);
   P('parameters that the sibling function in the same file already passes, at no performance');
   P('cost. It is the cheapest quality change in this work.\n');
+
+  // A second measurement of the headline number, because it is the most consequential
+  // quality claim here and a claim this cheap and this large should not stand on one run.
+  const rep = gt.replication;
+  if (rep) {
+    P('### The same measurement, run independently\n');
+    P('A claim this cheap and this large should not rest on one measurement, so it was made');
+    P('again, separately, on the same clip against the same source.\n');
+    P('| path | first measurement | replication | replication, other convention |');
+    P('|---|---:|---:|---:|');
+    P(`| disk, as it ships | ${fmt(gt.shippingDb)} dB | ${fmt(rep.shippingDbPerFrame)} | ${fmt(rep.shippingDbGlobalMse)} |`);
+    P(`| disk, both parameters set | ${fmt(gt.bothKnobsDb)} dB | ${fmt(rep.bothKnobsDbPerFrame)} | ${fmt(rep.bothKnobsDbGlobalMse)} |`);
+    P(`| stage boundaries in memory | ${fmt(gt.inMemoryDb)} dB | ${fmt(rep.inMemoryDbPerFrame)} | ${fmt(rep.inMemoryDbGlobalMse)} |`);
+    P(`| **writer parameters alone** | **+${fmt(gt.bothKnobsDb - gt.shippingDb)}** `
+      + `| **+${fmt(rep.bothKnobsDbPerFrame - rep.shippingDbPerFrame)}** `
+      + `| **+${fmt(rep.bothKnobsDbGlobalMse - rep.shippingDbGlobalMse)}** |`);
+    P(`| **total recovery** | **+${fmt(gt.inMemoryDb - gt.shippingDb)}** `
+      + `| **+${fmt(rep.inMemoryDbPerFrame - rep.shippingDbPerFrame)}** `
+      + `| **+${fmt(rep.inMemoryDbGlobalMse - rep.shippingDbGlobalMse)}** |`);
+    P('');
+    P('**The ordering replicates on every convention, and so does the decomposition** —');
+    P('about two thirds of the recovery from the writer parameters, one third from skipping');
+    P('the intermediates. The **magnitude does not**: the replication lands 20 to 25 % lower');
+    P('throughout.\n');
+    P('Part of that is a convention rarely named. Averaging per-frame values and converting');
+    P('a mean error once are not the same number, and the difference is worth about 0.2 dB');
+    P('here. The rest is most likely frame alignment: the outputs carry one more frame than');
+    P('the source, and which frame pairs with which moves a figure of this size.\n');
+    P('**So the honest form of this result is "roughly +2 dB on the shipping path, about two');
+    P('thirds of a recovery totalling somewhere near +2.5 to +3 dB" — not the decimals.** The');
+    P('conclusion is untouched: the writer parameters are the cheapest quality change here.');
+    P('The exact figure needs both measurements run with the same alignment and the same');
+    P('averaging convention, stated.\n');
+  }
   P('Both parameters nevertheless **default to what they were**, because changing them changes');
   P('the dimensions and bitrate of delivered video and that decision belongs to whoever owns the');
   P('deployment. What has changed is that the cost of leaving it alone is now a number.\n');

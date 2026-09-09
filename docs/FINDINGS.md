@@ -3737,3 +3737,53 @@ pipeline was only supposed to carry**, which is the right instrument for a
 resample-and-recompress question and the wrong one for "does it look better". A perceptual
 claim would need the reference-free metrics that beat chance, on more than three clips.
 [UNMEASURED]
+
+## A footnote that vindicates a claim not made
+
+The earlier section recorded that the mouth-motion metric favoured the in-memory arm on all
+three clips (+3.9 %, +8.8 %, +6.1 %) and explicitly declined to call it a result, because
+the control's own spread on that metric reached 3.0 %. With the writers made identical the
+metric goes the *other* way -- 4.115 for the disk arm against 4.075 for the in-memory arm on
+hdtf01, where before it was 3.887 against 4.037 -- and both sit closer to the source's 4.338.
+
+So the mouth-metric difference was the resample, not the arm, exactly as the caveat
+suspected. It is the clearest illustration in this workstream of why a consistent direction
+across three clips is not evidence when the control has not been run.
+
+## Independent check of the ground-truth recovery: direction confirmed, magnitude not
+
+The writer finding above is the most consequential quality claim in this workstream — that
+two omitted parameters cost the **shipping** path 2.16 dB against ground truth. A claim that
+cheap and that large deserves a second measurement before it is published, so here is one,
+computed independently on hdtf01 against the same 478×478 source.
+
+| path | reported above | this check (mean of per-frame) | this check (PSNR of mean MSE) |
+|---|---:|---:|---:|
+| disk, as it ships (480²) | 31.73 dB | 31.57 | 31.47 |
+| disk, both knobs (478²) | 33.89 dB | 33.40 | 33.13 |
+| in-memory (478²) | 34.96 dB | 34.25 | 33.93 |
+| **writer knobs alone** | **+2.16** | **+1.83** | **+1.66** |
+| **in-memory, further** | **+1.07** | **+0.85** | **+0.80** |
+| **total** | **+3.23** | **+2.68** | **+2.46** |
+
+**What replicates, and it is the part that matters:**
+
+- The **ordering** is identical: shipping < knobs-fixed < in-memory, on every convention.
+- The **decomposition** holds: roughly two thirds of the recovery is the writer parameters,
+  one third is skipping the intermediates.
+- The **dimensions** confirm the mechanism outright — source 478×478, shipping path
+  480×480, both fixed paths 478×478.
+
+**What does not the hosting platform is the size.** Every figure here lands **0.2 to 0.7 dB below** the
+reported one, and the total is +2.46 to +2.68 dB rather than +3.23 dB — 20 to 25 % smaller.
+Averaging convention explains part of it: taking the mean of per-frame PSNRs rather than the
+PSNR of the mean MSE is worth about +0.2 dB here, and the two conventions should be named
+whenever a figure like this is quoted. It does not explain the rest, which is most likely
+frame alignment — the outputs carry 751 frames against the source's 750, and which frame
+pairs with which will move a number of this size.
+
+**So the claim to make is "roughly +2 dB on the shipping path from two parameters, two
+thirds of a recovery that totals around +2.5 to +3 dB", not +2.16 and +3.23 exactly.** The
+conclusion is unaffected and remains the cheapest quality change in this work. The precise
+figure needs the two methods reconciled — same frame alignment, same averaging convention,
+stated — before it goes on a page. **Not published until then.**

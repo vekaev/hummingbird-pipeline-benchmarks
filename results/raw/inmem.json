@@ -127,6 +127,17 @@
       2.32
     ],
     "diskRepeatSpreadDb": 0.04,
-    "caveat": "Not claimed: that any of this is visible to a viewer. This work's own primary source puts image-registration metrics at or below chance for agreement with human judgement on generated faces. The right instrument for a resample-and-recompress question, the wrong one for whether it looks better."
+    "caveat": "Not claimed: that any of this is visible to a viewer. This work's own primary source puts image-registration metrics at or below chance for agreement with human judgement on generated faces. The right instrument for a resample-and-recompress question, the wrong one for whether it looks better.",
+    "replication": {
+      "note": "An independent second measurement of the same clip against the same source, run separately. It confirms the ordering and the two-thirds/one-third decomposition, and lands 20-25% lower on magnitude. Two conventions are given because the choice is worth about 0.2 dB and is rarely stated: 'perFrame' averages per-frame PSNR, 'globalMse' converts the mean MSE once. The residual gap beyond that is most likely frame alignment -- the outputs carry 751 frames against the source's 750.",
+      "shippingDbPerFrame": 31.57,
+      "bothKnobsDbPerFrame": 33.4,
+      "inMemoryDbPerFrame": 34.25,
+      "shippingDbGlobalMse": 31.47,
+      "bothKnobsDbGlobalMse": 33.13,
+      "inMemoryDbGlobalMse": 33.93,
+      "orderingConfirmed": true,
+      "decompositionConfirmed": true
+    }
   }
 }

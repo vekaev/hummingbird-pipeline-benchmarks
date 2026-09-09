@@ -129,6 +129,13 @@ const imGtKnobs = mdCell('results/measured.md', 'Against the source, which is th
 const imGtMem = mdCell('results/measured.md', 'Against the source, which is the comparison that was missing', '>stage boundaries in memory<', 1);
 const imGtWriterGain = mdCell('results/measured.md', 'Against the source, which is the comparison that was missing', '>both writer parameters set<', 2);
 const imGtSpread = `${imRaw.groundTruth.diskRepeatSpreadDb.toFixed(2)} dB`;
+const imRep = imRaw.groundTruth.replication;
+const imRepGap = (() => {
+  const a = imRaw.groundTruth.inMemoryDb - imRaw.groundTruth.shippingDb;
+  const b = imRep.inMemoryDbPerFrame - imRep.shippingDbPerFrame;
+  return `${Math.round(100 * (a - b) / a)}% to ${Math.round(100 * (a - (imRep.inMemoryDbGlobalMse - imRep.shippingDbGlobalMse)) / a)}%`;
+})();
+
 const imGtMean = `${(imRaw.groundTruth.perClipAdvantageDb.reduce((a, b) => a + b, 0) / imRaw.groundTruth.perClipAdvantageDb.length).toFixed(2)} dB`;
 const coFc = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3fc5<', 4);
 const coBoth = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3both<', 4);
@@ -534,6 +541,18 @@ ${mdTable('results/measured.md', 'Against the source, which is the comparison th
     optimization. It is still not a change to make unilaterally: switching the default alters
     the dimensions of every delivered video. What has changed is that the cost of leaving it
     alone is now a measured number rather than an unknown.
+  </p>
+  <p>
+    <b>Measured twice, and the second time is smaller.</b> A claim this cheap and this large
+    should not rest on one run, so it was made again independently. The ordering replicates
+    and so does the split &mdash; about two thirds of the recovery from the writer
+    parameters, one third from skipping the intermediates &mdash; but the magnitude lands
+    ${imRepGap} lower. Part is a convention rarely named: averaging per-frame values and
+    converting a mean error once differ by about 0.2 dB. The rest is most likely frame
+    alignment, since the outputs carry one frame more than the source. So the honest form is
+    <b>roughly +2 dB on the shipping path, of a recovery near +2.5 to +3 dB</b> &mdash; not
+    the decimals. The conclusion is untouched; the decimals wait for both measurements to be
+    run with the same alignment and averaging, stated.
   </p>
   <p>
     Not claimed: that any of this is visible to a viewer. Image-registration metrics agree
