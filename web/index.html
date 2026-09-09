@@ -544,6 +544,37 @@ drift.</div>
 <tr><td>control_main</td><td>RD_Radio32_000</td><td class="n">393.43</td><td class="n">396.15</td><td class="n">+2.72</td><td class="n">+0.69%</td></tr>
 <tr><td>control_main</td><td>RD_Radio42_000</td><td class="n">385.46</td><td class="n">389.61</td><td class="n">+4.15</td><td class="n">+1.08%</td></tr>
 </tbody></table></div>
+<h3>How precisely can this rig measure anything?</h3>
+<p>
+  Two passes tested no optimization at all. One repeated the baseline with the accumulated
+  output directory cleared, to ask whether the drift had an avoidable cause. The other ran
+  the same clip four times at one seed with deterministic kernels requested, to ask whether
+  the pipeline can reproduce its own output at all.
+</p>
+<div class="tw"><table><thead><tr><th>Clip</th><th class="n">first baseline (s)</th><th class="n">last baseline (s)</th><th class="n">cleared (s)</th><th class="n">cleared vs first</th><th class="n">cleared vs last</th></tr></thead><tbody>
+<tr><td>RD_Radio11_001</td><td class="n">388.74</td><td class="n">396.07</td><td class="n">395.04</td><td class="n">+1.62 %</td><td class="n">-0.26 %</td></tr>
+<tr><td>RD_Radio32_000</td><td class="n">393.43</td><td class="n">398.69</td><td class="n">394.73</td><td class="n">+0.33 %</td><td class="n">-0.99 %</td></tr>
+<tr><td>RD_Radio42_000</td><td class="n">385.46</td><td class="n">394.45</td><td class="n">388.82</td><td class="n">+0.87 %</td><td class="n">-1.43 %</td></tr>
+<tr><td><strong>mean</strong></td><td class="n"><strong>389.21</strong></td><td class="n"><strong>396.40</strong></td><td class="n"><strong>392.86</strong></td><td class="n"><strong>+0.94 %</strong></td><td class="n"><strong>-0.89 %</strong></td></tr>
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th>pair</th><th>machine state</th><th class="n">frames</th><th class="n">bit-identical</th><th class="n">PSNR mean</th><th class="n">worst pixel</th></tr></thead><tbody>
+<tr><td>det1 vs det2</td><td>uncleared output directory</td><td class="n">751</td><td class="n"><strong>0</strong></td><td class="n">39.62 dB</td><td class="n">90 of 255</td></tr>
+<tr><td>detA vs detB</td><td>cleared output directory</td><td class="n">751</td><td class="n"><strong>0</strong></td><td class="n">39.27 dB</td><td class="n">109 of 255</td></tr>
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th></th><th class="n">n</th><th class="n">mean (s)</th><th class="n">range (s)</th><th class="n">range %</th><th class="n">CV %</th></tr></thead><tbody>
+<tr><td>pair with uncleared output directory</td><td class="n">2</td><td class="n">440.25</td><td class="n">10.03</td><td class="n">2.28 %</td><td class="n">1.61 %</td></tr>
+<tr><td>pair with cleared output directory</td><td class="n">2</td><td class="n">441.61</td><td class="n">1.03</td><td class="n">0.23 %</td><td class="n">0.16 %</td></tr>
+<tr><td><strong>all four</strong></td><td class="n"><strong>4</strong></td><td class="n"><strong>440.92</strong></td><td class="n"><strong>10.03</strong></td><td class="n"><strong>2.27 %</strong></td><td class="n"><strong>0.95 %</strong></td></tr>
+</tbody></table></div>
+<div class="verdict"><b>The pipeline cannot reproduce itself, and the noise was first quoted
+too high.</b> Zero of 751 frames matched in either deterministic pair, so no change here can
+be validated by checking the output is unchanged, and a reuse cache has to store its bytes
+rather than recompute them. Determinism also costs double digits, so the flag stays off. On
+precision: this page originally quoted a 2.28% repeat spread taken from a single pair of
+runs. A second pair came in ten times tighter, and the honest figure is the four-run
+coefficient of variation, 0.95 %. The conclusion it supports is the same one — at that
+spread, effects of a few tenths of a percent are not resolvable at one run per
+configuration.</div>
 <div class="caveat">
   <span class="caveat-label">A fidelity claim withdrawn, and two variables that moved together</span>
   <p>

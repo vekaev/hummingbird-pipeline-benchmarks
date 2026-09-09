@@ -2083,8 +2083,9 @@ three clips beat the uncleared baseline, and all three were still slower than th
 
 ### How far this goes, stated plainly
 
-The effect is 0.91 points. The repeat spread measured on det1/det2 is **2.28 %**. **The
-effect is smaller than the noise it is measured against**, at n=1 per configuration. Note
+The effect is 0.91 points. The repeat spread over four identical runs is **0.95 % CV**
+(see the correction below). **The effect is about the size of the noise it is measured
+against**, at n=1 per configuration. Note
 also the confound that cuts the other way: `arm0c` ran *later* than `arm0b`, so pure
 time-ordered drift would have predicted it slower, and it was faster on every clip. That
 strengthens the direction without fixing the magnitude.
@@ -2181,3 +2182,40 @@ two caches. Precisely:
 thresholds must be set from the measured per-build floor — **39.3 dB PSNR, worst pixel ~109**
 — and any change whose deviation sits inside that is simply unmeasurable, not verified as
 safe. The three arms all sat inside it.
+
+## Correction: the repeat spread was quoted from two samples
+
+A second independent pair of deterministic runs was measured on the same clip, same seed,
+same flags, after the output directory had been cleared.
+
+| pair | machine state | mean | range | range % |
+|---|---|---:|---:|---:|
+| det1 / det2 | ~20 GB accumulated | 440.25 s | 10.03 s | 2.28 % |
+| detA / detB | cleared | 441.61 s | 1.03 s | **0.23 %** |
+| all four | — | 440.93 s | 10.03 s | 2.27 % |
+
+**Four-run stdev 4.19 s, CV 0.95 %.**
+
+### What I got wrong
+
+Earlier in this file I wrote *"Two identical configurations differ by 2.28 %"* and then used
+that figure as **the** repeat spread to bound every other claim, including the drift result.
+A range taken from two samples is an unstable estimate of variance, and the second pair
+demonstrates it: ten times tighter, while the two pairs' *means* differ by only 0.31 %.
+
+**Use the four-run CV, 0.95 %.** Every conclusion that rested on the old figure survives,
+because the candidates came in at 0.14, 0.41 and 0.50 % and all three sit inside 0.95 % too.
+What changes is one sentence in the drift section: 0.91 points is *about the size of* the
+noise, not comfortably smaller than it.
+
+### What I am not claiming
+
+The tempting story is that clearing the directory cut the variance tenfold, which would
+corroborate the drift finding by a second route. Two pairs cannot support that, and the
+tighter pair also ran later in the session, so it is confounded with exactly the thing
+under test. It stays an observation.
+
+### The determinism verdict is firmer, not weaker
+
+detA vs detB: **0 of 751 frames identical**, 39.27 dB, worst pixel 109 of 255. Two
+independent pairs, zero reproduced frames in both. The cache still has to store its bytes.

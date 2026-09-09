@@ -409,12 +409,16 @@ if (diff) {
 
   P('### The repeat spread, and a correction to how it was first quoted\n');
   P('All four runs are the same code, same clip, same seed, same flags.\n');
-  P('| | mean (s) | range (s) | range % |');
-  P('|---|---:|---:|---:|');
+  // CV is the column the rest of the site quotes. Range is kept beside it precisely so a
+  // reader can see the difference between the two, which is what the correction is about.
+  P('| | n | mean (s) | range (s) | range % | CV % |');
+  P('|---|---:|---:|---:|---:|---:|');
   for (const [state, v] of Object.entries(byPair)) {
-    P(`| pair with ${state} output directory | ${fmt(mean(v))} | ${fmt(range(v))} | ${fmt(100 * range(v) / mean(v))} % |`);
+    P(`| pair with ${state} output directory | ${v.length} | ${fmt(mean(v))} | ${fmt(range(v))} `
+      + `| ${fmt(100 * range(v) / mean(v))} % | ${v.length > 1 ? fmt(100 * stdev(v) / mean(v)) + ' %' : '—'} |`);
   }
-  P(`| **all four** | **${fmt(detMean)}** | **${fmt(range(walls))}** | **${fmt(100 * range(walls) / detMean)} %** |`);
+  P(`| **all four** | **${walls.length}** | **${fmt(detMean)}** | **${fmt(range(walls))}** `
+    + `| **${fmt(100 * range(walls) / detMean)} %** | **${fmt(detCv)} %** |`);
   P('');
   P(`**The repeat spread is best quoted as the four-run CV, ${fmt(detCv)} %.** The first pair was`);
   P(`published here as a ${fmt(100 * range(byPair.uncleared ?? walls) / mean(byPair.uncleared ?? walls))} % repeat spread, which`);

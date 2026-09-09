@@ -89,6 +89,8 @@ const ledger = `<dl class="ledger">${LEDGER.map(([dt, dd, small]) => `
   <div><dt>${dt}</dt><dd>${dd}${small}</dd></div>`).join('')}</dl>`;
 
 // --- numbers quoted in prose come out of the generated tables ---------------
+// The repeat spread, read from the generated table so the prose cannot disagree with it.
+const repeatCv = mdCell('results/measured.md', 'The repeat spread', 'all four', 5);
 const arm1Delta = mdCell('results/measured.md', 'Optimization arms', '>arm1<', 4);
 const arm2Delta = mdCell('results/measured.md', 'Optimization arms', '>arm2<', 4);
 const arm3Delta = mdCell('results/measured.md', 'Optimization arms', '>arm3<', 4);
@@ -267,6 +269,25 @@ kernel search is paid for" is not supported: that slowdown is indistinguishable 
 drift.</div>
 </p>
 ${mdTable('results/measured.md', 'Per-clip arm detail')}
+<h3>How precisely can this rig measure anything?</h3>
+<p>
+  Two passes tested no optimization at all. One repeated the baseline with the accumulated
+  output directory cleared, to ask whether the drift had an avoidable cause. The other ran
+  the same clip four times at one seed with deterministic kernels requested, to ask whether
+  the pipeline can reproduce its own output at all.
+</p>
+${mdTable('results/measured.md', 'Where the session drift came from')}
+${mdTable('results/measured.md', 'Deterministic kernels: what they cost, and what they buy')}
+${mdTable('results/measured.md', 'The repeat spread, and a correction to how it was first quoted')}
+<div class="verdict"><b>The pipeline cannot reproduce itself, and the noise was first quoted
+too high.</b> Zero of 751 frames matched in either deterministic pair, so no change here can
+be validated by checking the output is unchanged, and a reuse cache has to store its bytes
+rather than recompute them. Determinism also costs double digits, so the flag stays off. On
+precision: this page originally quoted a 2.28% repeat spread taken from a single pair of
+runs. A second pair came in ten times tighter, and the honest figure is the four-run
+coefficient of variation, ${repeatCv}. The conclusion it supports is the same one — at that
+spread, effects of a few tenths of a percent are not resolvable at one run per
+configuration.</div>
 <div class="caveat">
   <span class="caveat-label">A fidelity claim withdrawn, and two variables that moved together</span>
   <p>

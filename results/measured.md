@@ -295,11 +295,11 @@ keys are derived rather than on agreement after the fact.
 
 All four runs are the same code, same clip, same seed, same flags.
 
-| | mean (s) | range (s) | range % |
-|---|---:|---:|---:|
-| pair with uncleared output directory | 440.25 | 10.03 | 2.28 % |
-| pair with cleared output directory | 441.61 | 1.03 | 0.23 % |
-| **all four** | **440.92** | **10.03** | **2.27 %** |
+| | n | mean (s) | range (s) | range % | CV % |
+|---|---:|---:|---:|---:|---:|
+| pair with uncleared output directory | 2 | 440.25 | 10.03 | 2.28 % | 1.61 % |
+| pair with cleared output directory | 2 | 441.61 | 1.03 | 0.23 % | 0.16 % |
+| **all four** | **4** | **440.92** | **10.03** | **2.27 %** | **0.95 %** |
 
 **The repeat spread is best quoted as the four-run CV, 0.95 %.** The first pair was
 published here as a 2.28 % repeat spread, which
