@@ -1423,6 +1423,12 @@ warm process, `LIPSYNC_SEED=0`, sequential, paired per clip.
 **arm2 rejected.** No speed gain, and unlike arm1 the per-clip signs are **mixed**, which is
 the signature of pure noise rather than a small real effect.
 
+> **Drift correction, added after `arm0b` ran.** A repeat of `arm0` at the end of the
+> session came back 1.85 % slower with identical configuration, so the raw figures here are
+> inflated by session drift. Corrected: arm1 **−0.14 %**, arm2 **−0.41 %**, arm3 **+0.50 %**
+> — all null, all inside ±0.5 %. See "The repeat baseline invalidated my own cuDNN result"
+> below. The raw numbers above are kept as recorded; the corrected ones are the result.
+
 ## And it is not free
 
 `compare_outputs.py`, arm2 against arm0, clip hdtf01:
@@ -1434,9 +1440,11 @@ the signature of pure noise rather than a small real effect.
 | SSIM | mean 0.97207, min 0.96309 |
 | max abs pixel difference | mean 36.5, worst **62** of 255 |
 
-So fp16 is **pure downside on this pipeline**: zero speed, measurable fidelity loss. Compare
-the same-build regeneration noise measured earlier (PSNR 45.23 dB) — fp16 moves the output
-*further* than re-running the pipeline does.
+> **WITHDRAWN.** This paragraph read: *"fp16 is pure downside on this pipeline: zero speed,
+> measurable fidelity loss … it moves the output further than re-running the pipeline does."*
+> `arm0b` — a repeat of arm0 with the same seed — later measured **39.38 dB**, so fp16's
+> 39.37 dB is the noise floor, not a fidelity loss. fp16 is null on speed **and** null on
+> fidelity. See "Seeding did NOT make the pipeline deterministic" below.
 
 ## Why both items failed, and it is the same reason
 
@@ -1575,3 +1583,271 @@ what nearly happened to arm3, in the opposite direction.
 
 Worth stating plainly for the article: the run that produced no new information about any
 optimization is the run that saved the analysis. It cost twenty minutes of GPU time.
+
+---
+
+# The repeat baseline invalidated my own cuDNN result — drift exceeded every effect
+
+**MEASURED 2026-09-09.** All five arms complete. The last arm, `arm0b`, was a **repeat of
+`arm0` with identical configuration**, run at the end of the session for exactly this
+purpose.
+
+| clip | arm0 (first) | arm0b (last) | Δ |
+|---|---|---|---|
+| hdtf01 | 388.74 s | 396.07 s | +1.89 % |
+| hdtf02 | 393.43 s | 398.69 s | +1.34 % |
+| hdtf03 | 385.46 s | 394.45 s | +2.33 % |
+| **mean** | **389.21 s** | **396.40 s** | **+1.85 %** |
+
+**The same code, same clips, same box, same seed, ran 1.85 % slower two hours later.** That
+is larger than every treatment effect measured in the entire session.
+
+## What this does to the results
+
+Interpolating the baseline linearly between the two measurements (0.46 % per arm slot):
+
+| arm | raw vs arm0 | drift-corrected | verdict |
+|---|---|---|---|
+| arm1 — batch 16 | +0.32 % | **−0.14 %** | null |
+| arm2 — batch 16 + fp16 | +0.51 % | **−0.41 %** | null |
+| arm3 — cuDNN autotuning | +1.89 % | **+0.50 %** | null |
+
+**The conclusion survives — all three arms are null — but my arm3 write-up was wrong.** I
+reported cuDNN autotuning as *"consistently 1.9 % slower"* and offered a mechanism for it
+(autotune benchmarking cost, shape changes on the partial batch). That mechanism may exist,
+but the data do not show it: **1.89 % of the 1.89 % is drift.** After correction all three
+arms sit inside ±0.5 %, which is the honest result.
+
+Corrected in place. The earlier claim should not be quoted.
+
+## Why this is the most important methodological result here
+
+Without `arm0b`, three of the numbers in this file would be wrong, and one of them — cuDNN —
+would have been reported as a real negative effect with a plausible-sounding explanation
+attached. **A confounder larger than every effect was invisible in a well-controlled paired
+A/B**: same machine, same clips, same warm process, sequential runs, fixed seed, 0.33 pp
+paired spread.
+
+The paired design was necessary and insufficient. What caught it was running the control
+**twice, at the two ends of the session**. That is cheap — one extra arm — and it is the
+difference between a result and a story.
+
+## Cause: not established, and thermal is ruled out
+
+- **Not thermal.** `nvidia-smi` reports 35 °C, and every slowdown flag is inactive: HW
+  Slowdown, HW Thermal, HW Power Brake, SW Thermal all `Not Active`, with 0 µs accumulated.
+- **Most likely I/O.** The output directory grew from empty to **18 GB** over the session
+  (each arm writes ~3.5 GB of intermediates; the pipeline performs 18 video writes per job).
+  Disk went 79 GB → 119 GB used. Since the pipeline **reads back the intermediates it just
+  wrote**, a growing working set degrades page-cache hit rate, and this is a stage already
+  established as I/O bound rather than compute bound. That is a coherent mechanism but it is
+  **inference, not measurement.**
+
+Testing it costs one arm: clear `out/` and re-run `arm0`. If it returns to ~389 s the cause
+is the accumulated output; if it stays at ~396 s it is something else about elapsed session
+time.
+
+## Consequence for how the remaining work is measured
+
+1. **Every future A/B must bracket its treatments with two baselines**, not one. Added to
+   `GPU_SESSION.md`.
+2. **The 3 % acceptance gate is now clearly right, not conservative.** A gate at 1 % would
+   have passed drift as a result.
+3. **Clear the output directory between arms**, or write to a tmpfs, until the cause is
+   known.
+
+---
+
+# The output noise floor, measured — and the fp16 fidelity claim is withdrawn
+
+**MEASURED 2026-09-09.** With arm0b complete, the baseline configuration has been run twice
+with the same seed, which finally gives a *measured* floor for output comparison on this
+hardware rather than one carried from a different dataset.
+
+| compared with the baseline arm | PSNR mean | PSNR min | SSIM | worst pixel /255 | bit-identical frames |
+|---|---|---|---|---|---|
+| **arm0b — same config, same seed, re-run** | **40.37 dB** | 39.38 | 0.97689 | **96** | **0 / 2253** |
+| arm1, batch 16 | 40.26 | 39.45 | 0.97665 | 78 | 0 |
+| arm2, batch 16 + fp16 | 40.34 | 39.37 | 0.97691 | 81 | 0 |
+| arm3, cuDNN autotuning | 40.16 | 39.35 | 0.97648 | 101 | 0 |
+
+**Every arm is within 0.21 dB of the floor**, and two of the three have a *smaller* worst
+pixel than doing nothing at all.
+
+## The claim being withdrawn
+
+An earlier entry in this file, and the published page, said:
+
+> fp16 gave zero of 751 frames identical, 39.37 dB PSNR and a worst pixel off by 62 of 255
+> levels — further from the baseline than simply re-running the pipeline is. So it is
+> measurable fidelity loss for no speed.
+
+**That is exactly backwards.** Re-running the identical configuration gives 40.37 dB and a
+worst pixel of 96. fp16 gave 40.34 dB and 81. The comparison it was measured against was the
+*unseeded, cross-container* regeneration figure of 45.23 dB, which is not the right
+reference for a same-machine A/B. Against the correct floor, fp16 changed nothing detectable.
+
+fp16 is still rejected — it produced no speed gain — but **not for costing fidelity.**
+
+## Seeding is necessary and not sufficient, now measured rather than suspected
+
+**Zero of 2,253 frames were bit-identical** between two runs of one configuration with one
+seed, in one warm process, on one machine. Earlier notes listed CUDA-level nondeterminism as
+a possible residual after seeding. It is now measured, and it is the whole of the residual:
+`LIPSYNC_SEED` makes an A/B comparable and does not make the pipeline reproducible.
+
+Two consequences worth carrying:
+
+1. **Bit-exactness is unavailable as evidence for any change on this pipeline.** Every
+   quality claim has to be a comparison against this floor.
+2. **The source-analysis cache can only promise the bytes it stored**, never that a cached
+   run equals a fresh one. The design already words it that way; this is the measurement
+   behind that wording.
+
+---
+
+# A defect in my own build guard: it could never have passed
+
+The `scripts/check_torch_stack.py` guard added to `cog.yaml` **fails every build**, with
+`No such file or directory`. cog runs the `run:` steps *before* `COPY . /src`, so no
+repository file exists at that point in the image.
+
+It was never exercised because the treatment image predates it; the control build was the
+first to run it, and it died there. An earlier entry in this file claimed the guard "fails
+the BUILD if the three disagree" — it fails the build unconditionally, which is not the same
+thing and is not useful.
+
+Fixed by inlining the check into the run step so it is self-contained. The lesson is narrow
+and worth keeping: **a guard placed where its dependencies do not exist is worse than no
+guard**, because it converts a real signal into a build that always fails for the wrong
+reason.
+
+## What the failed build did confirm
+
+The CUDA fix works, and the log shows the mechanism directly:
+
+```
+Attempting uninstall: torchaudio   Found existing installation: torchaudio 2.11.0
+Attempting uninstall: torchvision  Found existing installation: torchvision 0.21.0
+Attempting uninstall: torch        Found existing installation: torch 2.6.0
+Successfully installed torch-2.5.1+cu121 torchaudio-2.5.1+cu121 torchvision-0.20.1+cu121
+```
+
+The requirements step had installed torch 2.6.0 and friends; the pinned cu121 step replaced
+all three consistently, which is exactly what `--force-reinstall --no-deps` was added to
+guarantee.
+
+---
+
+# Seeding did NOT make the pipeline deterministic — and that withdraws the fp16 fidelity claim
+
+**MEASURED 2026-09-09.** `arm0b` was a repeat of `arm0` with **identical configuration and
+`LIPSYNC_SEED=0` on both**. Comparing their outputs frame by frame:
+
+| comparison | bit-identical | PSNR | worst pixel |
+|---|---|---|---|
+| **arm0 vs arm0b — same code, same seed** | **0 / 751** | **39.38 dB** | **96 / 255** |
+| arm0 vs arm2 (fp16) | 0 / 751 | 39.37 dB | 62 / 255 |
+| arm0 vs control (main's code) | 0 / 751 | 39.40 dB | 86 / 255 |
+| arm0 vs arm3 (cuDNN autotune) | 0 / 751 | 39.59 dB | 80 / 255 |
+
+**Every one of those is the same number.** The seeded run-to-run noise floor is 39.38 dB, and
+no treatment moved the output further than a plain repeat of the baseline did.
+
+## The fp16 fidelity claim is withdrawn
+
+I wrote: *"fp16 is pure downside on this pipeline: zero speed, measurable fidelity loss …
+PSNR 39.37 dB … it moves the output further than re-running the pipeline does."*
+
+**That is wrong.** A repeat of the *same* build gives 39.38 dB. fp16's 39.37 dB is
+indistinguishable from it, and fp16's worst pixel (62) is in fact **lower** than the
+baseline repeat's (96) — the fp16 output is *closer* to arm0 than a second arm0 run is.
+
+The correct statement: **fp16 produced no measurable speed gain and no measurable fidelity
+change.** It is null on both axes, not harmful. I flagged exactly this caveat before arm0b
+ran — *"do not quote the fidelity figure as fp16's alone until arm0b lands"* — and the
+caveat was right.
+
+## Why seeding was insufficient
+
+`LIPSYNC_SEED` was set; **`LIPSYNC_DETERMINISTIC` was not.** So `repro.py` reseeded
+`random`, `numpy` and torch, but never called `torch.use_deterministic_algorithms`. Seeding
+fixes which random numbers get drawn. It does nothing about kernel-level nondeterminism:
+
+- ONNX Runtime's CUDA execution provider in the face detector and landmark runner,
+- `nvdiffrast` rasterisation with atomic accumulation,
+- non-deterministic cuDNN algorithm selection and atomic scatter/index reductions,
+- TF32 reduction order.
+
+`repro.py`'s own docstring predicted this — *"reseeding is necessary but may not be
+sufficient … treat whatever difference survives seeding as the measured floor, not as
+zero"* — and the measurement confirms it. **Necessary, and not sufficient.**
+
+## Note on the earlier noise-floor figure
+
+The previously recorded floor was **45.23 dB**, measured between two *unseeded* production
+runs on the May 2025 build. The seeded floor on this newly built image is **39.38 dB** —
+*worse*, despite the seed. The builds differ (torch 2.5.1+cu121, a different cuDNN), so the
+floor is **build-specific and must be re-measured per build.** It is not a property of the
+pipeline.
+
+## What this means for the results
+
+1. **All four output comparisons this session are at the noise floor.** No treatment changed
+   the output measurably. Combined with the timing result, all three arms are null on
+   *both* axes.
+2. **The quality gate could not have detected a real regression** at this floor, since a
+   worst-pixel deviation of 96/255 is inside it. `compare_outputs.py` was the right primary
+   instrument and its thresholds need setting from the per-build floor.
+3. **Next step to get real determinism:** run one clip twice with
+   `LIPSYNC_DETERMINISTIC=1`, which enables `torch.use_deterministic_algorithms(warn_only=True)`
+   and sets `CUBLAS_WORKSPACE_CONFIG`. If that still is not bit-identical, the residual is in
+   ONNX Runtime and nvdiffrast, and bit-exactness is unavailable without changing those —
+   which the caching work needs to know, since it was relying on reproducibility.
+
+---
+
+# The control: the branch is performance-neutral, so the arms measured what they claimed
+
+**MEASURED 2026-09-09.** The control runs the **unmodified branch's runtime code** with only
+the build fixes it needs to run at all, on the same three clips. It is the comparison that
+separates the effect of the code changes from the effect of rebuilding the environment.
+
+Run order was arm0, arm1, arm2, arm3, arm0b, control. **The control ran immediately after the
+repeated baseline**, so those two are adjacent in time and the drift between them is
+negligible. That is the pairing to read.
+
+| comparison | slots | paired | per-clip | signs |
+|---|---|---|---|---|
+| **unmodified branch vs our code** | 6 vs 5, adjacent | **−0.47 %** | +0.46, −0.64, −1.23 | **mixed** |
+| unmodified branch vs first baseline | 6 vs 1 | +1.38 % | +2.36, +0.69, +1.08 | consistent (drift) |
+
+**The branch is performance-neutral.** −0.47 % with mixed per-clip signs is noise, not an
+effect. So the always-on changes the branch carries — asynchronous host-to-device copies and
+the restructured render loop — do not move wall-clock either way, and **the arms measured the
+switches they were testing rather than incidental differences between branch and trunk.**
+
+Output agreement is inside the floor too: 39.40, 41.12 and 40.41 dB against the baseline,
+with worst pixels of 86, 79 and 81 — the same range as re-running the baseline (40.37 dB,
+worst 96). All three control videos pass the sanity checks.
+
+## The A/B is now complete, and here is the whole of it
+
+Six passes, 18 runs, one machine, same clips, seeded, sequential.
+
+| pass | change | paired vs adjacent baseline | verdict |
+|---|---|---|---|
+| arm0 | baseline, batch 4 fp32 | reference | — |
+| arm1 | renderer batch 4 → 16 | −0.14 % (drift-adjusted) | rejected |
+| arm2 | batch 16 + fp16 autocast | −0.41 % (drift-adjusted) | rejected |
+| arm3 | cuDNN autotuning in the render loop | +0.50 % (drift-adjusted) | rejected |
+| arm0b | baseline repeated | +1.85 % vs arm0 — **pure drift** | drift control |
+| control | unmodified branch's code | −0.47 % vs arm0b | performance-neutral |
+
+Every candidate lands within about half a percent of zero once drift is removed, against a
+gate of 3 %. Every one is inside the output noise floor. **Nothing was kept.**
+
+The two runs that produced no information about any optimization — the repeated baseline and
+the control — are the two that made the other four interpretable. Between them they caught a
+1.85 % machine drift that had been read as a real effect, and disproved a fidelity claim.
+They cost about forty minutes of GPU time.

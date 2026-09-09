@@ -40,7 +40,7 @@ labelled as such — it is not an observation.
 | Production word replacement | 6 | 19.9 | 1.4 | 8.2 | 61.4 | 2.4 | 4.8 | 15.1 | 2.3 | 13.9 | 16.4 | 146.8 |
 | HDTF self-driven | 12 | 19.2 | 5.4 | 28.4 | 112.9 | 4.2 | 14.0 | 51.6 | 9.0 | 88.6 | 17.7 | 351.0 |
 | HDTF cross-driven | 4 | 19.6 | 5.9 | 28.6 | 113.2 | 4.4 | 13.9 | 47.3 | 9.1 | 87.9 | 18.6 | 348.4 |
-| A/B arms | 15 | 18.1 | 5.9 | 36.5 | 141.4 | 4.6 | 20.9 | 47.9 | 7.9 | 90.4 | 12.5 | 386.1 |
+| A/B arms | 18 | 18.0 | 5.8 | 36.6 | 141.6 | 4.6 | 20.9 | 47.7 | 7.9 | 90.8 | 12.5 | 386.4 |
 
 All values are seconds, mean across the runs in that configuration. Rates and money
 appear only in the cost tables, where the assumed rate is printed with them.

@@ -197,6 +197,33 @@ if (Object.keys(a0b).length) {
   P('is mostly the machine rather than the change.\n');
 }
 
+// ---------------------------------------------------------------- the control arm
+const ctl = wallOf(byArm.control_main ?? []);
+if (Object.keys(ctl).length && Object.keys(a0b).length) {
+  P('## The control: our code against the unmodified branch\n');
+  P('The control runs the unmodified branch’s runtime code with only the build fixes it');
+  P('needs to run at all, on the same clips. It is the comparison that separates the effect');
+  P('of the code changes from the effect of rebuilding the environment.\n');
+  P('It ran immediately after the repeated baseline, so those two are adjacent in time and');
+  P('the drift between them is negligible. That pairing is the one to read; comparing either');
+  P('against the first baseline mixes in the session drift.\n');
+  const vsRepeat = pairedDelta(ctl, a0b);
+  const vsFirst = pairedDelta(ctl, a0);
+  P('| Comparison | slots | paired difference | per-clip | signs |');
+  P('|---|---|---:|---|---|');
+  P('| **Unmodified branch vs our code** | 6 vs 5, adjacent | **' + signed(vsRepeat.meanPct) + '%** | '
+    + vsRepeat.perClip.map((c) => signed(c.deltaPct)).join(', ') + '% | ' + (vsRepeat.signsConsistent ? 'consistent' : 'mixed') + ' |');
+  P('| Unmodified branch vs first baseline | 6 vs 1, drift mixed in | ' + signed(vsFirst.meanPct) + '% | '
+    + vsFirst.perClip.map((c) => signed(c.deltaPct)).join(', ') + '% | ' + (vsFirst.signsConsistent ? 'consistent' : 'mixed') + ' |');
+  P('');
+  P('**The branch is performance-neutral.** Against the adjacent baseline the difference is');
+  P(signed(vsRepeat.meanPct) + '% with mixed per-clip signs, which is the signature of noise');
+  P('rather than an effect. So the always-on changes carried by the branch — asynchronous');
+  P('host-to-device copies and the restructured render loop — do not move wall-clock either');
+  P('way, and the arms measured the switches they were testing rather than incidental');
+  P('differences between the branch and the trunk.\n');
+}
+
 // ---------------------------------------------------------------- output difference
 let diff = null;
 try { diff = raw('output-diff'); } catch { /* not measured on this checkout */ }

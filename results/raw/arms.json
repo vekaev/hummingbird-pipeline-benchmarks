@@ -568,5 +568,119 @@
   "fps": null,
   "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
   "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "control_main",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 397.91,
+  "clip": "hdtf01_RD_Radio11_001",
+  "stages": {
+   "crop_face": 18.143058,
+   "detect_landmarks": 5.984092,
+   "parse_face": 37.29564,
+   "track_face": 140.867033,
+   "run_animator": 5.689132,
+   "create_driving_geo_and_mask": 21.073474,
+   "predict_liveportait": 50.314184,
+   "reshape_liveportrait": 7.949063,
+   "render_rgb": 92.209919,
+   "paste_back_video": 10.963561
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 4.9,
+   "adjust_video_length_to_audio": 1.29,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 390.53,
+   "attach_audio": 0.15,
+   "upload_to_s3": 0.99
+  },
+  "total": 397.86,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "control_main",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 396.15,
+  "clip": "hdtf02_RD_Radio32_000",
+  "stages": {
+   "crop_face": 18.031397,
+   "detect_landmarks": 5.50196,
+   "parse_face": 37.01366,
+   "track_face": 141.969393,
+   "run_animator": 3.994336,
+   "create_driving_geo_and_mask": 20.976141,
+   "predict_liveportait": 45.388125,
+   "reshape_liveportrait": 7.879643,
+   "render_rgb": 94.063296,
+   "paste_back_video": 14.581967
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 3.95,
+   "adjust_video_length_to_audio": 1.61,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 389.47,
+   "attach_audio": 0.13,
+   "upload_to_s3": 0.94
+  },
+  "total": 396.1,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "control_main",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 389.61,
+  "clip": "hdtf03_RD_Radio42_000",
+  "stages": {
+   "crop_face": 17.446243,
+   "detect_landmarks": 4.621033,
+   "parse_face": 36.227209,
+   "track_face": 144.572289,
+   "run_animator": 3.970109,
+   "create_driving_geo_and_mask": 20.499375,
+   "predict_liveportait": 45.258227,
+   "reshape_liveportrait": 7.928457,
+   "render_rgb": 91.754274,
+   "paste_back_video": 11.403844
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 3.46,
+   "adjust_video_length_to_audio": 1.27,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 383.72,
+   "attach_audio": 0.16,
+   "upload_to_s3": 0.95
+  },
+  "total": 389.56,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
  }
 ]

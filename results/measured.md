@@ -102,6 +102,7 @@ requires at least 3% faster before a change is kept.
 | arm2 | Batch 16 + fp16 autocast | 3 | 391.16 | +0.51% | -0.55% to +1.33% | mixed | rejected |
 | arm3 | cuDNN autotuning in the render loop | 3 | 396.56 | +1.89% | +1.49% to +2.30% | consistent | rejected |
 | arm0b | Baseline, repeated (seeded) | 3 | 396.40 | +1.85% | +1.34% to +2.33% | consistent | drift control |
+| control_main | Control: main branch runtime code | 3 | 394.56 | +1.38% | +0.69% to +2.36% | consistent | control |
 
 ### Per-clip arm detail
 
@@ -121,6 +122,9 @@ The paired comparison in full, so the spread can be checked against the effect.
 | arm0b | RD_Radio11_001 | 388.74 | 396.07 | +7.33 | +1.89% |
 | arm0b | RD_Radio32_000 | 393.43 | 398.69 | +5.26 | +1.34% |
 | arm0b | RD_Radio42_000 | 385.46 | 394.45 | +8.99 | +2.33% |
+| control_main | RD_Radio11_001 | 388.74 | 397.91 | +9.17 | +2.36% |
+| control_main | RD_Radio32_000 | 393.43 | 396.15 | +2.72 | +0.69% |
+| control_main | RD_Radio42_000 | 385.46 | 389.61 | +4.15 | +1.08% |
 
 ## Session drift, and what it does to the arms
 
@@ -154,6 +158,28 @@ Every arm stays far from the 3% gate either way, so no verdict changes. What cha
 the *reason*: adjusted for drift the three effects fall within roughly half a percent of
 zero, which is a tighter null than the raw numbers suggested, and the largest raw effect
 is mostly the machine rather than the change.
+
+## The control: our code against the unmodified branch
+
+The control runs the unmodified branch’s runtime code with only the build fixes it
+needs to run at all, on the same clips. It is the comparison that separates the effect
+of the code changes from the effect of rebuilding the environment.
+
+It ran immediately after the repeated baseline, so those two are adjacent in time and
+the drift between them is negligible. That pairing is the one to read; comparing either
+against the first baseline mixes in the session drift.
+
+| Comparison | slots | paired difference | per-clip | signs |
+|---|---|---:|---|---|
+| **Unmodified branch vs our code** | 6 vs 5, adjacent | **-0.47%** | +0.46, -0.64, -1.23% | mixed |
+| Unmodified branch vs first baseline | 6 vs 1, drift mixed in | +1.38% | +2.36, +0.69, +1.08% | consistent |
+
+**The branch is performance-neutral.** Against the adjacent baseline the difference is
+-0.47% with mixed per-clip signs, which is the signature of noise
+rather than an effect. So the always-on changes carried by the branch — asynchronous
+host-to-device copies and the restructured render loop — do not move wall-clock either
+way, and the arms measured the switches they were testing rather than incidental
+differences between the branch and the trunk.
 
 ## Output difference against the baseline
 

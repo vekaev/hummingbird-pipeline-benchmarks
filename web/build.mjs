@@ -74,7 +74,7 @@ const kept = armVerdicts.filter((a) => a.verdict === 'KEEP').length;
 const LEDGER = [
   ['Buildable again', 'green', `<small>First build of the repository that runs, after roughly sixteen months in which none did.</small>`],
   ['Roadmap items tested', `${roadmapArms.length} of ${changes.roadmapItemCount}`, `<small>Plus ${ownArms.length} change not on the roadmap. All ${rejected} measured arms rejected: none produced a gain the design could resolve.</small>`],
-  ['Output quality', 'unchanged', `<small>No arm was kept, so nothing shipped that could move it. Verified on every generated clip.</small>`],
+  ['Output quality', 'unchanged', `<small>Every arm sits inside the noise floor of re-running the baseline. Verified on all 20 generated clips.</small>`],
   ['Pipeline runs measured', `${allRuns.length}`, `<small>Across ${[lipsync, wr, hdtfSelf, hdtfCross, arms].filter((s) => s.length).length} configurations, production and dedicated hardware.</small>`],
   ['Longest single run', `${longest.toFixed(0)} s`, `<small>One 1080p job end to end, excluding the container start it is billed for.</small>`],
   ['GPU time spent measuring', `${(gpuSeconds / 3600).toFixed(1)} h`, `<small>Sum of every run on this page. The A/B share of it cost about $8.</small>`],
@@ -251,6 +251,7 @@ help, and neither can halving precision.</div>
 </p>
 ${mdTable('results/measured.md', 'Session drift, and what it does to the arms')}
 ${mdTable('results/measured.md', 'Arms, adjusted for drift')}
+${mdTable('results/measured.md', 'The control: our code against the unmodified branch')}
 ${mdTable('results/measured.md', 'Output difference against the baseline')}
 ${mdTable('results/measured.md', 'Every arm sits inside the floor')}
 <div class="verdict"><b>No verdict changes, but one reason does.</b> Compared against a
@@ -514,9 +515,10 @@ ${sec(11, 'limits', 'What this does not establish', `
   would have found one that was not there.
 </p>
 <p>
-  <strong>That the arms are isolated from the rebuild.</strong> A control built from the
-  unmodified branch was still building when this page was published. It is what separates the
-  effect of the code changes from the effect of the rebuilt environment.
+  <strong>That any of the proposed changes would help.</strong> The control settled the one
+  question that was open here — the branch itself is performance-neutral against the
+  unmodified trunk, so the arms measured their switches rather than incidental differences.
+  What remains unmeasured is everything still labelled proposed.
 </p>
 `)}
 
