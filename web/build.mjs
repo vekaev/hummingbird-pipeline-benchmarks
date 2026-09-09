@@ -251,6 +251,8 @@ help, and neither can halving precision.</div>
 </p>
 ${mdTable('results/measured.md', 'Session drift, and what it does to the arms')}
 ${mdTable('results/measured.md', 'Arms, adjusted for drift')}
+${mdTable('results/measured.md', 'Output difference against the baseline')}
+${mdTable('results/measured.md', 'Every arm sits inside the floor')}
 <div class="verdict"><b>No verdict changes, but one reason does.</b> Compared against a
 baseline interpolated to its own slot, the three effects are ${arm1Adj}, ${arm2Adj} and
 ${arm3Adj} — a tighter null than the raw numbers, and the largest raw effect turns out to be
@@ -260,17 +262,25 @@ drift.</div>
 </p>
 ${mdTable('results/measured.md', 'Per-clip arm detail')}
 <div class="caveat">
-  <span class="caveat-label">fp16 is not free, and two variables moved together</span>
+  <span class="caveat-label">A fidelity claim withdrawn, and two variables that moved together</span>
   <p>
-    Against the baseline output, fp16 gave zero of 751 frames identical, 39.37 dB PSNR and a
-    worst pixel off by 62 of 255 levels — further from the baseline than simply re-running the
-    pipeline is. So it is measurable fidelity loss for no speed.
+    An earlier version of this page said fp16 cost measurable fidelity: 39.37 dB PSNR against
+    the baseline, "further from the baseline than simply re-running the pipeline is."
+    <strong>That was wrong, and the measurement that disproves it is below.</strong> Re-running
+    the identical configuration with the same seed gives 40.37 dB with a worst pixel of 96 of
+    255 — a <em>larger</em> difference than fp16 produced. Every arm sits within a quarter of a
+    decibel of that floor.
   </p>
   <p>
-    That arm changed batch size and precision together. Batch invariance was measured
-    separately at 1.2e-07 on the real model, so the fidelity loss is attributable to fp16, but
-    the clean test is a seeded repeat of the baseline, which had not completed when this page
-    was built. Do not quote the fidelity figure as fp16's alone until it does.
+    The same run settles a second question. <strong>Zero of 2,253 frames were bit-identical
+    between two runs of the same configuration with the same seed.</strong> Seeding is
+    necessary to make an A/B comparable and is demonstrably not sufficient for
+    reproducibility: the residual is CUDA-level nondeterminism outside the seeded generators.
+  </p>
+  <p>
+    One caveat survives. That arm changed batch size and precision together, so it cannot
+    separate their individual effects — though with the whole arm inside the noise floor,
+    there is no effect left to attribute.
   </p>
 </div>
 `)}

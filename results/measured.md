@@ -155,6 +155,37 @@ the *reason*: adjusted for drift the three effects fall within roughly half a pe
 zero, which is a tighter null than the raw numbers suggested, and the largest raw effect
 is mostly the machine rather than the change.
 
+## Output difference against the baseline
+
+Per-frame agreement with the baseline arm. The first row is the same configuration and
+the same seed, simply run again, so it **is** the noise floor on this hardware; every
+other row has to be read against it rather than against zero.
+
+| Compared with baseline | clips | PSNR mean (dB) | PSNR min | SSIM mean | worst pixel /255 | bit-identical frames |
+|---|---:|---:|---:|---:|---:|---:|
+| **Baseline, repeated (seeded) — the floor** | 3 | 40.37 | 39.38 | 0.97689 | 96 | 0 |
+| Renderer batch 4 to 16 | 3 | 40.26 | 39.45 | 0.97665 | 78 | 0 |
+| Batch 16 + fp16 autocast | 3 | 40.34 | 39.37 | 0.97691 | 81 | 0 |
+| cuDNN autotuning in the render loop | 3 | 40.16 | 39.35 | 0.97648 | 101 | 0 |
+
+### Every arm sits inside the floor
+
+| Arm | PSNR vs baseline | difference from the floor | verdict |
+|---|---:|---:|---|
+| Renderer batch 4 to 16 | 40.26 dB | -0.11 dB | inside the floor |
+| Batch 16 + fp16 autocast | 40.34 dB | -0.03 dB | inside the floor |
+| cuDNN autotuning in the render loop | 40.16 dB | -0.21 dB | inside the floor |
+
+**No arm changed the output beyond what re-running the identical configuration does.**
+The floor is 40.37 dB with a worst pixel of 96 of 255,
+and the largest arm deviation from it is under a quarter of a decibel. Any statement
+that a precision change cost fidelity here is not supported by this measurement.
+
+Note also that **0 frames of 2253 were bit-identical**
+between two runs of the same configuration with the same seed. Seeding is necessary for
+a comparable A/B and is demonstrably not sufficient for reproducibility: the residual
+comes from CUDA-level nondeterminism outside the seeded generators.
+
 ## Cost against input resolution
 
 The HDTF clips hold frame count fixed at 751 while pixel count varies 4.9x, 

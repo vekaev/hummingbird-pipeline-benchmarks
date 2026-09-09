@@ -484,6 +484,17 @@ help, and neither can halving precision.</div>
 <tr><td>arm2</td><td class="n">3 of 5</td><td class="n">+0.51%</td><td class="n">-0.41%</td><td>yes</td></tr>
 <tr><td>arm3</td><td class="n">4 of 5</td><td class="n">+1.89%</td><td class="n">+0.50%</td><td>yes</td></tr>
 </tbody></table></div>
+<div class="tw"><table><thead><tr><th>Compared with baseline</th><th class="n">clips</th><th class="n">PSNR mean (dB)</th><th class="n">PSNR min</th><th class="n">SSIM mean</th><th class="n">worst pixel /255</th><th class="n">bit-identical frames</th></tr></thead><tbody>
+<tr><td><strong>Baseline, repeated (seeded) — the floor</strong></td><td class="n">3</td><td class="n">40.37</td><td class="n">39.38</td><td class="n">0.97689</td><td class="n">96</td><td class="n">0</td></tr>
+<tr><td>Renderer batch 4 to 16</td><td class="n">3</td><td class="n">40.26</td><td class="n">39.45</td><td class="n">0.97665</td><td class="n">78</td><td class="n">0</td></tr>
+<tr><td>Batch 16 + fp16 autocast</td><td class="n">3</td><td class="n">40.34</td><td class="n">39.37</td><td class="n">0.97691</td><td class="n">81</td><td class="n">0</td></tr>
+<tr><td>cuDNN autotuning in the render loop</td><td class="n">3</td><td class="n">40.16</td><td class="n">39.35</td><td class="n">0.97648</td><td class="n">101</td><td class="n">0</td></tr>
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th>Arm</th><th class="n">PSNR vs baseline</th><th class="n">difference from the floor</th><th>verdict</th></tr></thead><tbody>
+<tr><td>Renderer batch 4 to 16</td><td class="n">40.26 dB</td><td class="n">-0.11 dB</td><td>inside the floor</td></tr>
+<tr><td>Batch 16 + fp16 autocast</td><td class="n">40.34 dB</td><td class="n">-0.03 dB</td><td>inside the floor</td></tr>
+<tr><td>cuDNN autotuning in the render loop</td><td class="n">40.16 dB</td><td class="n">-0.21 dB</td><td>inside the floor</td></tr>
+</tbody></table></div>
 <div class="verdict"><b>No verdict changes, but one reason does.</b> Compared against a
 baseline interpolated to its own slot, the three effects are -0.14%, -0.41% and
 +0.50% — a tighter null than the raw numbers, and the largest raw effect turns out to be
@@ -506,17 +517,25 @@ drift.</div>
 <tr><td>arm0b</td><td>RD_Radio42_000</td><td class="n">385.46</td><td class="n">394.45</td><td class="n">+8.99</td><td class="n">+2.33%</td></tr>
 </tbody></table></div>
 <div class="caveat">
-  <span class="caveat-label">fp16 is not free, and two variables moved together</span>
+  <span class="caveat-label">A fidelity claim withdrawn, and two variables that moved together</span>
   <p>
-    Against the baseline output, fp16 gave zero of 751 frames identical, 39.37 dB PSNR and a
-    worst pixel off by 62 of 255 levels — further from the baseline than simply re-running the
-    pipeline is. So it is measurable fidelity loss for no speed.
+    An earlier version of this page said fp16 cost measurable fidelity: 39.37 dB PSNR against
+    the baseline, "further from the baseline than simply re-running the pipeline is."
+    <strong>That was wrong, and the measurement that disproves it is below.</strong> Re-running
+    the identical configuration with the same seed gives 40.37 dB with a worst pixel of 96 of
+    255 — a <em>larger</em> difference than fp16 produced. Every arm sits within a quarter of a
+    decibel of that floor.
   </p>
   <p>
-    That arm changed batch size and precision together. Batch invariance was measured
-    separately at 1.2e-07 on the real model, so the fidelity loss is attributable to fp16, but
-    the clean test is a seeded repeat of the baseline, which had not completed when this page
-    was built. Do not quote the fidelity figure as fp16's alone until it does.
+    The same run settles a second question. <strong>Zero of 2,253 frames were bit-identical
+    between two runs of the same configuration with the same seed.</strong> Seeding is
+    necessary to make an A/B comparable and is demonstrably not sufficient for
+    reproducibility: the residual is CUDA-level nondeterminism outside the seeded generators.
+  </p>
+  <p>
+    One caveat survives. That arm changed batch size and precision together, so it cannot
+    separate their individual effects — though with the whole arm inside the noise floor,
+    there is no effect left to attribute.
   </p>
 </div>
 

@@ -1,0 +1,13 @@
+{"note":"Output-difference measurements against the arm0 baseline, from benchmarking/compare_outputs.py. arm0b is the same configuration and seed re-run, so it IS the noise floor on this hardware.","clips":["1_RD_Radio11_001","2_RD_Radio32_000","3_RD_Radio42_000"],"rows":[
+{"arm":"arm0b","clip":"1_RD_Radio11_001","identical":0,"psnr":39.38,"ssim":0.97228,"worst":96},
+{"arm":"arm0b","clip":"2_RD_Radio32_000","identical":0,"psnr":41.19,"ssim":0.97842,"worst":72},
+{"arm":"arm0b","clip":"3_RD_Radio42_000","identical":0,"psnr":40.54,"ssim":0.97997,"worst":73},
+{"arm":"arm1","clip":"1_RD_Radio11_001","identical":0,"psnr":39.45,"ssim":0.97257,"worst":69},
+{"arm":"arm1","clip":"2_RD_Radio32_000","identical":0,"psnr":41.38,"ssim":0.97859,"worst":61},
+{"arm":"arm1","clip":"3_RD_Radio42_000","identical":0,"psnr":39.96,"ssim":0.97879,"worst":78},
+{"arm":"arm2","clip":"1_RD_Radio11_001","identical":0,"psnr":39.37,"ssim":0.97207,"worst":62},
+{"arm":"arm2","clip":"2_RD_Radio32_000","identical":0,"psnr":41.16,"ssim":0.97869,"worst":81},
+{"arm":"arm2","clip":"3_RD_Radio42_000","identical":0,"psnr":40.48,"ssim":0.97997,"worst":78},
+{"arm":"arm3","clip":"1_RD_Radio11_001","identical":0,"psnr":39.59,"ssim":0.97278,"worst":80},
+{"arm":"arm3","clip":"2_RD_Radio32_000","identical":0,"psnr":41.54,"ssim":0.97916,"worst":58},
+{"arm":"arm3","clip":"3_RD_Radio42_000","identical":0,"psnr":39.35,"ssim":0.97749,"worst":101}]}

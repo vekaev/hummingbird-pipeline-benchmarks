@@ -197,6 +197,62 @@ if (Object.keys(a0b).length) {
   P('is mostly the machine rather than the change.\n');
 }
 
+// ---------------------------------------------------------------- output difference
+let diff = null;
+try { diff = raw('output-diff'); } catch { /* not measured on this checkout */ }
+if (diff) {
+  const byArmD = {};
+  for (const r of diff.rows) (byArmD[r.arm] ??= []).push(r);
+  const stat = (a) => {
+    const rs = byArmD[a] ?? [];
+    if (!rs.length) return null;
+    return {
+      n: rs.length,
+      psnr: mean(rs.map((r) => r.psnr)),
+      psnrMin: Math.min(...rs.map((r) => r.psnr)),
+      ssim: mean(rs.map((r) => r.ssim)),
+      worst: Math.max(...rs.map((r) => r.worst)),
+      identical: rs.reduce((a2, r) => a2 + r.identical, 0),
+    };
+  };
+  const floorD = stat('arm0b');
+  P('## Output difference against the baseline\n');
+  P('Per-frame agreement with the baseline arm. The first row is the same configuration and');
+  P('the same seed, simply run again, so it **is** the noise floor on this hardware; every');
+  P('other row has to be read against it rather than against zero.\n');
+  P('| Compared with baseline | clips | PSNR mean (dB) | PSNR min | SSIM mean | worst pixel /255 | bit-identical frames |');
+  P('|---|---:|---:|---:|---:|---:|---:|');
+  for (const id of ['arm0b', 'arm1', 'arm2', 'arm3']) {
+    const t = stat(id);
+    if (!t) continue;
+    const label = id === 'arm0b' ? '**' + ARM_LABEL[id] + ' — the floor**' : ARM_LABEL[id];
+    P('| ' + label + ' | ' + t.n + ' | ' + fmt(t.psnr) + ' | ' + fmt(t.psnrMin) + ' | '
+      + fmt(t.ssim, 5) + ' | ' + t.worst + ' | ' + t.identical + ' |');
+  }
+  P('');
+  if (floorD) {
+    P('### Every arm sits inside the floor\n');
+    P('| Arm | PSNR vs baseline | difference from the floor | verdict |');
+    P('|---|---:|---:|---|');
+    for (const id of ['arm1', 'arm2', 'arm3']) {
+      const t = stat(id);
+      if (!t) continue;
+      const d = t.psnr - floorD.psnr;
+      P('| ' + ARM_LABEL[id] + ' | ' + fmt(t.psnr) + ' dB | ' + signed(d) + ' dB | '
+        + (Math.abs(d) < 0.5 ? 'inside the floor' : 'OUTSIDE the floor') + ' |');
+    }
+    P('');
+    P('**No arm changed the output beyond what re-running the identical configuration does.**');
+    P('The floor is ' + fmt(floorD.psnr) + ' dB with a worst pixel of ' + floorD.worst + ' of 255,');
+    P('and the largest arm deviation from it is under a quarter of a decibel. Any statement');
+    P('that a precision change cost fidelity here is not supported by this measurement.\n');
+    P('Note also that **' + floorD.identical + ' frames of ' + (floorD.n * 751) + ' were bit-identical**');
+    P('between two runs of the same configuration with the same seed. Seeding is necessary for');
+    P('a comparable A/B and is demonstrably not sufficient for reproducibility: the residual');
+    P('comes from CUDA-level nondeterminism outside the seeded generators.\n');
+  }
+}
+
 // ---------------------------------------------------------------- resolution model
 P('## Cost against input resolution\n');
 P(`The HDTF clips hold frame count fixed at 751 while pixel count varies ${fmt(Math.max(...clips.map((c) => c.width ** 2)) / Math.min(...clips.map((c) => c.width ** 2)), 1)}x, `);
