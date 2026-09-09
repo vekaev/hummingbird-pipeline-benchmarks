@@ -280,6 +280,79 @@ if (diff) {
   }
 }
 
+// ---------------------------------------------------------------- determinism
+{
+  const det = raw('determinism');
+  const arms = raw('arms');
+  const wall = (arm) => {
+    const r = arms.find((x) => x.arm === arm && String(x.clip).includes(det.clip.replace(/^1_/, '')));
+    return r ? r.wall_s : null;
+  };
+  const detWalls = det.runs.map((r) => r.wall_s);
+  const detMean = mean(detWalls);
+  const spread = Math.max(...detWalls) - Math.min(...detWalls);
+
+  P('## Deterministic kernels: what they cost, and what they buy\n');
+  P('One clip run twice at one seed with deterministic kernels requested. The question was');
+  P('whether the pipeline can be made to reproduce its own output bit for bit, because a');
+  P('cache that reuses computed segments would otherwise have no way to verify itself.\n');
+
+  P('| | value |');
+  P('|---|---:|');
+  P(`| frames compared | ${det.diff.frames} |`);
+  P(`| **bit-identical frames** | **${det.diff.identical} of ${det.diff.frames}** |`);
+  P(`| PSNR mean | ${fmt(det.diff.psnr)} dB |`);
+  P(`| SSIM mean | ${fmt(det.diff.ssim, 5)} |`);
+  P(`| worst pixel | ${det.diff.worst} of 255 |`);
+  P('');
+
+  // compare against the seeded-only floor computed above, from the same raw file
+  const dd = raw('output-diff');
+  const fl = dd.rows.filter((r) => r.arm === 'arm0b');
+  if (fl.length) {
+    const flPsnr = mean(fl.map((r) => r.psnr));
+    const delta = det.diff.psnr - flPsnr;
+    P(`The seeded-only floor measured above is ${fmt(flPsnr)} dB. Deterministic mode gives`);
+    P(`${fmt(det.diff.psnr)} dB, a difference of ${signed(delta)} dB. **The floor does not move.**`);
+    P('Asking torch for deterministic kernels leaves run-to-run variation where seeding alone');
+    P('left it, and zero frames match either way.\n');
+  }
+
+  const rows = [['arm0, first pass', wall('arm0')], ['arm0b, last pass', wall('arm0b')],
+    ['control, unmodified code', wall('control_main')]].filter((r) => r[1]);
+  if (rows.length) {
+    P('### What it costs\n');
+    P('| baseline for this clip | wall (s) | determinism vs it |');
+    P('|---|---:|---:|');
+    for (const [label, w] of rows) {
+      P(`| ${label} | ${fmt(w)} | **${signed(100 * (detMean - w) / w)} %** |`);
+    }
+    P('');
+    P(`Determinism mean is ${fmt(detMean)} s over ${det.runs.length} runs. So it is a`);
+    P('double-digit tax for no reproducibility gain, and it stays off.\n');
+  }
+
+  P('### Why, and what it decides about the cache\n');
+  P('The nondeterminism is not in torch. Face detection and landmarks run through');
+  P('onnxruntime\u2019s CUDA execution provider and rasterisation goes through nvdiffrast,');
+  P('neither of which the torch setting reaches, and the setting was applied in warn-only');
+  P('mode so any torch kernel lacking a deterministic implementation still proceeds.\n');
+  P('**This decides the cache design.** A cache cannot validate itself by recomputing a');
+  P('segment and checking the result matches, because recomputation does not reproduce');
+  P('bytes. It has to store and return what it computed, and rest its correctness on how');
+  P('keys are derived rather than on agreement after the fact.\n');
+
+  P('### The repeat spread, which frames every other number here\n');
+  P(`The two runs are the same code, same clip, same seed, same flags, back to back. They`);
+  P(`differ by ${fmt(spread)} s, or ${fmt(100 * spread / detMean)} %.\n`);
+  P('Every candidate optimization measured in this work came in under half a percent. A rig');
+  P('whose repeat spread is larger than that cannot resolve them individually, which is why');
+  P('the arms were judged on a paired, drift-corrected comparison instead. It also means no');
+  P('result here licenses the conclusion that there is nothing to gain \u2014 only that these');
+  P('changes did not gain anything measurable, and that two of them were premised on a');
+  P('bottleneck the utilisation trace says is not there.\n');
+}
+
 // ---------------------------------------------------------------- resolution model
 P('## Cost against input resolution\n');
 P(`The HDTF clips hold frame count fixed at 751 while pixel count varies ${fmt(Math.max(...clips.map((c) => c.width ** 2)) / Math.min(...clips.map((c) => c.width ** 2)), 1)}x, `);

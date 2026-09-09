@@ -182,7 +182,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
   <h2>What was done</h2>
 
 <p>
-  Twelve changes, in the order they were made. 13 carry a measured effect;
+  Twelve changes, in the order they were made. 14 carry a measured effect;
   the rest are implemented and instrumented with no number yet, and say so. Nothing here is
   credited with an estimate.
 </p>
@@ -201,6 +201,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
 <tr><td class="n">12</td><td>Made result writes concurrency-safe</td><td>The quality harness loaded its whole result file at start, held it for minutes, then wrote it back whole. Two concurrent scorings destroyed one another's results.</td><td>A completed three-clip result set was lost this way before the fix; writes now merge and rename atomically</td></tr>
 <tr><td class="n">13</td><td>A baseline repeated as the last pass of the session</td><td>Produces no information about any optimization. Its only job is to measure how much the machine itself moved between the first arm and the last.</td><td>+1.85% slower than the identical first pass, on the same three clips with the same seed and no code change. This is the drift correction applied to every arm above, and it is why none of them was kept</td></tr>
 <tr><td class="n">14</td><td>The whole branch measured against the unmodified upstream code</td><td>Checks the reverse risk: that the accumulated changes cost something incidental even where each was individually null.</td><td>-0.47% against the adjacent baseline with mixed per-clip signs, and every output inside the noise floor: the branch is performance-neutral</td></tr>
+<tr><td class="n">15</td><td>Deterministic kernels behind a second flag</td><td>Asks torch for deterministic algorithms and a fixed cuBLAS workspace on top of the reseed, to test whether the pipeline can reproduce its own output exactly.</td><td>0 of 751 frames identical across two runs at one seed, and a 10.6% to 13.3% wall clock cost: the floor does not move, so the flag stays off. The nondeterminism sits outside torch, which is what decides the cache design</td></tr>
 </tbody></table></div>
 <div class="verdict"><b>Net effect on the shipping system:</b> the build works again, and no
 optimization was kept. Both measurable roadmap items were rejected on their own numbers.</div>

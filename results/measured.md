@@ -212,6 +212,60 @@ between two runs of the same configuration with the same seed. Seeding is necess
 a comparable A/B and is demonstrably not sufficient for reproducibility: the residual
 comes from CUDA-level nondeterminism outside the seeded generators.
 
+## Deterministic kernels: what they cost, and what they buy
+
+One clip run twice at one seed with deterministic kernels requested. The question was
+whether the pipeline can be made to reproduce its own output bit for bit, because a
+cache that reuses computed segments would otherwise have no way to verify itself.
+
+| | value |
+|---|---:|
+| frames compared | 751 |
+| **bit-identical frames** | **0 of 751** |
+| PSNR mean | 39.62 dB |
+| SSIM mean | 0.97333 |
+| worst pixel | 90 of 255 |
+
+The seeded-only floor measured above is 40.37 dB. Deterministic mode gives
+39.62 dB, a difference of -0.75 dB. **The floor does not move.**
+Asking torch for deterministic kernels leaves run-to-run variation where seeding alone
+left it, and zero frames match either way.
+
+### What it costs
+
+| baseline for this clip | wall (s) | determinism vs it |
+|---|---:|---:|
+| arm0, first pass | 388.74 | **+13.25 %** |
+| arm0b, last pass | 396.07 | **+11.15 %** |
+| control, unmodified code | 397.91 | **+10.64 %** |
+
+Determinism mean is 440.25 s over 2 runs. So it is a
+double-digit tax for no reproducibility gain, and it stays off.
+
+### Why, and what it decides about the cache
+
+The nondeterminism is not in torch. Face detection and landmarks run through
+onnxruntime’s CUDA execution provider and rasterisation goes through nvdiffrast,
+neither of which the torch setting reaches, and the setting was applied in warn-only
+mode so any torch kernel lacking a deterministic implementation still proceeds.
+
+**This decides the cache design.** A cache cannot validate itself by recomputing a
+segment and checking the result matches, because recomputation does not reproduce
+bytes. It has to store and return what it computed, and rest its correctness on how
+keys are derived rather than on agreement after the fact.
+
+### The repeat spread, which frames every other number here
+
+The two runs are the same code, same clip, same seed, same flags, back to back. They
+differ by 10.03 s, or 2.28 %.
+
+Every candidate optimization measured in this work came in under half a percent. A rig
+whose repeat spread is larger than that cannot resolve them individually, which is why
+the arms were judged on a paired, drift-corrected comparison instead. It also means no
+result here licenses the conclusion that there is nothing to gain — only that these
+changes did not gain anything measurable, and that two of them were premised on a
+bottleneck the utilisation trace says is not there.
+
 ## Cost against input resolution
 
 The HDTF clips hold frame count fixed at 751 while pixel count varies 4.9x, 

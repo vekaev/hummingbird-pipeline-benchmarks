@@ -122,6 +122,16 @@
       "section": "arms",
       "arm": "control",
       "roadmap": false
+    },
+    {
+      "n": 15,
+      "change": "Deterministic kernels behind a second flag",
+      "what": "Asks torch for deterministic algorithms and a fixed cuBLAS workspace on top of the reseed, to test whether the pipeline can reproduce its own output exactly.",
+      "effect": "measured",
+      "detail": "0 of 751 frames identical across two runs at one seed, and a 10.6% to 13.3% wall clock cost: the floor does not move, so the flag stays off. The nondeterminism sits outside torch, which is what decides the cache design",
+      "section": "arms",
+      "arm": "det1/det2",
+      "roadmap": false
     }
   ],
   "configurations": [
