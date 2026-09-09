@@ -98,6 +98,10 @@ const coRaw = JSON.parse(readFileSync(join(root, 'results/raw/composition.json')
 // Read the headline figures OUT OF the generated table rather than recomputing them here.
 // Recomputing produced a page that disagreed with its own table -- the table pairs per clip
 // and this file was taking a ratio of means -- and it got the shortfall's sign wrong too.
+const packSeq = mdCell('results/measured.md', 'Does a second job fit on the same GPU?', '>sequential<', 4);
+const packCon = mdCell('results/measured.md', 'Does a second job fit on the same GPU?', '>concurrent<', 4);
+const packSeqW = mdCell('results/measured.md', 'Does a second job fit on the same GPU?', '>sequential<', 3);
+const packConW = mdCell('results/measured.md', 'Does a second job fit on the same GPU?', '>concurrent<', 3);
 const coFc = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3fc5<', 4);
 const coBoth = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3both<', 4);
 const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
@@ -378,6 +382,40 @@ from the two separate experiments comes out ${coShortfall}s better than a perfec
 its own stage and leaves the other untouched.</div>
 ${mdTable('results/measured.md', 'They compose, and additively')}
 ${mdTable('results/measured.md', 'What the shipped focal variant costs, priced')}
+
+<h3>Does a second job fit on the same GPU?</h3>
+<p>
+  The accelerator idles a third of the time and one job peaks at under half the card's
+  memory, so a second job ought to be nearly free. This was the largest untested lever in
+  the work and the one the deployment arithmetic leaned on hardest. It was measured, and it
+  goes the other way.
+</p>
+${mdTable('results/measured.md', 'Does a second job fit on the same GPU?')}
+<div class="verdict"><b>Running two at once is worse, not better: ${packSeqW}s for two jobs
+becomes ${packConW}s.</b> Throughput falls from ${packSeq} to ${packCon} jobs per GPU-hour,
+and per-job latency more than doubles. The jobs did not overlap; they serialised and paid
+coordination overhead on top.</div>
+${mdTable('results/measured.md', 'Neither resource the projection reasoned about was the constraint')}
+<div class="caveat">
+  <span class="caveat-label">This retracts a projection made earlier in this work</span>
+  <p>
+    Reasoning from the idle accelerator and the spare memory, an earlier note called a
+    second job &ldquo;close to free&rdquo; and expected it to roughly double throughput per
+    card. It reduces throughput. The reasoning was sound about the accelerator and silent
+    about the CPU, and the CPU is what binds: this card has no hardware encoder at all,
+    the pipeline runs eighteen software encodes per job, and one job alone already drives a
+    load average near ten across thirty cores. The counter-hypothesis was written down in
+    the same section, and the optimistic conclusion was still the one that led.
+  </p>
+  <p>
+    Two consequences. For this workload more accelerators beat denser ones, until the
+    encoding moves off the machine &mdash; the same conclusion the CPU-versus-GPU split
+    reached from the opposite direction. And it is the third independent result saying this
+    pipeline is not accelerator-bound, after the utilization sampling and the three null
+    arithmetic arms. A density test that fails <em>because the accelerator was never
+    scarce</em> is unusually direct evidence.
+  </p>
+</div>
 <div class="caveat">
   <span class="caveat-label">The caveat, now priced</span>
   <p>

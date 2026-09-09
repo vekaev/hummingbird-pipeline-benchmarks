@@ -368,6 +368,63 @@ if (diff) {
   P(`The confirmation costs **${fmt(100 * (fv.unconfirmedStageSaving - fv.confirmedStageSaving) / fv.unconfirmedStageSaving)} %`);
   P('of the stage saving** and buys back the guarantee on the one value the rest of that');
   P('stage depends on. That is the trade, and it is worth making.\n');
+
+  // Packing: the largest lever this work projected, and it measured negative.
+  const gp = raw('gpu-packing');
+  const seqW = gp.wallForTwoJobs.sequential;
+  const conW = gp.wallForTwoJobs.concurrent;
+  const perHour = (w) => 2 / w * 3600;
+  const seqJobs = gp.jobs.filter((j) => j.mode === 'sequential');
+  const conJobs = gp.jobs.filter((j) => j.mode === 'concurrent');
+  const hw = gp.hardwareDuringConcurrent;
+
+  P('## Does a second job fit on the same GPU?\n');
+  P('The accelerator idles a third of the time and one job peaks at under half its memory,');
+  P('so a second job ought to be nearly free. This is the lever the deployment arithmetic');
+  P('leaned on hardest. It was measured, and it goes the other way.\n');
+  P('| Mode | job A (s) | job B (s) | wall for two jobs (s) | jobs per GPU-hour |');
+  P('|---|---:|---:|---:|---:|');
+  P(`| sequential | ${fmt(seqJobs[0].wall)} | ${fmt(seqJobs[1].wall)} | **${seqW}** `
+    + `| **${fmt(perHour(seqW), 1)}** |`);
+  P(`| concurrent | ${fmt(conJobs[0].wall)} | ${fmt(conJobs[1].wall)} | **${conW}** `
+    + `| **${fmt(perHour(conW), 1)}** |`);
+  P('');
+  P(`Running two at once is **${signed(100 * (conW - seqW) / seqW)} %** on total wall clock.`);
+  P(`Per-job latency goes ${fmt(seqJobs[0].wall)} s to ${fmt(conJobs[0].wall)} s, `
+    + `**${fmt(conJobs[0].wall / seqJobs[0].wall, 2)}x** slower, and the speedup from `
+    + `running both together is **${fmt(seqW / conW, 2)}x** `
+    + 'where 1.00x would mean no benefit at all. The jobs did not overlap. They serialised');
+  P('and paid coordination overhead on top.\n');
+  // The speedup is the ratio of the two measured WALL clocks, not the sum of the job
+  // durations over the concurrent wall. That earlier form read 0.79x and contradicted the
+  // throughput column two rows up: 9.2 over 10.1 is 0.92. The gap between the summed job
+  // times and the sequential wall is per-container setup, paid twice serially here and
+  // overlapped when the jobs run together -- charging concurrency for overhead the
+  // sequential mode also pays makes it look worse than it is. The verdict is unchanged.
+  P(`The figure above is the ratio of the two measured wall clocks. Taking the sum of the`);
+  P(`job durations over the concurrent wall instead gives`);
+  P(`${fmt((seqJobs[0].wall + seqJobs[1].wall) / conW, 2)}x, which charges concurrency for`);
+  P(`per-container setup that the sequential run pays twice and the concurrent run overlaps,`);
+  P(`and disagrees with the throughput column above. Concurrency is worse either way — by`);
+  P(`${fmt(Math.abs(100 * (conW - seqW) / seqW))} %, not ${fmt(Math.abs(100 * ((seqJobs[0].wall + seqJobs[1].wall) - conW) / (seqJobs[0].wall + seqJobs[1].wall)))} %.\n`);
+  P('### Neither resource the projection reasoned about was the constraint\n');
+  P(`Sampled ${hw.samples} times, ${hw.intervalSeconds} s apart, through the concurrent phase:\n`);
+  P('| | measured | verdict |');
+  P('|---|---:|---|');
+  P(`| memory, peak | ${fmt(100 * hw.vramPeakMiB / hw.cardMiB, 1)} % of the card `
+    + '| not the limit |');
+  P(`| utilization, mean | ${fmt(hw.gpuUtilMeanPct, 1)} % | not the limit |`);
+  P(`| samples at zero utilization | ${fmt(hw.gpuUtilZeroSamplePct, 1)} % | not the limit |`);
+  P('');
+  P(`${hw.note}\n`);
+  P(`**What binds instead.** ${gp.boundBy}\n`);
+  P(`**This retracts a projection made earlier in this work.** ${gp.retracts}\n`);
+  P('Two consequences. For this workload, more accelerators beat denser ones until the');
+  P('encoding moves off the machine — the same conclusion the CPU-versus-GPU split reached');
+  P('from the opposite direction. And it is the third independent result saying this');
+  P('pipeline is not accelerator-bound, after the utilization sampling and the three null');
+  P('arithmetic arms. A density test that fails *because the accelerator was never scarce*');
+  P('is unusually direct evidence.\n');
 }
 
 // ---------------------------------------------------------------- parse argmax

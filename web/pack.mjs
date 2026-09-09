@@ -138,7 +138,11 @@ const TABLES = [
     note: 'The same measured seconds priced three ways. The spread between them is larger than any optimization measured in this study, which is why the rate is stated as an input everywhere rather than folded into a headline.' },
   { id: 'T19', file: 'results/measured.md', heading: 'Run-to-run spread', title: 'Run-to-run spread',
     note: 'Coefficient of variation on total pipeline time per cohort. Compare against the effect sizes in T8: the production cohorts are an order of magnitude too noisy to resolve them.' },
-  { id: 'T20', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
+  { id: 'T20', file: 'results/measured.md', heading: 'Does a second job fit on the same GPU?', title: 'Two jobs per accelerator',
+    note: 'The density question, measured rather than projected. Running two jobs at once is worse than running them in sequence: throughput falls and per-job latency more than doubles. Neither memory nor utilization was the constraint — both are recorded in the row beneath — so the binding resource is the CPU-side encoding, which this accelerator cannot help with.' },
+  { id: 'T21', file: 'results/measured.md', heading: 'Neither resource the projection reasoned about was the constraint', title: 'What was not the constraint',
+    note: 'The two resources the projection reasoned from, measured during the concurrent phase. Both had headroom while throughput fell, which is what rules them out and points at the CPU instead.' },
+  { id: 'T22', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
     note: 'What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.' },
 ];
 

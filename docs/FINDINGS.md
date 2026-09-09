@@ -3229,3 +3229,111 @@ one value the rest of `track_face` depends on. That is the trade, priced.
 Baseline note: this uses `j2off2` (395.52 s), a clean same-image baseline. `j3base` was still
 running at the time of writing; it should confirm and the figures will be restated against it
 if it differs.
+
+### Restated against the same-run baseline, and a sign corrected
+
+`j3base` finished at **393.12 s** (389.50, 398.50, 391.37) — the baseline from the *same*
+run as the treated arms, and therefore the correct paired reference. Restated, paired per
+clip:
+
+| arm | paired vs j3base |
+|---|---:|
+| cache 5 only | **−13.66 %** |
+| both | **−22.66 %** |
+
+The earlier figures, taken against the previous run's baseline because this one had not yet
+finished, read −14.19 % and −23.13 %. Half a point, and the same-run baseline wins — it also
+ran *last*, so drift works against the treated arms rather than for them.
+
+**Two errors of mine that this shook out.**
+
+1. The published page was **recomputing** its headline figures instead of reading its own
+   generated table. It therefore disagreed with the table it sat above, and printed the
+   residual with the wrong sign. It now reads the cells, which is the rule this site is
+   built on and which I broke by hand.
+2. The additive prediction used the **unconfirmed** focal saving, 37.61 s, against a combined
+   arm that ran the **confirmed** variant — arms that were never run together. With the
+   confirmed variant's own 33.45 s:
+
+        393.12 − 53.74 − 33.45  =  305.93 s predicted
+                                    304.02 s actual
+                                    1.91 s BETTER than additive, 0.49 % of the job
+
+So the combined arm is very slightly **super**-additive, not short of prediction. The
+conclusion is unchanged and slightly stronger: additive is the right model and the two
+changes do not interfere.
+
+---
+
+# MEASURED: packing two jobs on one GPU makes throughput WORSE, not better
+
+**2026-09-09.** This was the largest untested lever in the workstream, and the number the
+warm-cluster economics analysis flagged as gating its biggest claim. The answer is no.
+
+Two jobs, both optimizations on, `GPU_MEMORY_FRACTION=0.45` each (the default 0.7 cap is
+*per process*, so two at 0.7 would claim 140 % of the card):
+
+| | job A | job B | wall for 2 jobs | jobs/GPU-hour |
+|---|---|---|---|---|
+| sequential | 307 s | 309 s | **715 s** | **10.1** |
+| concurrent | 726 s | 728 s | **780 s** | **9.2** |
+
+**Concurrency is 9.1 % worse on total wall clock.** Per-job latency went 307 s → 726 s,
+**2.36× slower**, and the speedup from running two at once is **0.92×** — where 1.00× would
+mean no benefit at all. The two jobs did not overlap; they serialised and paid coordination
+overhead on top.
+
+> **Corrected:** this line first read 0.79×, which is the sum of the two job durations
+> (616 s) over the concurrent wall (780 s). That is not the right comparison and it
+> contradicts the throughput column in the table above it — 9.2 / 10.1 is 0.92. The 99 s
+> between the sum of job times and the 715 s sequential wall is per-container setup, paid
+> **twice serially** in sequential mode and overlapped in concurrent mode; charging
+> concurrency for overhead that sequential mode also pays makes it look worse than it is.
+> The decision question is "same work, which finishes sooner in wall clock", so the
+> measured walls are the right terms: **0.92×**. The verdict does not change — concurrency
+> is still worse — but by 9 %, not 21 %.
+
+## Neither of the resources I had been reasoning about was the constraint
+
+Sampled 384 times through the concurrent phase:
+
+| | value | verdict |
+|---|---|---|
+| VRAM peak | 23,219 MiB = **56.7 %** of the card | **memory was not the limit** |
+| GPU utilization | mean **34.4 %**, 37.2 % of samples at **0 %** | **the GPU was not the limit** |
+
+Both jobs fit comfortably and the accelerator still idled a third of the time — while total
+throughput fell. So the binding resource is something else entirely: CPU cores and video
+decode, exactly as the A100's hardware profile predicted. **The A100 has no NVENC and five
+NVDEC units**, this pipeline performs 18 `libx264` encodes per job on the CPU, and one job
+alone already pulls a load average near 10 across 30 cores. Two jobs oversubscribe the cores
+and each waits longer than both would have taken in sequence.
+
+## What this retracts
+
+The earlier note concluded: *"at 27 % mean utilization and 44.7 % peak VRAM, two concurrent
+jobs on one 40 GB card should be close to free in compute terms … that is now the
+highest-value untested lever: it would roughly double throughput per card without touching
+the model."*
+
+**That is wrong, and now measured.** It does not double throughput; it reduces it by 9 %.
+The reasoning was sound about the GPU and silent about the CPU, and the CPU is what binds.
+I had even written the counter-hypothesis down in the same section — no NVENC, five NVDEC
+units, load average 10 — and still led with the optimistic conclusion.
+
+The warm-cluster economics table's packing rows (k=2, 3, 4 multiplying throughput) are
+therefore **unsupported at k=2 on this hardware** and should be struck rather than
+reduced — the measurement says the multiplier is below one.
+
+## What it means, positively
+
+1. **Buy more GPUs, not denser ones**, for this workload — until the CPU-side encoding is
+   moved off the box or onto hardware that can do it. Which is the same conclusion the
+   CPU/GPU-separation finding reached from the other direction: 17 % of job time needs no
+   accelerator, and that work is what saturates first.
+2. **It is the third independent confirmation that this pipeline is not GPU-bound**: the
+   utilization sampling, the three null arithmetic arms, and now a packing test that fails
+   because the GPU was never the scarce thing.
+3. **MIG and time-slicing are moot here.** The economics analysis weighed their isolation
+   trade-offs carefully; none of it matters if two tenants cannot share the card profitably
+   in the first place.

@@ -166,7 +166,7 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <div class="shell pack">
 
 <header class="masthead">
-  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T20</p>
+  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T22</p>
   <h1>Results pack: every number, with the table it came from</h1>
   <p class="standfirst">
     The companion to the <a href="index.html">article page</a>. Each figure is followed by the
@@ -212,7 +212,9 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <li><a href="#t17"><span class="tag">T17</span>Throughput per GPU-hour</a></li>
 <li><a href="#t18"><span class="tag">T18</span>Rate sensitivity</a></li>
 <li><a href="#t19"><span class="tag">T19</span>Run-to-run spread</a></li>
-<li><a href="#t20"><span class="tag">T20</span>Configuration key</a></li></ul>
+<li><a href="#t20"><span class="tag">T20</span>Two jobs per accelerator</a></li>
+<li><a href="#t21"><span class="tag">T21</span>What was not the constraint</a></li>
+<li><a href="#t22"><span class="tag">T22</span>Configuration key</a></li></ul>
   <h2>Carry with the numbers</h2>
   <ul>
     <li><a href="#measured">What was measured</a></li>
@@ -1441,6 +1443,27 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 
 <div class="item" id="t20">
   <span class="id">T20</span>
+  <h3>Two jobs per accelerator</h3>
+  <p class="meta">The density question, measured rather than projected. Running two jobs at once is worse than running them in sequence: throughput falls and per-job latency more than doubles. Neither memory nor utilization was the constraint — both are recorded in the row beneath — so the binding resource is the CPU-side encoding, which this accelerator cannot help with.</p>
+  <div class="tw"><table><thead><tr><th>Mode</th><th class="n">job A (s)</th><th class="n">job B (s)</th><th class="n">wall for two jobs (s)</th><th class="n">jobs per GPU-hour</th></tr></thead><tbody>
+<tr><td>sequential</td><td class="n">307.15</td><td class="n">309.21</td><td class="n"><strong>715</strong></td><td class="n"><strong>10.1</strong></td></tr>
+<tr><td>concurrent</td><td class="n">726.26</td><td class="n">727.74</td><td class="n"><strong>780</strong></td><td class="n"><strong>9.2</strong></td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t21">
+  <span class="id">T21</span>
+  <h3>What was not the constraint</h3>
+  <p class="meta">The two resources the projection reasoned from, measured during the concurrent phase. Both had headroom while throughput fell, which is what rules them out and points at the CPU instead.</p>
+  <div class="tw"><table><thead><tr><th></th><th class="n">measured</th><th>verdict</th></tr></thead><tbody>
+<tr><td>memory, peak</td><td class="n">56.7 % of the card</td><td>not the limit</td></tr>
+<tr><td>utilization, mean</td><td class="n">34.4 %</td><td>not the limit</td></tr>
+<tr><td>samples at zero utilization</td><td class="n">37.2 %</td><td>not the limit</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t22">
+  <span class="id">T22</span>
   <h3>Configuration key</h3>
   <p class="meta">What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.</p>
   <div class="tw"><table><thead><tr><th>Configuration</th><th>Hardware</th><th>Video parameters</th><th>Deployment</th><th>Protocol</th></tr></thead><tbody>

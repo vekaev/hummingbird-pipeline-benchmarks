@@ -653,6 +653,47 @@ its own stage and leaves the other untouched.</div>
 <tr><td>batched outright</td><td class="n">41.09 s</td></tr>
 <tr><td><strong>confirmed, as shipped</strong></td><td class="n"><strong>33.20 s</strong></td></tr>
 </tbody></table></div>
+
+<h3>Does a second job fit on the same GPU?</h3>
+<p>
+  The accelerator idles a third of the time and one job peaks at under half the card's
+  memory, so a second job ought to be nearly free. This was the largest untested lever in
+  the work and the one the deployment arithmetic leaned on hardest. It was measured, and it
+  goes the other way.
+</p>
+<div class="tw"><table><thead><tr><th>Mode</th><th class="n">job A (s)</th><th class="n">job B (s)</th><th class="n">wall for two jobs (s)</th><th class="n">jobs per GPU-hour</th></tr></thead><tbody>
+<tr><td>sequential</td><td class="n">307.15</td><td class="n">309.21</td><td class="n"><strong>715</strong></td><td class="n"><strong>10.1</strong></td></tr>
+<tr><td>concurrent</td><td class="n">726.26</td><td class="n">727.74</td><td class="n"><strong>780</strong></td><td class="n"><strong>9.2</strong></td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Running two at once is worse, not better: 715s for two jobs
+becomes 780s.</b> Throughput falls from 10.1 to 9.2 jobs per GPU-hour,
+and per-job latency more than doubles. The jobs did not overlap; they serialised and paid
+coordination overhead on top.</div>
+<div class="tw"><table><thead><tr><th></th><th class="n">measured</th><th>verdict</th></tr></thead><tbody>
+<tr><td>memory, peak</td><td class="n">56.7 % of the card</td><td>not the limit</td></tr>
+<tr><td>utilization, mean</td><td class="n">34.4 %</td><td>not the limit</td></tr>
+<tr><td>samples at zero utilization</td><td class="n">37.2 %</td><td>not the limit</td></tr>
+</tbody></table></div>
+<div class="caveat">
+  <span class="caveat-label">This retracts a projection made earlier in this work</span>
+  <p>
+    Reasoning from the idle accelerator and the spare memory, an earlier note called a
+    second job &ldquo;close to free&rdquo; and expected it to roughly double throughput per
+    card. It reduces throughput. The reasoning was sound about the accelerator and silent
+    about the CPU, and the CPU is what binds: this card has no hardware encoder at all,
+    the pipeline runs eighteen software encodes per job, and one job alone already drives a
+    load average near ten across thirty cores. The counter-hypothesis was written down in
+    the same section, and the optimistic conclusion was still the one that led.
+  </p>
+  <p>
+    Two consequences. For this workload more accelerators beat denser ones, until the
+    encoding moves off the machine &mdash; the same conclusion the CPU-versus-GPU split
+    reached from the opposite direction. And it is the third independent result saying this
+    pipeline is not accelerator-bound, after the utilization sampling and the three null
+    arithmetic arms. A density test that fails <em>because the accelerator was never
+    scarce</em> is unusually direct evidence.
+  </p>
+</div>
 <div class="caveat">
   <span class="caveat-label">The caveat, now priced</span>
   <p>

@@ -287,6 +287,51 @@ The confirmation costs **19.20 %
 of the stage saving** and buys back the guarantee on the one value the rest of that
 stage depends on. That is the trade, and it is worth making.
 
+## Does a second job fit on the same GPU?
+
+The accelerator idles a third of the time and one job peaks at under half its memory,
+so a second job ought to be nearly free. This is the lever the deployment arithmetic
+leaned on hardest. It was measured, and it goes the other way.
+
+| Mode | job A (s) | job B (s) | wall for two jobs (s) | jobs per GPU-hour |
+|---|---:|---:|---:|---:|
+| sequential | 307.15 | 309.21 | **715** | **10.1** |
+| concurrent | 726.26 | 727.74 | **780** | **9.2** |
+
+Running two at once is **+9.09 %** on total wall clock.
+Per-job latency goes 307.15 s to 726.26 s, **2.36x** slower, and the speedup from running both together is **0.92x** where 1.00x would mean no benefit at all. The jobs did not overlap. They serialised
+and paid coordination overhead on top.
+
+The figure above is the ratio of the two measured wall clocks. Taking the sum of the
+job durations over the concurrent wall instead gives
+0.79x, which charges concurrency for
+per-container setup that the sequential run pays twice and the concurrent run overlaps,
+and disagrees with the throughput column above. Concurrency is worse either way — by
+9.09 %, not 26.55 %.
+
+### Neither resource the projection reasoned about was the constraint
+
+Sampled 384 times, 2 s apart, through the concurrent phase:
+
+| | measured | verdict |
+|---|---:|---|
+| memory, peak | 56.7 % of the card | not the limit |
+| utilization, mean | 34.4 % | not the limit |
+| samples at zero utilization | 37.2 % | not the limit |
+
+Both jobs fit with room to spare and the accelerator still idled better than a third of the time, while total throughput fell. So neither memory nor the GPU was the binding resource.
+
+**What binds instead.** CPU cores and video decode. This accelerator has no hardware encoder at all and five decode units; the pipeline performs 18 software H.264 encodes per job, and a single job already drives a load average near 10 across 30 cores. Two jobs oversubscribe the cores, so each waits longer than both would have taken in sequence.
+
+**This retracts a projection made earlier in this work.** An earlier note in this work reasoned from 27% mean GPU utilization and 44.7% peak memory that a second job 'should be close to free' and would 'roughly double throughput per card'. Measured, it reduces throughput. The reasoning was sound about the GPU and silent about the CPU. The counter-hypothesis was written down in the same section and the optimistic conclusion was still the one that led.
+
+Two consequences. For this workload, more accelerators beat denser ones until the
+encoding moves off the machine — the same conclusion the CPU-versus-GPU split reached
+from the opposite direction. And it is the third independent result saying this
+pipeline is not accelerator-bound, after the utilization sampling and the three null
+arithmetic arms. A density test that fails *because the accelerator was never scarce*
+is unusually direct evidence.
+
 ## A change that works and is rejected anyway
 
 The parsing stage reduced a 19-class, 512-square floating-point tensor **on the host,

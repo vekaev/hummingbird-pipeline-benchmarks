@@ -1,0 +1,46 @@
+{
+  "note": "Does a second job fit on one GPU? This was the largest untested lever in the work and the one the deployment economics depended on most. Both optimizations on in every arm, and GPU_MEMORY_FRACTION set to 0.45 per process because the pipeline's default 0.7 cap is PER PROCESS -- two processes at 0.7 would together claim 140% of the card. Two jobs were run one after the other, then the same two at once, on the same clips at the same seed. Hardware was sampled every two seconds throughout the concurrent phase.",
+  "memoryFractionPerProcess": 0.45,
+  "jobs": [
+    {
+      "mode": "sequential",
+      "arm": "seqA",
+      "clip": "hdtf01",
+      "wall": 307.15
+    },
+    {
+      "mode": "sequential",
+      "arm": "seqB",
+      "clip": "hdtf02",
+      "wall": 309.21
+    },
+    {
+      "mode": "concurrent",
+      "arm": "parA",
+      "clip": "hdtf01",
+      "wall": 726.26
+    },
+    {
+      "mode": "concurrent",
+      "arm": "parB",
+      "clip": "hdtf02",
+      "wall": 727.74
+    }
+  ],
+  "wallForTwoJobs": {
+    "sequential": 715,
+    "concurrent": 780
+  },
+  "hardwareDuringConcurrent": {
+    "samples": 384,
+    "intervalSeconds": 2,
+    "vramMeanMiB": 19717,
+    "vramPeakMiB": 23219,
+    "cardMiB": 40960,
+    "gpuUtilMeanPct": 34.4,
+    "gpuUtilZeroSamplePct": 37.2,
+    "note": "Both jobs fit with room to spare and the accelerator still idled better than a third of the time, while total throughput fell. So neither memory nor the GPU was the binding resource."
+  },
+  "boundBy": "CPU cores and video decode. This accelerator has no hardware encoder at all and five decode units; the pipeline performs 18 software H.264 encodes per job, and a single job already drives a load average near 10 across 30 cores. Two jobs oversubscribe the cores, so each waits longer than both would have taken in sequence.",
+  "retracts": "An earlier note in this work reasoned from 27% mean GPU utilization and 44.7% peak memory that a second job 'should be close to free' and would 'roughly double throughput per card'. Measured, it reduces throughput. The reasoning was sound about the GPU and silent about the CPU. The counter-hypothesis was written down in the same section and the optimistic conclusion was still the one that led."
+}
