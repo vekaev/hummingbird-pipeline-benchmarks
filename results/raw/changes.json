@@ -196,7 +196,7 @@
       "change": "Ran the two kept changes together",
       "what": "They target different stages, so they ought to add \u2014 but two earlier attempts at this test were void: one passed flags to an image built before either change existed, the other set the cache to a size that misses on every frame.",
       "effect": "measured",
-      "detail": "-23.13% together, and the renderer change REPLICATED at -14.19% against -14.30% measured separately on a different image. Predicting the combined arm from the two separate experiments lands 2.25s off, inside the run-to-run spread, so the savings add. Each change moves only its own stage",
+      "detail": "-22.66% together against a same-run baseline, and the renderer change REPLICATED at -13.67% against -14.30% measured separately on a different image. The shortfall against a perfectly additive prediction is 0.49% of the job, inside the run-to-run spread, so the two do not interfere.",
       "section": "arms",
       "arm": "j3fc5/j3both",
       "roadmap": false

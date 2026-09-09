@@ -220,31 +220,31 @@ containing both changes, selected by environment variable.
 
 | Arm | frame cache | focal search | mean wall (s) | vs baseline |
 |---|---|---|---:|---:|
-| j2off2 | off | off | 395.52 | baseline |
-| j3fc5 | **5** | off | 339.38 | **-14.19 %** |
-| j3both | **5** | **on** | 304.02 | **-23.13 %** |
+| j3base | off | off | 393.12 | baseline |
+| j3fc5 | **5** | off | 339.38 | **-13.67 %** |
+| j3both | **5** | **on** | 304.02 | **-22.66 %** |
 
 ### The renderer result replicated
 
-The cache-only arm gives **-14.19 %**. It was measured separately at
+The cache-only arm gives **-13.67 %**. It was measured separately at
 **-14.30 %** — a different image, a different mechanism for getting the code in, and
-a different person running it. The two land 0.11 points
+a different person running it. The two land 0.63 points
 apart. That is as close to a replication as this rig can produce, and it is the only
 result in this work that has one.
 
 ### They compose, and additively
 
 Predicting the both-on arm from the two *separate* experiments — this page’s cache
-saving of 56.14 s and the focal change’s 37.61 s
+saving of 53.74 s and the focal change’s 33.45 s
 from its own comparison:
 
 ```
-395.52 - 56.14 - 37.61  =  301.77 s predicted
+393.12 - 53.74 - 33.45  =  305.93 s predicted
                       304.02 s actual
-                    shortfall 2.25 s = 0.57 % of the job
+                    shortfall -1.91 s = -0.49 % of the job
 ```
 
-The combined effect is **-23.13 %**. The shortfall against a perfectly
+The combined effect is **-22.66 %**. The shortfall against a perfectly
 additive prediction is inside the run-to-run spread, so **additive is the right model**
 and the two do not interfere.
 
@@ -252,8 +252,9 @@ The stage timings say why:
 
 | Stage | baseline | cache only | both |
 |---|---:|---:|---:|
-| `render_rgb` | 96.41 | 39.83 | **38.23** |
-| `track_face` | 137.74 | 137.75 | **104.50** |
+| `render_rgb` | 93.33 | 39.83 | **38.23** |
+| `track_face` | 137.96 | 137.75 | **104.51** |
+| `paste_back_video` | 12.51 | 12.63 | **12.60** |
 
 Each change moves its own stage and leaves the other where it was. The cache does not
 slow the tracker and the tracker work does not slow the renderer. Disjoint, so they add.
