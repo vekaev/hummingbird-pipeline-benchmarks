@@ -88,6 +88,10 @@ const arm1Delta = mdCell('results/measured.md', 'Optimization arms', '>arm1<', 4
 const arm2Delta = mdCell('results/measured.md', 'Optimization arms', '>arm2<', 4);
 const arm3Delta = mdCell('results/measured.md', 'Optimization arms', '>arm3<', 4);
 const armCV = mdCell('results/reporting.md', 'Measurement precision', 'A/B arms', 4);
+const driftPct = mdCell('results/measured.md', 'Session drift', 'arm0b, run last', 2);
+const arm3Adj = mdCell('results/measured.md', 'Arms, adjusted for drift', '>arm3<', 3);
+const arm1Adj = mdCell('results/measured.md', 'Arms, adjusted for drift', '>arm1<', 3);
+const arm2Adj = mdCell('results/measured.md', 'Arms, adjusted for drift', '>arm2<', 3);
 const lsPipeline = mdCell('results/measured.md', 'Stage profile, production lipsync', 'Pipeline total', 1);
 const trackShare = mdCell('results/measured.md', 'Stage profile, production lipsync', '3D face tracking', 3);
 const renderShare = mdCell('results/measured.md', 'Stage profile, production lipsync', 'Neural render', 3);
@@ -215,7 +219,8 @@ ${sec(4, 'arms', 'Two roadmap changes, measured', `
     <span class="stat">${arm1Delta}</span>. Adding fp16 autocast measured
     <span class="stat">${arm2Delta}</span>. Re-enabling cuDNN autotuning measured
     <span class="stat">${arm3Delta}</span>. Negative would mean faster. All ${rejected} were
-    rejected.
+    rejected — and a repeated baseline shows the machine itself drifted ${driftPct} across the
+    session, which is larger than two of those three effects.
   </p>
   <span class="interval">Paired per clip, three clips, one warm process per arm, sampler seeded, sequential, on a dedicated A100. Baseline coefficient of variation ${armCV}.</span>
 </div>
@@ -236,9 +241,22 @@ help, and neither can halving precision.</div>
   The third arm was not on the roadmap. It came from noticing that the animator's seeding
   helper disables cuDNN autotuning <em>process-wide</em> as a side effect, so the renderer
   inherits it — hundreds of convolutions at one fixed shape, run without autotuned kernels.
-  Re-enabling it is the clearest rejection of the three: consistently slower on every clip,
-  because the kernel search is paid for and the stage it would accelerate is not the
-  bottleneck.
+  Re-enabling it also failed to help.
+</p>
+<h3>The control that changed what the largest effect means</h3>
+<p>
+  A fifth pass repeated the baseline configuration <em>exactly</em>, last, on the same clips.
+  It came back <strong>${driftPct}</strong> slower than the first baseline with no code change
+  at all. The machine drifted across the session by more than two of the three arm effects.
+</p>
+${mdTable('results/measured.md', 'Session drift, and what it does to the arms')}
+${mdTable('results/measured.md', 'Arms, adjusted for drift')}
+<div class="verdict"><b>No verdict changes, but one reason does.</b> Compared against a
+baseline interpolated to its own slot, the three effects are ${arm1Adj}, ${arm2Adj} and
+${arm3Adj} — a tighter null than the raw numbers, and the largest raw effect turns out to be
+mostly the machine. The earlier reading of the third arm as "consistently slower because the
+kernel search is paid for" is not supported: that slowdown is indistinguishable from the
+drift.</div>
 </p>
 ${mdTable('results/measured.md', 'Per-clip arm detail')}
 <div class="caveat">
@@ -478,10 +496,17 @@ ${sec(11, 'limits', 'What this does not establish', `
   is six replicas of one fixture with a single changed segment.
 </p>
 <p>
-  <strong>That the arms are complete.</strong> Two candidate arms, a seeded baseline repeat
-  and a control built from the unmodified branch were still running when this page was built.
-  The control is what would separate the effect of the code changes from the effect of the
-  rebuilt environment.
+  <strong>That the arm design was adequate.</strong> It was not. Running the baseline once at
+  the start and once at the end revealed ${driftPct} of drift, which swamps the effects under
+  test. The correct design interleaves a baseline between every arm so drift is measured
+  continuously rather than bounded after the fact. The verdicts survive because all three
+  effects are far from the gate either way, but a study looking for a 2% win with this design
+  would have found one that was not there.
+</p>
+<p>
+  <strong>That the arms are isolated from the rebuild.</strong> A control built from the
+  unmodified branch was still building when this page was published. It is what separates the
+  effect of the code changes from the effect of the rebuilt environment.
 </p>
 `)}
 

@@ -1523,3 +1523,55 @@ The caveat stands from the economics analysis: the A100 has **no NVENC** and onl
 units, and this pipeline performs 18 video writes per job through `libx264` on the CPU. At a
 load average of 10.4 for a single job on 30 cores, three concurrent jobs would saturate the
 cores. **Two is the number to test.**
+
+---
+
+# The drift control: the baseline moved 1.85 % on its own, and it changes what arm3 means
+
+**MEASURED 2026-09-09.** arm0b repeated the baseline configuration **exactly** — batch 4,
+fp32, no autotuning, same seed, same three clips — as the fifth and last pass of the session.
+
+| | mean wall | vs first baseline | per clip |
+|---|---|---|---|
+| arm0, run first | 389.21 s | reference | — |
+| **arm0b, run last, identical config** | **396.40 s** | **+1.85 %** | +1.89, +1.34, +2.33 |
+
+**The machine got 1.85 % slower across the session with no code change at all.** Thermal
+behaviour, accumulated allocator state, or host neighbours — the cause is not identified, and
+for the purpose of reading the arms it does not need to be.
+
+## What this does to the three results
+
+Run order was arm0, arm1, arm2, arm3, arm0b. Interpolating the baseline linearly to each
+arm's own slot:
+
+| arm | vs first baseline | vs drift-adjusted baseline |
+|---|---|---|
+| arm1, batch 16 | +0.32 % | **−0.14 %** |
+| arm2, + fp16 | +0.51 % | **−0.41 %** |
+| arm3, cuDNN autotuning | +1.89 % | **+0.50 %** |
+
+**No verdict changes.** All three remain far from the −3 % gate, so all three are still
+rejected, and the nulls are in fact *tighter* than the raw numbers suggested: every effect
+lands within about half a percent of zero.
+
+**But one stated reason is now unsupported and is withdrawn.** The write-up said arm3 was
+"the clearest rejection of the three: consistently slower on every clip, because the kernel
+search is paid for and the stage it would accelerate is not the bottleneck." Its +1.89 % is
+**indistinguishable from the +1.85 % drift.** The consistency across clips, which looked like
+evidence of a real effect, is what a monotonic drift produces. Corrected on the published
+page.
+
+## The methodological finding, which is the more useful one
+
+**A baseline run once is not a control.** This design ran it first and last, which bounded
+the drift after the fact and was just enough to catch the error. The correct design
+**interleaves a baseline between every arm**, so drift is measured continuously rather than
+reconstructed.
+
+The verdicts here survive only because every effect was far from the gate. A study looking
+for a 2 % win with this design would have found one that was not there — which is precisely
+what nearly happened to arm3, in the opposite direction.
+
+Worth stating plainly for the article: the run that produced no new information about any
+optimization is the run that saved the analysis. It cost twenty minutes of GPU time.

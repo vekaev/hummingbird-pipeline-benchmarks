@@ -103,6 +103,9 @@ if (armWalls.length) P(`| A/B baseline arm, dedicated A100 | ${armWalls.length} 
 P('');
 
 // ---------------------------------------------------------------- the A/B arms
+/** The order the arms were run in. arm0b repeats arm0 last, as a drift control. */
+const ARM_ORDER = ['arm0', 'arm1', 'arm2', 'arm3', 'arm0b', 'control_main'];
+
 const ARM_LABEL = {
   arm0: 'Baseline: batch 4, fp32', arm1: 'Renderer batch 4 to 16', arm2: 'Batch 16 + fp16 autocast',
   arm3: 'cuDNN autotuning in the render loop', arm0b: 'Baseline, repeated (seeded)',
@@ -119,7 +122,7 @@ P('requires at least 3% faster before a change is kept.\n');
 P('| Arm | Configuration | n | mean wall (s) | paired vs baseline | per-clip range | signs | verdict |');
 P('|---|---|---:|---:|---:|---|---|---|');
 const base = wallOf(byArm.arm0 ?? []);
-for (const id of ['arm0', 'arm1', 'arm2', 'arm3', 'arm0b', 'control_main']) {
+for (const id of ARM_ORDER) {
   const rows = byArm[id];
   if (!rows) continue;
   const w = wallOf(rows);
@@ -131,7 +134,10 @@ for (const id of ['arm0', 'arm1', 'arm2', 'arm3', 'arm0b', 'control_main']) {
     continue;
   }
   const d = pairedDelta(w, base);
-  const verdict = !d ? 'incomplete' : d.meanPct <= -3 ? 'KEEP' : 'rejected';
+  const verdict = !d ? 'incomplete'
+    : id === 'arm0b' ? 'drift control'
+    : id === 'control_main' ? 'control'
+    : d.meanPct <= -3 ? 'KEEP' : 'rejected';
   P(`| ${id} | ${ARM_LABEL[id]} | ${vals.length} | ${fmt(mean(vals))} | ${d ? `${signed(d.meanPct)}%` : '—'} | ${d ? `${signed(d.minPct)}% to ${signed(d.maxPct)}%` : '—'} | ${d ? (d.signsConsistent ? 'consistent' : 'mixed') : '—'} | ${verdict} |`);
 }
 P('');
@@ -150,6 +156,46 @@ for (const id of ['arm1', 'arm2', 'arm3', 'arm0b', 'control_main']) {
   }
 }
 P('');
+
+// ---------------------------------------------------------------- session drift
+const a0 = wallOf(byArm.arm0 ?? []);
+const a0b = wallOf(byArm.arm0b ?? []);
+if (Object.keys(a0b).length) {
+  const drift = pairedDelta(a0b, a0);
+  P('## Session drift, and what it does to the arms\n');
+  P('arm0b repeats the baseline configuration exactly, at the end of the session, on the');
+  P('same clips. Any difference is the machine, not the code. It is the control that decides');
+  P('whether the arm effects above are real.\n');
+  P('| | mean wall (s) | paired vs first baseline | per-clip |');
+  P('|---|---:|---:|---|');
+  P(`| arm0, run first | ${fmt(mean(Object.values(a0)))} | reference | reference |`);
+  P(`| **arm0b, run last, identical config** | **${fmt(mean(Object.values(a0b)))}** | **${signed(drift.meanPct)}%** | ${drift.perClip.map((c) => signed(c.deltaPct)).join(', ')}% |`);
+  P('');
+  P(`The baseline itself moved **${signed(drift.meanPct)}%** across the session with no code change.`);
+  P('That is larger than two of the three arm effects and indistinguishable from the third,');
+  P('so the arms cannot be read against the first baseline alone.\n');
+  P('### Arms, adjusted for drift\n');
+  P('Treating the drift as linear in run order, each arm is compared against the baseline');
+  P('interpolated to its own slot rather than against the first baseline. This is a');
+  P('correction of last resort — the right fix is to interleave the baseline between arms —');
+  P('but it bounds how much of each effect was the machine.\n');
+  P('| Arm | slot | vs first baseline | vs drift-adjusted baseline | still rejected |');
+  P('|---|---:|---:|---:|---|');
+  const cand = ARM_ORDER.filter((id) => byArm[id] && id !== 'arm0' && id !== 'arm0b' && id !== 'control_main');
+  cand.forEach((id, i) => {
+    const w = wallOf(byArm[id]);
+    const frac = (i + 1) / (cand.length + 1);
+    const adj = Object.fromEntries(Object.keys(a0).map((k) => [k, a0[k] + frac * ((a0b[k] ?? a0[k]) - a0[k])]));
+    const raw = pairedDelta(w, a0);
+    const cor = pairedDelta(w, adj);
+    P(`| ${id} | ${i + 2} of ${cand.length + 2} | ${signed(raw.meanPct)}% | ${signed(cor.meanPct)}% | ${cor.meanPct > -3 ? 'yes' : 'NO — revisit'} |`);
+  });
+  P('');
+  P('Every arm stays far from the 3% gate either way, so no verdict changes. What changes is');
+  P('the *reason*: adjusted for drift the three effects fall within roughly half a percent of');
+  P('zero, which is a tighter null than the raw numbers suggested, and the largest raw effect');
+  P('is mostly the machine rather than the change.\n');
+}
 
 // ---------------------------------------------------------------- resolution model
 P('## Cost against input resolution\n');

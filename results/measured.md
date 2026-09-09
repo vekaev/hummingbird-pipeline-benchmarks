@@ -101,6 +101,7 @@ requires at least 3% faster before a change is kept.
 | arm1 | Renderer batch 4 to 16 | 3 | 390.46 | +0.32% | +0.11% to +0.44% | consistent | rejected |
 | arm2 | Batch 16 + fp16 autocast | 3 | 391.16 | +0.51% | -0.55% to +1.33% | mixed | rejected |
 | arm3 | cuDNN autotuning in the render loop | 3 | 396.56 | +1.89% | +1.49% to +2.30% | consistent | rejected |
+| arm0b | Baseline, repeated (seeded) | 3 | 396.40 | +1.85% | +1.34% to +2.33% | consistent | drift control |
 
 ### Per-clip arm detail
 
@@ -117,6 +118,42 @@ The paired comparison in full, so the spread can be checked against the effect.
 | arm3 | RD_Radio11_001 | 388.74 | 396.04 | +7.30 | +1.88% |
 | arm3 | RD_Radio32_000 | 393.43 | 399.30 | +5.87 | +1.49% |
 | arm3 | RD_Radio42_000 | 385.46 | 394.34 | +8.88 | +2.30% |
+| arm0b | RD_Radio11_001 | 388.74 | 396.07 | +7.33 | +1.89% |
+| arm0b | RD_Radio32_000 | 393.43 | 398.69 | +5.26 | +1.34% |
+| arm0b | RD_Radio42_000 | 385.46 | 394.45 | +8.99 | +2.33% |
+
+## Session drift, and what it does to the arms
+
+arm0b repeats the baseline configuration exactly, at the end of the session, on the
+same clips. Any difference is the machine, not the code. It is the control that decides
+whether the arm effects above are real.
+
+| | mean wall (s) | paired vs first baseline | per-clip |
+|---|---:|---:|---|
+| arm0, run first | 389.21 | reference | reference |
+| **arm0b, run last, identical config** | **396.40** | **+1.85%** | +1.89, +1.34, +2.33% |
+
+The baseline itself moved **+1.85%** across the session with no code change.
+That is larger than two of the three arm effects and indistinguishable from the third,
+so the arms cannot be read against the first baseline alone.
+
+### Arms, adjusted for drift
+
+Treating the drift as linear in run order, each arm is compared against the baseline
+interpolated to its own slot rather than against the first baseline. This is a
+correction of last resort — the right fix is to interleave the baseline between arms —
+but it bounds how much of each effect was the machine.
+
+| Arm | slot | vs first baseline | vs drift-adjusted baseline | still rejected |
+|---|---:|---:|---:|---|
+| arm1 | 2 of 5 | +0.32% | -0.14% | yes |
+| arm2 | 3 of 5 | +0.51% | -0.41% | yes |
+| arm3 | 4 of 5 | +1.89% | +0.50% | yes |
+
+Every arm stays far from the 3% gate either way, so no verdict changes. What changes is
+the *reason*: adjusted for drift the three effects fall within roughly half a percent of
+zero, which is a tighter null than the raw numbers suggested, and the largest raw effect
+is mostly the machine rather than the change.
 
 ## Cost against input resolution
 

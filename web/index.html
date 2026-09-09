@@ -151,9 +151,9 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
   <div><dt>Buildable again</dt><dd>green<small>First build of the repository that runs, after roughly sixteen months in which none did.</small></dd></div>
   <div><dt>Roadmap items tested</dt><dd>2 of 5<small>Plus 1 change not on the roadmap. All 3 measured arms rejected: none produced a gain the design could resolve.</small></dd></div>
   <div><dt>Output quality</dt><dd>unchanged<small>No arm was kept, so nothing shipped that could move it. Verified on every generated clip.</small></dd></div>
-  <div><dt>Pipeline runs measured</dt><dd>57<small>Across 5 configurations, production and dedicated hardware.</small></dd></div>
+  <div><dt>Pipeline runs measured</dt><dd>59<small>Across 5 configurations, production and dedicated hardware.</small></dd></div>
   <div><dt>Longest single run</dt><dd>674 s<small>One 1080p job end to end, excluding the container start it is billed for.</small></dd></div>
-  <div><dt>GPU time spent measuring</dt><dd>5.7 h<small>Sum of every run on this page. The A/B share of it cost about $8.</small></dd></div></dl>
+  <div><dt>GPU time spent measuring</dt><dd>6.0 h<small>Sum of every run on this page. The A/B share of it cost about $8.</small></dd></div></dl>
 </header>
 
 <div class="cols">
@@ -345,29 +345,30 @@ Nine tenths of the cost is the machinery around it.</div>
     <span class="stat">+0.32%</span>. Adding fp16 autocast measured
     <span class="stat">+0.51%</span>. Re-enabling cuDNN autotuning measured
     <span class="stat">+1.89%</span>. Negative would mean faster. All 3 were
-    rejected.
+    rejected — and a repeated baseline shows the machine itself drifted +1.85% across the
+    session, which is larger than two of those three effects.
   </p>
   <span class="interval">Paired per clip, three clips, one warm process per arm, sampler seeded, sequential, on a dedicated A100. Baseline coefficient of variation 0.010.</span>
 </div>
 
 <figure class="figure">
-  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 657" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 770" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
 
-<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">All 3 renderer tuning arms landed inside the noise</text>
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">All 4 renderer tuning arms landed inside the noise</text>
 <text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Measured on one dedicated A100 40GB: the same 3 clips in the same order, one warm process per arm, sampler seeded, arms run</text>
 <text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">sequentially. Paired per clip because clip-to-clip spread in this pipeline is larger than the effects being tested.</text>
-<line x1="380" y1="148" x2="380" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="380" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-4%</text>
-<line x1="433.5" y1="148" x2="433.5" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="433.5" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-3%</text>
-<line x1="487" y1="148" x2="487" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="487" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-2%</text>
-<line x1="540.5" y1="148" x2="540.5" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="540.5" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-1%</text>
-<line x1="594" y1="148" x2="594" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="594" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0%</text>
-<line x1="647.5" y1="148" x2="647.5" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="647.5" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+1%</text>
-<line x1="701" y1="148" x2="701" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="701" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+2%</text>
-<line x1="754.5" y1="148" x2="754.5" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="754.5" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+3%</text>
-<line x1="808" y1="148" x2="808" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="808" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+4%</text>
-<rect x="433.5" y="148" width="321.0" height="382" fill="var(--fig-rule)"/>
-<line x1="594" y1="148" x2="594" y2="530" stroke="var(--fig-muted)" stroke-width="1.5"/>
-<line x1="433.5" y1="148" x2="433.5" y2="530" stroke="var(--fig-after)" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="380" y1="148" x2="380" y2="658" stroke="var(--fig-rule)" stroke-width="1"/><text x="380" y="678" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-4%</text>
+<line x1="433.5" y1="148" x2="433.5" y2="658" stroke="var(--fig-rule)" stroke-width="1"/><text x="433.5" y="678" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-3%</text>
+<line x1="487" y1="148" x2="487" y2="658" stroke="var(--fig-rule)" stroke-width="1"/><text x="487" y="678" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-2%</text>
+<line x1="540.5" y1="148" x2="540.5" y2="658" stroke="var(--fig-rule)" stroke-width="1"/><text x="540.5" y="678" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-1%</text>
+<line x1="594" y1="148" x2="594" y2="658" stroke="var(--fig-rule)" stroke-width="1"/><text x="594" y="678" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0%</text>
+<line x1="647.5" y1="148" x2="647.5" y2="658" stroke="var(--fig-rule)" stroke-width="1"/><text x="647.5" y="678" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+1%</text>
+<line x1="701" y1="148" x2="701" y2="658" stroke="var(--fig-rule)" stroke-width="1"/><text x="701" y="678" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+2%</text>
+<line x1="754.5" y1="148" x2="754.5" y2="658" stroke="var(--fig-rule)" stroke-width="1"/><text x="754.5" y="678" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+3%</text>
+<line x1="808" y1="148" x2="808" y2="658" stroke="var(--fig-rule)" stroke-width="1"/><text x="808" y="678" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+4%</text>
+<rect x="433.5" y="148" width="321.0" height="510" fill="var(--fig-rule)"/>
+<line x1="594" y1="148" x2="594" y2="658" stroke="var(--fig-muted)" stroke-width="1.5"/>
+<line x1="433.5" y1="148" x2="433.5" y2="658" stroke="var(--fig-after)" stroke-width="1.5" stroke-dasharray="4 3"/>
 <text x="440.5" y="162" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-after)" text-anchor="start" font-weight="650" opacity="1">keep threshold −3%</text>
 <text x="747.5" y="162" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">±3% acceptance gate</text>
 <text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">per-clip paired wall-time delta against the baseline arm — negative is faster</text>
@@ -421,11 +422,26 @@ Nine tenths of the cost is the machinery around it.</div>
 <text x="250.692" y="461" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">batch 4, fp32, cuDNN autotune</text>
 <text x="250.692" y="477" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-before)" text-anchor="end" font-weight="650" opacity="1">mean +1.89%</text>
 <text x="820" y="483" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="650" opacity="1">rejected</text>
-<text x="32" y="579" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Sign convention: the delta is candidate minus baseline, so negative is faster and positive is slower. The gate keeps a change only at 3%</text>
-<text x="32" y="594" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">faster or better — the dashed green line — and no arm reached it, so nothing here is drawn in the keep colour. The largest mean effect of any</text>
-<text x="32" y="609" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">arm is 1.89%, against a baseline run-to-run CV of 0.010. Measured on one dedicated A100 40GB, so the null is a real null and not an artefact</text>
-<text x="32" y="624" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">of a noisy host: the renderer is decode-bound, and neither batch size nor autocast reaches the bottleneck. arm0b has a record but no</text>
-<text x="32" y="639" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">completed wall time, and is omitted rather than drawn.</text>
+<text x="364" y="577" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio11_001</text>
+<line x1="594" y1="573" x2="694.9" y2="573" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="694.9" cy="573" r="5" fill="var(--fig-before)"/>
+<text x="705.9" y="577" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.89%</text>
+<text x="364" y="611" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio32_000</text>
+<line x1="594" y1="607" x2="665.5" y2="607" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="665.5" cy="607" r="5" fill="var(--fig-before)"/>
+<text x="676.5" y="611" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.34%</text>
+<text x="364" y="645" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio42_000</text>
+<line x1="594" y1="641" x2="718.8" y2="641" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="718.8" cy="641" r="5" fill="var(--fig-before)"/>
+<text x="729.8" y="645" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+2.33%</text>
+<text x="250.692" y="573" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Baseline, repeated (seeded)</text>
+<text x="250.692" y="589" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">batch 4, fp32</text>
+<text x="250.692" y="605" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-before)" text-anchor="end" font-weight="650" opacity="1">mean +1.85%</text>
+<text x="820" y="611" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="650" opacity="1">rejected</text>
+<text x="32" y="707" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Sign convention: the delta is candidate minus baseline, so negative is faster and positive is slower. The gate keeps a change only at 3%</text>
+<text x="32" y="722" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">faster or better — the dashed green line — and no arm reached it, so nothing here is drawn in the keep colour. The largest mean effect of any</text>
+<text x="32" y="737" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">arm is 1.89%, against a baseline run-to-run CV of 0.010. Measured on one dedicated A100 40GB, so the null is a real null and not an artefact</text>
+<text x="32" y="752" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">of a noisy host: the renderer is decode-bound, and neither batch size nor autocast reaches the bottleneck.</text>
 </svg></div>
   <figcaption><b>F2</b>Per-clip paired difference against the baseline arm. The band is the &plusmn;3% acceptance gate. Negative is faster.</figcaption>
 </figure>
@@ -434,6 +450,7 @@ Nine tenths of the cost is the machinery around it.</div>
 <tr><td>arm1</td><td>Renderer batch 4 to 16</td><td class="n">3</td><td class="n">390.46</td><td class="n">+0.32%</td><td>+0.11% to +0.44%</td><td>consistent</td><td>rejected</td></tr>
 <tr><td>arm2</td><td>Batch 16 + fp16 autocast</td><td class="n">3</td><td class="n">391.16</td><td class="n">+0.51%</td><td>-0.55% to +1.33%</td><td>mixed</td><td>rejected</td></tr>
 <tr><td>arm3</td><td>cuDNN autotuning in the render loop</td><td class="n">3</td><td class="n">396.56</td><td class="n">+1.89%</td><td>+1.49% to +2.30%</td><td>consistent</td><td>rejected</td></tr>
+<tr><td>arm0b</td><td>Baseline, repeated (seeded)</td><td class="n">3</td><td class="n">396.40</td><td class="n">+1.85%</td><td>+1.34% to +2.33%</td><td>consistent</td><td>drift control</td></tr>
 </tbody></table></div>
 <div class="verdict"><b>Why all three failed, and it is one reason:</b> the renderer is bound by video
 decode, not arithmetic. Its dataset asks for frames <code>[c-2 … c+2]</code>, finishes at
@@ -450,9 +467,29 @@ help, and neither can halving precision.</div>
   The third arm was not on the roadmap. It came from noticing that the animator's seeding
   helper disables cuDNN autotuning <em>process-wide</em> as a side effect, so the renderer
   inherits it — hundreds of convolutions at one fixed shape, run without autotuned kernels.
-  Re-enabling it is the clearest rejection of the three: consistently slower on every clip,
-  because the kernel search is paid for and the stage it would accelerate is not the
-  bottleneck.
+  Re-enabling it also failed to help.
+</p>
+<h3>The control that changed what the largest effect means</h3>
+<p>
+  A fifth pass repeated the baseline configuration <em>exactly</em>, last, on the same clips.
+  It came back <strong>+1.85%</strong> slower than the first baseline with no code change
+  at all. The machine drifted across the session by more than two of the three arm effects.
+</p>
+<div class="tw"><table><thead><tr><th></th><th class="n">mean wall (s)</th><th class="n">paired vs first baseline</th><th>per-clip</th></tr></thead><tbody>
+<tr><td>arm0, run first</td><td class="n">389.21</td><td class="n">reference</td><td>reference</td></tr>
+<tr><td><strong>arm0b, run last, identical config</strong></td><td class="n"><strong>396.40</strong></td><td class="n"><strong>+1.85%</strong></td><td>+1.89, +1.34, +2.33%</td></tr>
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th>Arm</th><th class="n">slot</th><th class="n">vs first baseline</th><th class="n">vs drift-adjusted baseline</th><th>still rejected</th></tr></thead><tbody>
+<tr><td>arm1</td><td class="n">2 of 5</td><td class="n">+0.32%</td><td class="n">-0.14%</td><td>yes</td></tr>
+<tr><td>arm2</td><td class="n">3 of 5</td><td class="n">+0.51%</td><td class="n">-0.41%</td><td>yes</td></tr>
+<tr><td>arm3</td><td class="n">4 of 5</td><td class="n">+1.89%</td><td class="n">+0.50%</td><td>yes</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>No verdict changes, but one reason does.</b> Compared against a
+baseline interpolated to its own slot, the three effects are -0.14%, -0.41% and
++0.50% — a tighter null than the raw numbers, and the largest raw effect turns out to be
+mostly the machine. The earlier reading of the third arm as "consistently slower because the
+kernel search is paid for" is not supported: that slowdown is indistinguishable from the
+drift.</div>
 </p>
 <div class="tw"><table><thead><tr><th>Arm</th><th>Clip</th><th class="n">baseline (s)</th><th class="n">arm (s)</th><th class="n">delta (s)</th><th class="n">delta</th></tr></thead><tbody>
 <tr><td>arm1</td><td>RD_Radio11_001</td><td class="n">388.74</td><td class="n">390.34</td><td class="n">+1.60</td><td class="n">+0.41%</td></tr>
@@ -464,6 +501,9 @@ help, and neither can halving precision.</div>
 <tr><td>arm3</td><td>RD_Radio11_001</td><td class="n">388.74</td><td class="n">396.04</td><td class="n">+7.30</td><td class="n">+1.88%</td></tr>
 <tr><td>arm3</td><td>RD_Radio32_000</td><td class="n">393.43</td><td class="n">399.30</td><td class="n">+5.87</td><td class="n">+1.49%</td></tr>
 <tr><td>arm3</td><td>RD_Radio42_000</td><td class="n">385.46</td><td class="n">394.34</td><td class="n">+8.88</td><td class="n">+2.30%</td></tr>
+<tr><td>arm0b</td><td>RD_Radio11_001</td><td class="n">388.74</td><td class="n">396.07</td><td class="n">+7.33</td><td class="n">+1.89%</td></tr>
+<tr><td>arm0b</td><td>RD_Radio32_000</td><td class="n">393.43</td><td class="n">398.69</td><td class="n">+5.26</td><td class="n">+1.34%</td></tr>
+<tr><td>arm0b</td><td>RD_Radio42_000</td><td class="n">385.46</td><td class="n">394.45</td><td class="n">+8.99</td><td class="n">+2.33%</td></tr>
 </tbody></table></div>
 <div class="caveat">
   <span class="caveat-label">fp16 is not free, and two variables moved together</span>
@@ -1290,10 +1330,17 @@ anything.</div>
   is six replicas of one fixture with a single changed segment.
 </p>
 <p>
-  <strong>That the arms are complete.</strong> Two candidate arms, a seeded baseline repeat
-  and a control built from the unmodified branch were still running when this page was built.
-  The control is what would separate the effect of the code changes from the effect of the
-  rebuilt environment.
+  <strong>That the arm design was adequate.</strong> It was not. Running the baseline once at
+  the start and once at the end revealed +1.85% of drift, which swamps the effects under
+  test. The correct design interleaves a baseline between every arm so drift is measured
+  continuously rather than bounded after the fact. The verdicts survive because all three
+  effects are far from the gate either way, but a study looking for a 2% win with this design
+  would have found one that was not there.
+</p>
+<p>
+  <strong>That the arms are isolated from the rebuild.</strong> A control built from the
+  unmodified branch was still building when this page was published. It is what separates the
+  effect of the code changes from the effect of the rebuilt environment.
 </p>
 
 </section>
@@ -1304,7 +1351,7 @@ anything.</div>
 <footer>
   <div>
     <p>
-      57 pipeline runs across production and dedicated hardware, 5.7 GPU-hours of
+      59 pipeline runs across production and dedicated hardware, 6.0 GPU-hours of
       measurement. Raw per-stage samples, the analysis scripts that reduce them, and the figure
       generators are published with this page; every number on it is produced by that chain at
       build time rather than written by hand.
