@@ -139,5 +139,21 @@
       "orderingConfirmed": true,
       "decompositionConfirmed": true
     }
+  },
+  "treatedStageMeans": {
+    "note": "Per-stage means over the same three clips, parsed from the treated arm's logs, so the cumulative stage table compares means against means rather than a single clip against a mean.",
+    "clips": 3,
+    "stages": {
+      "track_face": 103.68,
+      "predict_liveportait": 44.79,
+      "parse_face": 36.99,
+      "render_rgb": 31.87,
+      "create_driving_geo_and_mask": 21.56,
+      "crop_face": 14.52,
+      "paste_back_video": 11.22,
+      "reshape_liveportrait": 8.77,
+      "detect_landmarks": 4.58,
+      "run_animator": 4.55
+    }
   }
 }

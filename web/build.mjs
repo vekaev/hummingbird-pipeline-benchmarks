@@ -137,6 +137,9 @@ const imRepGap = (() => {
 })();
 
 const imGtMean = `${(imRaw.groundTruth.perClipAdvantageDb.reduce((a, b) => a + b, 0) / imRaw.groundTruth.perClipAdvantageDb.length).toFixed(2)} dB`;
+const cumEff = mdCell('results/measured.md', 'Where all three changes land, against the unmodified branch', '>mean<', 3);
+const cumBefore = mdCell('results/measured.md', 'Where all three changes land, against the unmodified branch', '>mean<', 1);
+const cumAfter = mdCell('results/measured.md', 'Where all three changes land, against the unmodified branch', '>mean<', 2);
 const coFc = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3fc5<', 4);
 const coBoth = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3both<', 4);
 const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
@@ -560,6 +563,31 @@ ${mdTable('results/measured.md', 'Against the source, which is the comparison th
     source puts them at or below chance for that purpose. What is measured here is fidelity to
     the source on pass-through content, which is the right instrument for a rescale question
     and the wrong one for whether it looks better.
+  </p>
+</div>
+
+<h3>Where all three changes land, against the unmodified branch</h3>
+<p>
+  The comparison the whole exercise was for: every kept change on, against the unmodified
+  trunk, same three clips, same seed.
+</p>
+${mdTable('results/measured.md', 'Where all three changes land, against the unmodified branch')}
+<div class="verdict"><b>${cumBefore}s becomes ${cumAfter}s &mdash; ${cumEff}</b>, the same
+magnitude on every clip.</div>
+${mdTable('results/measured.md', 'Where all three changes land, against the unmodified branch', 2)}
+<p>
+  The distribution across stages is the real check. Two stages carry almost all of the
+  saving and the rest barely move; a change that shifted every stage would point at a
+  measurement artefact rather than an optimization. Both of those two came out of the
+  per-stage profile, and neither was on the optimization roadmap.
+</p>
+<div class="caveat">
+  <span class="caveat-label">What this figure is not</span>
+  <p>
+    A bracketed measurement. The treated column is a single pass &mdash; bracketed for the
+    in-memory change, but not re-run against the trunk. It is the sum of three separately
+    bracketed effects and it agrees with them, which is why it is quoted, but it does not
+    carry the same evidence as the individual results above it.
   </p>
 </div>
 <div class="caveat">

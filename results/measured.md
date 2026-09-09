@@ -503,6 +503,45 @@ deployment. What has changed is that the cost of leaving it alone is now a numbe
 
 Not claimed: that any of this is visible to a viewer. This work's own primary source puts image-registration metrics at or below chance for agreement with human judgement on generated faces. The right instrument for a resample-and-recompress question, the wrong one for whether it looks better.
 
+### Where all three changes land, against the unmodified branch
+
+The comparison the whole exercise was for: the branch as it stands, with every kept
+change on, against the unmodified trunk running the same three clips at the same seed.
+
+| clip | unmodified (s) | all three changes (s) | change |
+|---|---:|---:|---:|
+| clip 1 | 397.91 | 292.12 | -26.59 % |
+| clip 2 | 396.15 | 293.95 | -25.80 % |
+| clip 3 | 389.61 | 287.67 | -26.16 % |
+| **mean** | **394.56** | **291.25** | **-26.18 %** |
+
+**-26.18 %**, the same magnitude on every clip. Two stages carry almost all
+of it, and the per-stage numbers show which:
+
+| stage | unmodified (s) | now (s) | change | seconds |
+|---|---:|---:|---:|---:|
+| `render_rgb` | 92.68 | 31.87 | -65.61 % | -60.81 |
+| `track_face` | 142.47 | 103.68 | -27.23 % | -38.79 |
+| `crop_face` | 17.87 | 14.52 | -18.76 % | -3.35 |
+| `predict_liveportait` | 46.99 | 44.79 | -4.68 % | -2.20 |
+| `paste_back_video` | 12.32 | 11.22 | -8.90 % | -1.10 |
+| `detect_landmarks` | 5.37 | 4.58 | -14.70 % | -0.79 |
+| `run_animator` | 4.55 | 4.55 | -0.03 % | -0.00 |
+| `parse_face` | 36.85 | 36.99 | +0.39 % | +0.14 |
+| `create_driving_geo_and_mask` | 20.85 | 21.56 | +3.41 % | +0.71 |
+| `reshape_liveportrait` | 7.92 | 8.77 | +10.75 % | +0.85 |
+
+The two largest stages in the original profile are also the two that moved: they carry
+**94.56 %** of the 105.33 s saved, and no other stage
+moves by more than 3.35 s in either direction. That distribution is the control.
+A change that shifted every stage would be a measurement artefact rather than an
+optimization. Neither of the two was on the roadmap.
+
+One caveat kept in view: the treated column is a single pass, bracketed for the
+in-memory change but not re-run against the trunk. The figure is the sum of three
+separately bracketed effects, and it agrees with them, but it is not itself a bracketed
+measurement.
+
 ## A change that works and is rejected anyway
 
 The parsing stage reduced a 19-class, 512-square floating-point tensor **on the host,

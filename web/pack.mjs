@@ -154,7 +154,11 @@ const TABLES = [
     note: 'The follow-up to T25, and it reverses it. With both writer parameters set the existing path stops rescaling and writes at the same quality; the two paths then agree at the same-configuration floor to within 0.03 dB. So the whole gap in T25 was the writer, and the in-memory change is output-neutral after all. Read T25 and T26 together — T25 is left standing because the reasoning in it was sound and the conclusion was still premature.' },
   { id: 'T27', file: 'results/measured.md', heading: 'Against the source, which is the comparison that was missing', title: 'Fidelity against the source clip',
     note: 'Self-driven protocol, so the source video is the reference and most of each frame is content the pipeline only had to carry. The middle row is the important one: the two writer parameters alone are worth that much on the path that ships today, at no performance cost. A fidelity measure on pass-through content, NOT a perceptual score — image-registration metrics agree poorly with human judgement on generated faces.' },
-  { id: 'T28', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
+  { id: 'T28', file: 'results/measured.md', heading: 'Where all three changes land, against the unmodified branch', title: 'All kept changes vs the unmodified branch',
+    note: 'The headline comparison: every kept change on, against the unmodified trunk, same clips and seed. Read the caveat with it — the treated column is a single pass, bracketed for the in-memory change but not re-run against the trunk, so this is the sum of three separately bracketed effects rather than a bracketed measurement in its own right. It agrees with the parts.' },
+  { id: 'T29', file: 'results/measured.md', heading: 'Where all three changes land, against the unmodified branch', nth: 2, title: 'Which stages actually moved',
+    note: 'The distribution is the control on the row above. Two stages carry almost all of the saving and nothing else moves much; a change that shifted every stage would indicate a measurement artefact rather than an optimization. Both of those two stages came out of the per-stage profile, and neither appeared on the optimization roadmap.' },
+  { id: 'T30', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
     note: 'What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.' },
 ];
 
@@ -259,7 +263,7 @@ const tabSection = TABLES.map((t) => `
   <span class="id">${t.id}</span>
   <h3>${t.title}</h3>
   <p class="meta">${t.note}</p>
-  ${mdTable(t.file, t.heading, 1, { wide: t.wide })}
+  ${mdTable(t.file, t.heading, t.nth ?? 1, { wide: t.wide })}
 </div>`).join('\n');
 
 const html = `${HEAD('Results pack — lip-sync pipeline profiling', 'Every figure with its source table, the brief mapped to its answers, the caveats that must travel with the numbers, and sources.')}

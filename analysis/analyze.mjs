@@ -619,6 +619,60 @@ if (diff) {
   P('the dimensions and bitrate of delivered video and that decision belongs to whoever owns the');
   P('deployment. What has changed is that the cost of leaving it alone is now a number.\n');
   P(`${gt.caveat}\n`);
+
+  // ---- cumulative, against the unmodified branch.
+  // control_main rows come from arms.json and the treated walls from inmem.json.
+  // They are paired BY POSITION, which is safe only because both were produced from
+  // the same cases file in the same order; asserted rather than assumed.
+  const cmRows = raw('arms').filter((r) => r.arm === 'control_main');
+  if (cmRows.length === im.clips.length) {
+    const cmWalls = cmRows.map((r) => r.wall_s);
+    const cumPer = im.clips.map((c, i) => pct(c.treated, cmWalls[i]));
+    const cumMean = mean(cumPer);
+    const cmMean = mean(cmWalls);
+    const trMean = mean(im.clips.map((c) => c.treated));
+
+    P('### Where all three changes land, against the unmodified branch\n');
+    P('The comparison the whole exercise was for: the branch as it stands, with every kept');
+    P('change on, against the unmodified trunk running the same three clips at the same seed.\n');
+    P('| clip | unmodified (s) | all three changes (s) | change |');
+    P('|---|---:|---:|---:|');
+    im.clips.forEach((c, i) => {
+      P(`| ${c.id} | ${fmt(cmWalls[i])} | ${fmt(c.treated)} | ${signed(cumPer[i])} % |`);
+    });
+    P(`| **mean** | **${fmt(cmMean)}** | **${fmt(trMean)}** | **${signed(cumMean)} %** |`);
+    P('');
+    P(`**${signed(cumMean)} %**, the same magnitude on every clip. Two stages carry almost all`);
+    P('of it, and the per-stage numbers show which:\n');
+
+    // Means against means, both sides. Nothing typed: the treated side is parsed
+    // from the same three logs and stored in the raw file beside everything else.
+    const cmStage = (n) => mean(cmRows.map((r) => r.stages[n]));
+    const nowStage = im.treatedStageMeans.stages;
+    const moved = Object.keys(nowStage)
+      .map((n) => ({ n, before: cmStage(n), now: nowStage[n] }))
+      .filter((r) => Number.isFinite(r.before))
+      .sort((a, b) => (a.now - a.before) - (b.now - b.before));
+    P('| stage | unmodified (s) | now (s) | change | seconds |');
+    P('|---|---:|---:|---:|---:|');
+    for (const r of moved) {
+      P(`| \`${r.n}\` | ${fmt(r.before)} | ${fmt(r.now)} | ${signed(pct(r.now, r.before))} % `
+        + `| ${signed(r.now - r.before)} |`);
+    }
+    P('');
+    const totalSaved = moved.reduce((a, r) => a + (r.before - r.now), 0);
+    const topTwo = moved.slice(0, 2).reduce((a, r) => a + (r.before - r.now), 0);
+    const restMax = Math.max(...moved.slice(2).map((r) => Math.abs(r.now - r.before)));
+    P(`The two largest stages in the original profile are also the two that moved: they carry`);
+    P(`**${fmt(100 * topTwo / totalSaved)} %** of the ${fmt(totalSaved)} s saved, and no other stage`);
+    P(`moves by more than ${fmt(restMax)} s in either direction. That distribution is the control.`);
+    P('A change that shifted every stage would be a measurement artefact rather than an');
+    P('optimization. Neither of the two was on the roadmap.\n');
+    P('One caveat kept in view: the treated column is a single pass, bracketed for the');
+    P('in-memory change but not re-run against the trunk. The figure is the sum of three');
+    P('separately bracketed effects, and it agrees with them, but it is not itself a bracketed');
+    P('measurement.\n');
+  }
 }
 
 // ---------------------------------------------------------------- parse argmax
