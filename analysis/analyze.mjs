@@ -427,6 +427,114 @@ if (diff) {
   P('is unusually direct evidence.\n');
 }
 
+// ---------------------------------------------------------------- in-memory arm
+{
+  const im = raw('inmem');
+  const pct = (a, b) => 100 * (a - b) / b;
+  const eff = mean(im.clips.map((c) => pct(c.treated, c.control)));
+  const drift = mean(im.clips.map((c) => pct(c.controlRepeat, c.control)));
+  const mCtl = mean(im.clips.map((c) => c.control));
+  const mTrt = mean(im.clips.map((c) => c.treated));
+
+  P('## Keeping stage boundaries in memory\n');
+  P(`${im.note}\n`);
+  P('| clip | control (s) | treated (s) | change | control re-run (s) |');
+  P('|---|---:|---:|---:|---:|');
+  for (const c of im.clips) {
+    P(`| ${c.id} | ${fmt(c.control)} | ${fmt(c.treated)} | ${signed(pct(c.treated, c.control))} % `
+      + `| ${fmt(c.controlRepeat)} |`);
+  }
+  P(`| **mean** | **${fmt(mCtl)}** | **${fmt(mTrt)}** | **${signed(eff)} %** | — |`);
+  P('');
+  P(`**The drift bracket is ${signed(drift)} %** — the control run a second time, changing`);
+  P('nothing. It is the tightest bracket in this work: clip 1 reproduced to a hundredth of a');
+  P(`second. The effect is about ${fmt(Math.abs(eff / drift), 0)} times the bracket, so this one`);
+  P(`is not drift, and at ${fmt(Math.abs(eff))} % it clears the pre-registered`);
+  P(`${fmt(im.gatePct, 1)} % job-level gate without the gate being reinterpreted.\n`);
+
+  P('### The attribution names its own cost\n');
+  P('| stage | control (s) | treated (s) | delta (s) |');
+  P('|---|---:|---:|---:|');
+  for (const st of im.stages) {
+    P(`| \`${st.name}\` | ${fmt(st.control)} | ${fmt(st.treated)} | **${signed(st.treated - st.control)}** |`);
+  }
+  P('');
+  const net = im.stages.reduce((a, st) => a + (st.treated - st.control), 0);
+  P(`${im.stageNote} The two rows sum to ${signed(net)} s, which reconciles with the`);
+  P(`${signed(mTrt - mCtl)} s job-level delta.\n`);
+
+  const w = im.writes;
+  P(`**What it removes, counted rather than assumed:** ${w.diskPathPerClip} intermediate`);
+  P(`video files per clip become ${w.memoryPathPerClip}, so ${w.eliminated.length} disappear —`);
+  P(`${w.eliminated.map((e) => '`' + e + '`').join(', ')}. ${w.note}\n`);
+
+  const m = im.memory;
+  P('### Memory, which the code had only ever reasoned about\n');
+  P('| | disk path | in memory | difference | predicted |');
+  P('|---|---:|---:|---:|---:|');
+  // Whole MiB: these are integer samples, and two decimals on them reads as false
+  // precision.
+  const mib = (n) => `${n > 0 ? '+' : ''}${Math.round(n)} MiB`;
+  P(`| mean | ${m.diskMeanMiB} MiB | ${m.memoryMeanMiB} MiB | **${mib(m.memoryMeanMiB - m.diskMeanMiB)}** `
+    + `| ${mib(m.predictedMarginalMiB)} |`);
+  P(`| peak | ${m.diskPeakMiB} MiB | ${m.memoryPeakMiB} MiB | **${mib(m.memoryPeakMiB - m.diskPeakMiB)}** `
+    + `| ${mib(m.predictedMarginalMiB)} |`);
+  P('');
+  P(`Sampled ${m.samples.join(' and ')} times, ${m.intervalSeconds} s apart. The sustained cost is`);
+  P(`real and close to the prediction — ${fmt((m.memoryMeanMiB - m.diskMeanMiB) / m.predictedMarginalMiB, 2)}x it —`);
+  P(`while the **peak is unchanged**, ${fmt(Math.abs(100 * (m.memoryPeakMiB - m.diskPeakMiB) / m.diskPeakMiB))} % lower,`);
+  P(`which is nothing. Peak is the quantity that decides whether a job fits in a memory limit.\n`);
+  P(`${m.note}\n`);
+
+  const oa = im.outputAgreement;
+  const mFloor = mean(oa.clips.map((c) => c.sameConfig));
+  const mDiff = mean(oa.clips.map((c) => c.diskVsMemory));
+  P('### The change is NOT output-neutral, and that is the interesting part\n');
+  P(`All ${oa.videosPassed} of ${oa.videosChecked} output videos across the three arms pass the`);
+  P('sanity check — full frame count, plausible brightness and variance, mouth motion present,');
+  P('none blank — verified visually as well as numerically. But the delivered pixels differ.\n');
+  P('| clip | same configuration twice | disk vs in-memory | gap |');
+  P('|---|---:|---:|---:|');
+  for (const c of oa.clips) {
+    P(`| ${c.id} | ${fmt(c.sameConfig)} dB | ${fmt(c.diskVsMemory)} dB | ${fmt(c.sameConfig - c.diskVsMemory)} dB |`);
+  }
+  P(`| **mean** | **${fmt(mFloor)} dB** | **${fmt(mDiff)} dB** | **${fmt(mFloor - mDiff)} dB** |`);
+  P('');
+  P(`${oa.floorNote} That floor, ${fmt(mFloor)} dB, independently replicates the`);
+  P(`${fmt(oa.priorFloorDb)} dB regeneration floor measured earlier from a different pair of runs.`);
+  P(`The gap is ${fmt(mFloor - mDiff)} dB and consistent in sign and size across all three clips,`);
+  P('so the difference is real and reproducible rather than noise.\n');
+
+  const d = im.writerDefect;
+  P('### Why the output differs: a defect in the path being replaced\n');
+  P(`${d.note}\n`);
+  P('| | alignment | rate control | clip 1 bitrate |');
+  P('|---|---:|---:|---:|');
+  P(`| sibling writer | ${d.siblingAlignment} | crf ${d.siblingCrf} | — |`);
+  P(`| writer the pipeline uses | ${d.alignment} | library default | ${d.diskBitrate} bps |`);
+  P(`| the same frames from memory | — | crf ${d.siblingCrf} | ${d.memoryBitrate} bps |`);
+  P('');
+  P('| clip | size computed | size delivered |');
+  P('|---|---:|---:|');
+  for (let i = 0; i < d.trueSizes.length; i += 1) {
+    P(`| ${im.clips[i].id} | ${d.trueSizes[i]}² | ${d.deliveredSizes[i]}² |`);
+  }
+  P('');
+  P(`So the delivered video is encoded at **${fmt(100 * d.diskBitrate / d.memoryBitrate)} %** of the`);
+  P('bitrate the sibling writer would use for the same content, and every frame is scaled up by');
+  P(`two pixels in each dimension first. The library warns about the rescale; there are`);
+  P(`**${d.warningsInLogs}**`);
+  P('such warnings in the run logs, because the warning goes to a channel this application');
+  P('never configures for output.\n');
+  P('**This does not get counted with the two changes that shipped.** Those were bit-exact by');
+  P('construction and output-neutral. This is a measured win that also changes the output, with');
+  P('the change traced to the path it replaces rather than to itself. Before it ships, both');
+  P('writers have to agree — then the two outputs should meet at the floor and the speed can be');
+  P('judged on its own. The alignment is now configurable with **the default left unchanged**,');
+  P('because lowering it changes the dimensions of delivered video and that is not a decision to');
+  P('make as a side effect of a performance change.\n');
+}
+
 // ---------------------------------------------------------------- parse argmax
 {
   const pa = raw('parse-argmax');

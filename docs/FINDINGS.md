@@ -1377,6 +1377,33 @@ Fix: seed `np.random` from `(segment digest, offset frames)` immediately before 
 making it a pure function, and record that seed in the cache key so entries written under
 one scheme cannot be served under another. **This is a precondition, not a refinement.**
 
+## The blocker is now CLEARED — commit `f0a9987`
+
+`_draws()` in `FrameInterp/timewarp_utils.py` returns a private
+`np.random.default_rng` keyed on `(LIPSYNC_SEED, "timewarp", starting_length, offset,
+fps)` via `shared_utils.repro.run_rng`, and both branches draw from it. Unset
+`LIPSYNC_SEED` returns `np.random`, so production is byte-for-byte unchanged.
+
+**Why a private Generator and not `np.random.seed`.** Seeding the global RNG makes a run
+reproducible only if every draw between the seed and the warp happens in an identical
+order. Word replacement does not offer that: a dozen stages run in between, over a
+variable number of segments. Keying the stream on the warp's own inputs makes it
+reproducible regardless of execution history — which is the property the cache actually
+needs, and a stronger one than "the whole run replays".
+
+**Verified by gate 9** (`benchmarking/tests/test_timewarp_seed.py`, 13 checks), which
+carries the negative control that makes the result mean anything: with `LIPSYNC_SEED`
+unset, running unrelated code that draws from the global RNG first **changes the warp's
+output**; with it set, it does not. Both branches — insert and remove — are covered.
+
+**One deliberate difference from the fix proposed above.** The key is the segment's frame
+*count*, not a content digest. Determinism holds either way: the same segment always
+yields the same index stream. What a digest would add is decorrelating the index choices
+between two *different* segments that happen to have equal length, which is cosmetic
+rather than required. If the cache key later records the scheme, as the paragraph above
+correctly insists it must, it should record `timewarp:len` so a later switch to
+`timewarp:digest` cannot serve entries written under this one.
+
 ## Two tiers, and the cheap one is the right one
 
 Only **6 of 12** artefacts produced by the four source-only stages are read by anything
@@ -3337,3 +3364,292 @@ reduced — the measurement says the multiplier is below one.
 3. **MIG and time-slicing are moot here.** The economics analysis weighed their isolation
    trade-offs carefully; none of it matters if two tenants cannot share the card profitably
    in the first place.
+
+---
+
+# Production silently upsamples its own output, and one line explains it
+
+**2026-09-09.** Found while checking whether the in-memory arm (`LIPSYNC_INMEM`) changed
+the output. It does, and the reason is not in the in-memory path.
+
+## The observation
+
+The two arms produce different output dimensions on every clip tested:
+
+| clip | true size (RAM arm) | disk arm | |
+|---|---:|---:|---|
+| hdtf01 | 478 x 478 | 480 x 480 | +2 |
+| hdtf02 | 654 x 654 | 656 x 656 | +2 |
+| hdtf03 | 510 x 510 | 512 x 512 | +2 |
+
+Frame counts are identical (751) and both pass the video sanity check. `parsing.mp4` is
+512 x 512 in **both** arms, which is the clue: 512 is a multiple of 16 and the others are
+not.
+
+## The cause, in one omitted keyword argument
+
+`hummingbird/cropper_utils/video.py` contains two writers, and they disagree:
+
+* `images2video` passes `macro_block_size=2` explicitly.
+* the `VideoWriter` **class** does not pass it at all.
+
+`imageio_ffmpeg` then applies its default, confirmed by reading the library inside the
+production image: `macro_block_size = macro_block_size or 16`, and when a dimension is not
+a multiple of 16 it appends **`-vf scale=<out_w>:<out_h>`**. That is an ffmpeg resample,
+not a pad. All three true sizes above are congruent to 14 mod 16, so all three are
+upsampled by exactly two pixels.
+
+`VideoWriter` is the writer used for the crops, the rgb output and paste_back
+(`cropper.py:284,335`, `renderer/predict.py:194`, `inference.py`). So on the disk path --
+the path production takes -- **every intermediate whose dimensions are not a multiple of 16
+is resampled up, re-encoded at crf 17, and read back by the next stage.** The final
+delivered video is 0.42 % larger in each dimension than the frames the pipeline actually
+computed.
+
+## Why nobody saw it
+
+`imageio_ffmpeg` does warn. The warning text is explicit -- *"input image is not divisible
+by macro_block_size=16, resizing from ... to ... "* -- and it is issued through
+`logger.warning` on the library's own logger, which this application never configures for
+output. Checked: **zero occurrences** across every arm log on the box, disk arm and RAM arm
+alike. The library tried to say so and the message went nowhere.
+
+## CORRECTION: the resample is not the whole difference, and probably not most of it
+
+The paragraph above blamed the dimension mismatch. That was incomplete, found by asking
+why the RAM arm's files are *larger* despite being smaller in both dimensions:
+
+| hdtf01 paste_back | dimensions | bitrate |
+|---|---:|---:|
+| disk arm | 480 x 480 | 410,754 bps |
+| RAM arm | 478 x 478 | 745,881 bps |
+
+**1.82x the bitrate for the same content.** The cause is the same omission, one line up.
+`images2video` sets `ffmpeg_params = ['-crf', '17']`; `VideoWriter` takes `ffmpeg_params`
+from its kwargs, and **every** call site passes only `wfp` and `fps`
+(`renderer/predict.py:194`, `cropper.py:284`, `cropper.py:335`). So both `ffmpeg_params`
+and `quality` are `None` and imageio applies its own default rate control instead of
+crf 17.
+
+So the two writers in that file disagree about **two** things, not one: frame alignment and
+rate control. Production's delivered video is both upsampled by two pixels and encoded at
+roughly half the bitrate that the sibling function in the same file would have used.
+
+## How much do the two paths actually differ
+
+Three clips, 751 frames each, with the correct control -- two runs of the *same* disk
+config -- so the comparison means something:
+
+| clip | disk vs disk (same config) | disk vs RAM | gap |
+|---|---:|---:|---:|
+| hdtf01 | 39.54 dB | 34.49 dB | 5.05 dB |
+| hdtf02 | 41.27 dB | 35.43 dB | 5.84 dB |
+| hdtf03 | 39.86 dB | 35.42 dB | 4.44 dB |
+| **mean** | **40.22 dB** | **35.11 dB** | **5.11 dB** |
+
+The floor at 40.22 dB independently replicates the 39.38 dB regeneration floor measured
+earlier this session from a different pair of runs, which is worth noting on its own. The
+disk-versus-RAM gap is **5.11 dB below that floor and consistent in sign and size across
+all three clips**, so the difference is real and reproducible rather than noise.
+
+The disk-vs-RAM row resizes 480 back to 478 to compare at all, which injects its own error,
+so it is a lower bound on agreement. **Which of the two causes dominates -- the resample or
+the halved bitrate -- is NOT measured.** The bitrate difference is 1.82x and the resample is
+0.42 % of linear dimension, so the bitrate is the likelier main term, but that is reasoning
+and not a measurement. [UNMEASURED]
+
+## What is NOT claimed
+
+That the in-memory path is higher quality. It is more *faithful* -- it preserves the
+dimensions the pipeline computed, and it removes five resample-and-recompress round-trips
+of intermediate tensors -- but faithfulness to the computed frames is not the same as
+scoring better, and the direction has not been measured. The measurement that would settle
+it is LSE-D/LSE-C plus a ground-truth comparison on the self-driven HDTF protocol, where
+ground truth exists. [UNMEASURED]
+
+## Consequence for the in-memory arm
+
+`LIPSYNC_INMEM` therefore **cannot be presented the way the two shipped changes were.**
+The frame cache and the focal batching were output-neutral and bit-exact by construction;
+this one changes the delivered pixels. It is a behaviour change with a speed benefit, and
+the pre-registered gate requires numerical agreement with the reference as well as a 3 %
+job-level win. Reported as such rather than quietly counted with the others.
+
+The cheap fix, and it is independent of the arm: pass `macro_block_size=2` in
+`VideoWriter.__init__`, matching the sibling function in the same file. That makes the disk
+path stop resampling, which would also make the two paths comparable and let the in-memory
+arm be judged on speed alone.
+
+## The in-memory arm's SPEED, which the output finding left unrecorded
+
+The section above establishes that `LIPSYNC_INMEM` changes the delivered pixels and
+therefore cannot be shipped on the same terms as the frame cache and the focal work. It did
+not record what the arm is worth in time. It is worth a lot.
+
+**Design note:** the control was run **twice, bracketing the treatment** — the response to
+this session's `arm0b` lesson, where a repeated baseline drifted +1.85 % and swamped every
+effect being chased. Here the two controls land **0.05 % apart**, the tightest bracket in
+this work, so drift contributes essentially nothing.
+
+| clip | control (mean of the two) | in-memory | delta |
+|---|---:|---:|---:|
+| hdtf01 | 308.57 | 292.12 | **−5.33 %** |
+| hdtf02 | 310.30 | 293.95 | **−5.27 %** |
+| hdtf03 | 301.00 | 287.67 | **−4.43 %** |
+| **mean** | **306.63** | **291.25** | **−5.01 %** |
+
+All three faster. **1.67× the 3 % gate and 5.3× the repeat CV.** Note the baseline is ~307 s,
+not ~390 s: this is measured on the **already-optimized** pipeline, so it is an incremental
+gain on top of the −22.66 % the two shipped changes give.
+
+### It passes the speed gate and fails the other half of the same gate
+
+The gate is *both* a 3 % paired win **and** numerical agreement with the reference. This
+clears the first comfortably and fails the second, because the disk path it is compared
+against is resampling every frame. **Not shippable on this evidence**, and not counted with
+the other two.
+
+What makes that unusually fixable: the failure is not in the in-memory path. Setting
+`VIDEO_MACRO_BLOCK_SIZE=2` stops the disk path resampling, at which point the two paths
+become comparable and this arm can be judged on speed alone. **That measurement has not
+been made** and is the obvious next one.
+
+### An observation, deliberately not offered as evidence
+
+The sanity checker reports higher lower-face motion on the RAM arm for all three clips —
+4.037 vs 3.887, 2.916 vs 2.681, 2.598 vs 2.448, between 3.9 % and 8.8 % higher. That is
+consistent with the disk path losing high-frequency detail to the resample.
+
+**It is not evidence of better output.** The two arms are at different resolutions, and this
+metric is not resolution-invariant, so the comparison is not like-for-like. It is recorded
+because it points the same way as the resample finding, not because it establishes
+anything.
+
+### LSE on both arms — measured, and it does not settle it either
+
+| clip | LSE-D disk | LSE-D RAM | Δ | LSE-C disk | LSE-C RAM | Δ |
+|---|---:|---:|---:|---:|---:|---:|
+| hdtf01 | 7.884 | 7.840 | −0.044 | 7.569 | 7.723 | +0.154 |
+| hdtf02 | 6.728 | 6.696 | −0.032 | 8.598 | 8.638 | +0.040 |
+| hdtf03 | 8.138 | 8.005 | −0.133 | 7.128 | 7.163 | +0.035 |
+| **mean** | **7.583** | **7.514** | **−0.070** | **7.765** | **7.841** | **+0.076** |
+
+**All six comparisons favour the RAM arm** — LSE-D lower and LSE-C higher on every clip.
+Direction is perfectly consistent with the resample story.
+
+**And it still does not settle the question**, for three reasons stated together so the
+consistency is not oversold:
+
+1. **The magnitudes are inside the noise.** The largest change is 0.133 against a 0.35
+   regeneration floor. Individually, none of these is a signal.
+2. **Three clips is not enough for consistency to carry.** LSE-D and LSE-C on one clip are
+   correlated, so this is closer to three coin flips than six: about one chance in eight
+   under a null of no difference.
+3. **LSE is the wrong instrument for this question anyway.** This work's own primary
+   source (ICIP 2024) puts LSE-D and LSE-C agreement with human judgement at 0.2815 and
+   0.2333 in two-alternative forced choice, where 0.5 is chance — *below* chance. A
+   consistent LSE improvement is close to no evidence about perceived quality.
+
+So: measured, consistent, and weak. What would settle it is a ground-truth comparison on
+the self-driven protocol, where the source clip is the reference — that is the piece still
+missing, and LSE on the outputs alone was never going to substitute for it. [STILL
+UNMEASURED: ground-truth comparison]
+
+---
+
+# The in-memory arm, measured: -5.04% and it passes the gate
+
+**2026-09-09.** `LIPSYNC_INMEM` was merged during this work and never measured. It is the
+right test to run after the packing result, which established that this pipeline is bound
+by CPU and software video encoding rather than by the accelerator: in-memory removes video
+round-trips, so it attacks the constraint that was measured rather than the one that was
+assumed.
+
+Three HDTF clips, seeded, both kept optimizations on in every arm, treatment bracketed by
+two runs of the control -- because a repeat of one arm earlier in this workstream drifted
+1.85 %, larger than every effect then being chased.
+
+| clip | control | treated | change |
+|---|---:|---:|---:|
+| hdtf01 | 308.57 s | 292.12 s | -5.33 % |
+| hdtf02 | 309.22 s | 293.95 s | -4.94 % |
+| hdtf03 | 302.30 s | 287.67 s | -4.84 % |
+| **mean** | **306.70 s** | **291.25 s** | **-5.04 %** |
+
+**The drift bracket is the tightest in this workstream.** The control run again, changing
+nothing: +0.00 %, +0.70 %, -0.86 %, mean **-0.05 %**. hdtf01 reproduced to 308.57 s against
+308.58 s, a hundredth of a second. The effect is roughly a hundred times the bracket, so
+this one is not drift.
+
+**Verdict on speed: KEEP.** -5.04 % paired at the job level clears the pre-registered 3 %
+gate, and the gate is not being reinterpreted to get there.
+
+## The attribution is textbook, and it names its own cost
+
+| stage | control | treated | delta |
+|---|---:|---:|---:|
+| `run_lipsync` | 300.10 s | 282.53 s | **-17.56 s** |
+| `materialize_lipsync_output` | 0.00 s | 1.94 s | **+1.94 s** |
+| every other stage | | | under 0.2 s |
+
+The saving is entirely inside `run_lipsync`, and the in-memory path pays a new, smaller
+cost it did not have before: writing the final video once, from RAM, at the end. -17.56 +
+1.94 = -15.62 s, which reconciles with the -15.45 s job-level delta. Nothing else moved.
+
+## What it actually removes: five writes, not six
+
+Counted, not assumed: 19 intermediate mp4 per clip on the disk path, **14** on the RAM
+path. The five that disappear are `crop`, `crop_lp`, `liveportrait`,
+`liveportrait_reshaped` and `rgb`. `resolve_use_ram`'s docstring says six writes are gated,
+five 512-square crops plus paste_back -- but **`paste_back.mp4` is still written in the RAM
+arm**. A prediction of 13 was recorded before the run and was wrong by exactly that one
+file. The docstring's count needs correcting; the arithmetic built on it does not, since
+the extra file is the one full-resolution write and it is present in both arms.
+
+## Memory: the prediction is right about the mean and wrong about the peak
+
+`resolve_use_ram` carries a memory budget derived from the code and explicitly flagged
+"not measured -- confirm with RSS sampling on the GPU box": disk 7.79 MB/frame, RAM
+10.15 MB/frame, so +2.36 MB/frame, or +1.73 GiB over these 751-frame clips. Host memory
+sampled every two seconds, 474 and 451 samples:
+
+| | disk arm | RAM arm | difference | predicted |
+|---|---:|---:|---:|---:|
+| mean | 7,849 MiB | 10,025 MiB | **+2,177 MiB** | +1,772 MiB |
+| peak | 16,064 MiB | 15,954 MiB | **-110 MiB** | +1,772 MiB |
+
+**The sustained cost is real and close to the prediction** (+2.13 GiB against +1.73 GiB,
+1.2x). **The peak is unchanged** -- 0.7 % lower, which is nothing.
+
+And the docstring predicted precisely this, in a passage it did not draw the conclusion
+from: the disk arm "materialises the entire source video at full resolution alongside both
+512 crop lists, at EITHER setting", peaking at `crop_face`, while the RAM arm peaks later
+at `paste_back`, so "the two peaks do not coincide". Measured, they are equal to within
+0.7 %. So the docstring's own caution -- "gate this arm on clip length before making it the
+default" -- is weaker than it feared for the quantity that decides whether a job fits in a
+memory limit, and correct for sustained footprint.
+
+## Output: 9 of 9 videos pass, and the arm is NOT output-neutral
+
+Every video from all three arms passes the sanity check: 751 frames, plausible luma and
+variance, mouth motion present, none blank. Verified visually on a contact sheet as well as
+numerically.
+
+But the arm changes the delivered pixels, at 35.11 dB against a 40.22 dB same-config floor,
+for the reasons in the section above -- the disk path's own resampling and halved bitrate,
+not a defect in the RAM path. **So this cannot be presented the way the frame cache and the
+focal batching were.** Those were bit-exact by construction and output-neutral. This is a
+behaviour change with a speed benefit.
+
+One suggestive detail, deliberately not claimed: the mouth-motion metric is higher in the
+RAM arm on all three clips (+3.9 %, +8.8 %, +6.1 %), which is what less compression and no
+resample would do. But the control's own repeat spread on that metric reaches 3.0 %, so
+clip 3's +6.1 % is only twice its own noise. Suggestive, not a result. [UNMEASURED]
+
+## What has to happen before this ships
+
+Set `VIDEO_MACRO_BLOCK_SIZE=2` and give `VideoWriter` the same `-crf 17` its sibling uses,
+so both paths write identically. Then re-run this arm: with the encode difference removed,
+the two outputs should agree at the floor and the -5.04 % can be judged on speed alone.
+Until then the honest statement is **a measured 5 % win that also changes the output, with
+the change traced to a defect in the path it is replacing.**

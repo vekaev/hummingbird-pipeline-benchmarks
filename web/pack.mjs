@@ -142,7 +142,15 @@ const TABLES = [
     note: 'The density question, measured rather than projected. Running two jobs at once is worse than running them in sequence: throughput falls and per-job latency more than doubles. Neither memory nor utilization was the constraint — both are recorded in the row beneath — so the binding resource is the CPU-side encoding, which this accelerator cannot help with.' },
   { id: 'T21', file: 'results/measured.md', heading: 'Neither resource the projection reasoned about was the constraint', title: 'What was not the constraint',
     note: 'The two resources the projection reasoned from, measured during the concurrent phase. Both had headroom while throughput fell, which is what rules them out and points at the CPU instead.' },
-  { id: 'T22', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
+  { id: 'T22', file: 'results/measured.md', heading: 'Keeping stage boundaries in memory', title: 'Stage boundaries in memory',
+    note: 'Paired per clip, with the treatment bracketed by two runs of the control — the rightmost column is that second control run, and it is the drift measurement the effect has to beat. It beats it by roughly a hundredfold, which is why this one is reportable. Follows directly from T20: if the constraint is CPU-side encoding, the change to try is the one that removes encodes.' },
+  { id: 'T23', file: 'results/measured.md', heading: 'The attribution names its own cost', title: 'Where the saving comes from',
+    note: 'One stage gives up the time, and the change declares the new cost it introduces in exchange: writing the final video once, from memory, at the end. No other stage moved by more than two tenths of a second.' },
+  { id: 'T24', file: 'results/measured.md', heading: 'Memory, which the code had only ever reasoned about', title: 'Memory cost of holding frames',
+    note: 'The codebase carried this budget as hand arithmetic, explicitly flagged as never measured. It is right about the sustained footprint and wrong about the peak, which is unchanged — and peak is the number that decides whether a job fits a memory limit. The reason is in that same comment, in a passage that did not draw the conclusion.' },
+  { id: 'T25', file: 'results/measured.md', heading: 'The change is NOT output-neutral, and that is the interesting part', title: 'Output agreement, in-memory arm',
+    note: 'The middle column only means something against the left one, which is the same configuration run twice — the floor. The gap is consistent across every clip, so the difference is real. It traces to a defect in the path being replaced: two writers in the same file disagree about frame alignment and about rate control, so delivered video is scaled up two pixels per dimension and encoded at roughly half the bitrate the sibling writer would use. This arm is therefore NOT counted with the two bit-exact changes that shipped.' },
+  { id: 'T26', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
     note: 'What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.' },
 ];
 

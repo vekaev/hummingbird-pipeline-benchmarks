@@ -332,6 +332,100 @@ pipeline is not accelerator-bound, after the utilization sampling and the three 
 arithmetic arms. A density test that fails *because the accelerator was never scarce*
 is unusually direct evidence.
 
+## Keeping stage boundaries in memory
+
+Keeping stage boundaries in memory instead of round-tripping them through video files. Merged during this work and never measured until now. It is the right test to run after the packing result, which established that the pipeline is bound by CPU and software video encoding rather than by the accelerator: this change removes encodes, so it attacks the constraint that was measured rather than the one that was assumed. Three clips, seeded, both kept optimizations on in every arm, and the treatment bracketed by two runs of the control -- because a repeat of one arm earlier in this work drifted 1.85%, larger than every effect then being chased.
+
+| clip | control (s) | treated (s) | change | control re-run (s) |
+|---|---:|---:|---:|---:|
+| clip 1 | 308.57 | 292.12 | -5.33 % | 308.58 |
+| clip 2 | 309.22 | 293.95 | -4.94 % | 311.37 |
+| clip 3 | 302.30 | 287.67 | -4.84 % | 299.70 |
+| **mean** | **306.70** | **291.25** | **-5.04 %** | — |
+
+**The drift bracket is -0.05 %** — the control run a second time, changing
+nothing. It is the tightest bracket in this work: clip 1 reproduced to a hundredth of a
+second. The effect is about 94 times the bracket, so this one
+is not drift, and at 5.04 % it clears the pre-registered
+3.0 % job-level gate without the gate being reinterpreted.
+
+### The attribution names its own cost
+
+| stage | control (s) | treated (s) | delta (s) |
+|---|---:|---:|---:|
+| `run_lipsync` | 300.10 | 282.53 | **-17.57** |
+| `materialize_lipsync_output` | 0.00 | 1.94 | **+1.94** |
+
+The saving is entirely inside one stage, and the change pays a new cost it did not have before: writing the final video once, from memory, at the end. No other stage moved by more than 0.2 s. The two rows sum to -15.63 s, which reconciles with the
+-15.45 s job-level delta.
+
+**What it removes, counted rather than assumed:** 19 intermediate
+video files per clip become 14, so 5 disappear —
+`crop`, `crop_lp`, `liveportrait`, `liveportrait_reshaped`, `rgb`. Counted, not assumed. The prediction of 13 was recorded before the run and was wrong by one file: the documentation says six writes are gated, but the full-resolution paste-back video is still written in both arms, so five disappear rather than six.
+
+### Memory, which the code had only ever reasoned about
+
+| | disk path | in memory | difference | predicted |
+|---|---:|---:|---:|---:|
+| mean | 7849 MiB | 10025 MiB | **+2176 MiB** | +1772 MiB |
+| peak | 16064 MiB | 15954 MiB | **-110 MiB** | +1772 MiB |
+
+Sampled 474 and 451 times, 2 s apart. The sustained cost is
+real and close to the prediction — 1.23x it —
+while the **peak is unchanged**, 0.68 % lower,
+which is nothing. Peak is the quantity that decides whether a job fits in a memory limit.
+
+The code carries a memory budget derived by hand and explicitly flagged as unmeasured. It is right about the sustained footprint and wrong about the peak -- and it contains the reason itself, in a passage it did not draw the conclusion from: the disk path already materialises the entire source video at full resolution while cropping, so the two paths peak at different moments and the peaks turn out to be equal.
+
+### The change is NOT output-neutral, and that is the interesting part
+
+All 9 of 9 output videos across the three arms pass the
+sanity check — full frame count, plausible brightness and variance, mouth motion present,
+none blank — verified visually as well as numerically. But the delivered pixels differ.
+
+| clip | same configuration twice | disk vs in-memory | gap |
+|---|---:|---:|---:|
+| clip 1 | 39.54 dB | 34.49 dB | 5.05 dB |
+| clip 2 | 41.27 dB | 35.43 dB | 5.84 dB |
+| clip 3 | 39.86 dB | 35.42 dB | 4.44 dB |
+| **mean** | **40.22 dB** | **35.11 dB** | **5.11 dB** |
+
+Two runs of the SAME disk configuration. Whatever they differ by is the floor, and the treated comparison only means anything against it. That floor, 40.22 dB, independently replicates the
+39.38 dB regeneration floor measured earlier from a different pair of runs.
+The gap is 5.11 dB and consistent in sign and size across all three clips,
+so the difference is real and reproducible rather than noise.
+
+### Why the output differs: a defect in the path being replaced
+
+The output difference is not a flaw in the in-memory path. The file that writes video contains two writers, and they disagree about two separate things. One passes an explicit block alignment of 2 and an explicit quality setting; the class the pipeline actually uses passes neither, so the encoder applies its own defaults -- block alignment 16, and its own rate control. Every true frame size measured is congruent to 14 modulo 16, so every delivered video is scaled up by exactly two pixels in each dimension and re-encoded at roughly half the bitrate the sibling would have used. The encoder library does warn about the rescale, through its own logging channel, which this application never configures for output: zero occurrences across every run log.
+
+| | alignment | rate control | clip 1 bitrate |
+|---|---:|---:|---:|
+| sibling writer | 2 | crf 17 | — |
+| writer the pipeline uses | 16 | library default | 410754 bps |
+| the same frames from memory | — | crf 17 | 745881 bps |
+
+| clip | size computed | size delivered |
+|---|---:|---:|
+| clip 1 | 478² | 480² |
+| clip 2 | 654² | 656² |
+| clip 3 | 510² | 512² |
+
+So the delivered video is encoded at **55.07 %** of the
+bitrate the sibling writer would use for the same content, and every frame is scaled up by
+two pixels in each dimension first. The library warns about the rescale; there are
+**0**
+such warnings in the run logs, because the warning goes to a channel this application
+never configures for output.
+
+**This does not get counted with the two changes that shipped.** Those were bit-exact by
+construction and output-neutral. This is a measured win that also changes the output, with
+the change traced to the path it replaces rather than to itself. Before it ships, both
+writers have to agree — then the two outputs should meet at the floor and the speed can be
+judged on its own. The alignment is now configurable with **the default left unchanged**,
+because lowering it changes the dimensions of delivered video and that is not a decision to
+make as a side effect of a performance change.
+
 ## A change that works and is rejected anyway
 
 The parsing stage reduced a 19-class, 512-square floating-point tensor **on the host,

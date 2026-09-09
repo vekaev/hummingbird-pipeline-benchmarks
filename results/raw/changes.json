@@ -210,6 +210,24 @@
       "section": "arms",
       "arm": "seqA/seqB vs parA/parB",
       "roadmap": false
+    },
+    {
+      "n": 24,
+      "change": "Measured keeping stage boundaries in memory instead of writing video between them",
+      "what": "Merged into the codebase during this work and never measured. It is the test that follows from the density result: if the binding resource is CPU-side video encoding rather than the accelerator, then the change worth trying is the one that removes encodes. Three clips, seeded, both kept optimizations on in every arm, and the treatment bracketed by two runs of the control, because a repeat of one arm earlier in this work drifted 1.85% -- larger than every effect then being chased.",
+      "effect": "measured",
+      "detail": "-5.04% paired at the job level, 306.70s to 291.25s, against a drift bracket of -0.05% -- the tightest in this work, with one clip reproducing to a hundredth of a second. The effect is roughly a hundred times the bracket and clears the 3% gate. Attribution is clean and declares its own new cost: -17.57s in one stage, plus +1.94s for writing the final video once from memory at the end, reconciling with the -15.45s job delta. Counted rather than assumed, 19 intermediate video files per clip become 14, so five disappear -- a prediction of 13 was recorded before the run and was wrong, because the documentation claims six gated writes but the full-resolution paste-back video is still written in both arms. Memory: the hand arithmetic in the code, flagged there as unmeasured, is right about the sustained footprint (+2176 MiB) and wrong about the peak, which is UNCHANGED at -110 MiB, because the existing path already holds the whole source at full resolution while cropping. NOT KEPT AS OUTPUT-NEUTRAL: 9 of 9 videos pass the sanity check, but delivered pixels differ at 35.11 dB against a 40.22 dB same-configuration floor, consistently across all three clips, so this is not counted with the two bit-exact changes that shipped",
+      "section": "arms",
+      "arm": "i1off/i1on/i1off2",
+      "roadmap": true
+    },
+    {
+      "n": 25,
+      "change": "Made the video writer's frame alignment and rate control explicit, and audible",
+      "what": "Found by asking why the in-memory arm's output files are LARGER than the disk path's despite being smaller in both dimensions. The file that writes video contains two writers that disagree about two separate things: one passes an explicit block alignment of 2 and an explicit quality setting, and the class the pipeline actually uses passes neither, so the encoder applies its own defaults. Every frame size the pipeline computes is two pixels short of the default alignment, so every delivered video is scaled up by two pixels in each dimension and re-encoded at 55% of the bitrate the sibling writer would have used. The library does warn about the rescale, through a logging channel this application never configures for output -- zero such warnings across every run log, on a path that was rescaling every frame.",
+      "effect": "not measured",
+      "detail": "The default is deliberately LEFT UNCHANGED, because lowering the alignment changes the dimensions of delivered video and that is not a decision to make as a side effect of a performance change. The alignment is now configurable, and the writer announces once per file when it is about to rescale, on the same stream as the rest of the pipeline. 16 checks pin it, including the three real frame sizes observed and the requirement that the default stay as it was; one of those checks caught a defect in the announcement itself, where a bracketed prefix was being silently eaten by the terminal formatter",
+      "section": "how"
     }
   ],
   "configurations": [

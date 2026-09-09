@@ -182,7 +182,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
   <h2>What was done</h2>
 
 <p>
-  Twelve changes, in the order they were made. 22 carry a measured effect;
+  Twelve changes, in the order they were made. 23 carry a measured effect;
   the rest are implemented and instrumented with no number yet, and say so. Nothing here is
   credited with an estimate.
 </p>
@@ -210,6 +210,8 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
 <tr><td class="n">21</td><td>Confirmed the build fix end to end by rebuilding from the merged branch</td><td>The deploy failure was a mixed-CUDA torch stack: PyPI's torch 2.5.1 is built against CUDA 12.4 and the index build against 12.1, and both report the same version string, so a version pin does not identify the artefact. Every run on the experiment box until now needed a --force-reinstall inside the container to obtain a consistent stack. A fresh image built from the merged branch was then inspected for what it actually contains.</td><td>torch 2.5.1+cu121 beside torchaudio 2.5.1+cu121 in the built image, with no runtime patching; every pip layer cached, so the resolved dependency set is now stable across builds</td></tr>
 <tr><td class="n">22</td><td>Ran the two kept changes together</td><td>They target different stages, so they ought to add — but two earlier attempts at this test were void: one passed flags to an image built before either change existed, the other set the cache to a size that misses on every frame.</td><td>-22.66% together, and the renderer change REPLICATED at -13.66% against -14.30% measured separately on a different image. Predicting the combined arm from the two separate experiments lands 2.24s off, 0.57% of the job and inside the run-to-run spread, so the savings add. Each change moves only its own stage</td></tr>
 <tr><td class="n">23</td><td>Tested whether a second job fits on the same accelerator</td><td>This was the largest untested lever in the work and the one the deployment arithmetic leaned on hardest: one job peaks at under half the card's memory and leaves it idle a third of the time, so a second job ought to have been nearly free. Two jobs were run in sequence, then the same two at once on the same clips at the same seed, with both kept optimizations on and the per-process memory cap lowered to 0.45 so two processes could not together claim more than the card holds. Hardware was sampled every two seconds throughout.</td><td>Density is WORSE, not free: total wall clock for two jobs rises from 715s to 780s, +9.1%, and throughput falls from 10.1 to 9.2 jobs per GPU-hour. Neither resource the projection reasoned about was the constraint — memory peaked at 56.7% of the card and utilization averaged 34.4% with 37.2% of samples at exactly zero. CPU cores and software video encoding bind. This retracts an earlier projection in this work that packing would roughly double throughput per card; a density test that fails because the accelerator was never scarce is direct evidence the pipeline is not accelerator-bound</td></tr>
+<tr><td class="n">24</td><td>Measured keeping stage boundaries in memory instead of writing video between them</td><td>Merged into the codebase during this work and never measured. It is the test that follows from the density result: if the binding resource is CPU-side video encoding rather than the accelerator, then the change worth trying is the one that removes encodes. Three clips, seeded, both kept optimizations on in every arm, and the treatment bracketed by two runs of the control, because a repeat of one arm earlier in this work drifted 1.85% -- larger than every effect then being chased.</td><td>-5.04% paired at the job level, 306.70s to 291.25s, against a drift bracket of -0.05% -- the tightest in this work, with one clip reproducing to a hundredth of a second. The effect is roughly a hundred times the bracket and clears the 3% gate. Attribution is clean and declares its own new cost: -17.57s in one stage, plus +1.94s for writing the final video once from memory at the end, reconciling with the -15.45s job delta. Counted rather than assumed, 19 intermediate video files per clip become 14, so five disappear -- a prediction of 13 was recorded before the run and was wrong, because the documentation claims six gated writes but the full-resolution paste-back video is still written in both arms. Memory: the hand arithmetic in the code, flagged there as unmeasured, is right about the sustained footprint (+2176 MiB) and wrong about the peak, which is UNCHANGED at -110 MiB, because the existing path already holds the whole source at full resolution while cropping. NOT KEPT AS OUTPUT-NEUTRAL: 9 of 9 videos pass the sanity check, but delivered pixels differ at 35.11 dB against a 40.22 dB same-configuration floor, consistently across all three clips, so this is not counted with the two bit-exact changes that shipped</td></tr>
+<tr><td class="n">25</td><td>Made the video writer's frame alignment and rate control explicit, and audible</td><td>Found by asking why the in-memory arm's output files are LARGER than the disk path's despite being smaller in both dimensions. The file that writes video contains two writers that disagree about two separate things: one passes an explicit block alignment of 2 and an explicit quality setting, and the class the pipeline actually uses passes neither, so the encoder applies its own defaults. Every frame size the pipeline computes is two pixels short of the default alignment, so every delivered video is scaled up by two pixels in each dimension and re-encoded at 55% of the bitrate the sibling writer would have used. The library does warn about the rescale, through a logging channel this application never configures for output -- zero such warnings across every run log, on a path that was rescaling every frame.</td><td><strong>not measured</strong> — The default is deliberately LEFT UNCHANGED, because lowering the alignment changes the dimensions of delivered video and that is not a decision to make as a side effect of a performance change. The alignment is now configurable, and the writer announces once per file when it is about to rescale, on the same stream as the rest of the pipeline. 16 checks pin it, including the three real frame sizes observed and the requirement that the default stay as it was; one of those checks caught a defect in the announcement itself, where a bracketed prefix was being silently eaten by the terminal formatter</td></tr>
 </tbody></table></div>
 <div class="verdict"><b>Net effect on the shipping system:</b> the build works again, and no
 optimization was kept. Both measurable roadmap items were rejected on their own numbers.</div>
@@ -693,6 +695,83 @@ coordination overhead on top.</div>
     pipeline is not accelerator-bound, after the utilization sampling and the three null
     arithmetic arms. A density test that fails <em>because the accelerator was never
     scarce</em> is unusually direct evidence.
+  </p>
+</div>
+
+<h3>Keeping stage boundaries in memory</h3>
+<p>
+  The packing result says the constraint is the CPU and software video encoding, not the
+  accelerator. This change follows from that: it keeps stage boundaries in memory instead of
+  round-tripping them through video files, so it removes encodes. It had been merged into the
+  codebase during this work and never measured.
+</p>
+<div class="tw"><table><thead><tr><th>clip</th><th class="n">control (s)</th><th class="n">treated (s)</th><th class="n">change</th><th class="n">control re-run (s)</th></tr></thead><tbody>
+<tr><td>clip 1</td><td class="n">308.57</td><td class="n">292.12</td><td class="n">-5.33 %</td><td class="n">308.58</td></tr>
+<tr><td>clip 2</td><td class="n">309.22</td><td class="n">293.95</td><td class="n">-4.94 %</td><td class="n">311.37</td></tr>
+<tr><td>clip 3</td><td class="n">302.30</td><td class="n">287.67</td><td class="n">-4.84 %</td><td class="n">299.70</td></tr>
+<tr><td><strong>mean</strong></td><td class="n"><strong>306.70</strong></td><td class="n"><strong>291.25</strong></td><td class="n"><strong>-5.04 %</strong></td><td class="n">—</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>306.70s becomes 291.25s, -5.04 % at the job level.</b> The
+control was run a second time around the treatment and came back within -0.05% &mdash;
+the tightest bracket in this work, with one clip reproducing to a hundredth of a second. The
+effect clears the pre-registered 3% gate against a bracket roughly a hundred times
+smaller.</div>
+<div class="tw"><table><thead><tr><th>stage</th><th class="n">control (s)</th><th class="n">treated (s)</th><th class="n">delta (s)</th></tr></thead><tbody>
+<tr><td><code>run_lipsync</code></td><td class="n">300.10</td><td class="n">282.53</td><td class="n"><strong>-17.57</strong></td></tr>
+<tr><td><code>materialize_lipsync_output</code></td><td class="n">0.00</td><td class="n">1.94</td><td class="n"><strong>+1.94</strong></td></tr>
+</tbody></table></div>
+<p>
+  The saving sits in one stage, and the change is honest about the new cost it introduces:
+  writing the final video once, from memory, at the end. Nothing else moved by more than two
+  tenths of a second. Counted rather than assumed, 19 intermediate video files
+  per clip become 14, so 5 disappear.
+</p>
+<div class="tw"><table><thead><tr><th></th><th class="n">disk path</th><th class="n">in memory</th><th class="n">difference</th><th class="n">predicted</th></tr></thead><tbody>
+<tr><td>mean</td><td class="n">7849 MiB</td><td class="n">10025 MiB</td><td class="n"><strong>+2176 MiB</strong></td><td class="n">+1772 MiB</td></tr>
+<tr><td>peak</td><td class="n">16064 MiB</td><td class="n">15954 MiB</td><td class="n"><strong>-110 MiB</strong></td><td class="n">+1772 MiB</td></tr>
+</tbody></table></div>
+<p>
+  The codebase carried a memory budget worked out by hand and flagged as never measured. It
+  is right about the sustained footprint (+2176 MiB against a predicted figure in the same
+  range) and wrong about the peak, which is <b>unchanged</b> at -110 MiB. Peak is the number
+  that decides whether a job fits in a memory limit, so this matters more than the mean. The
+  reason is in that same comment, in a passage it did not draw the conclusion from: the
+  existing path already holds the whole source video at full resolution while cropping, so
+  the two paths peak at different moments &mdash; and the peaks turn out to be equal.
+</p>
+<div class="tw"><table><thead><tr><th>clip</th><th class="n">same configuration twice</th><th class="n">disk vs in-memory</th><th class="n">gap</th></tr></thead><tbody>
+<tr><td>clip 1</td><td class="n">39.54 dB</td><td class="n">34.49 dB</td><td class="n">5.05 dB</td></tr>
+<tr><td>clip 2</td><td class="n">41.27 dB</td><td class="n">35.43 dB</td><td class="n">5.84 dB</td></tr>
+<tr><td>clip 3</td><td class="n">39.86 dB</td><td class="n">35.42 dB</td><td class="n">4.44 dB</td></tr>
+<tr><td><strong>mean</strong></td><td class="n"><strong>40.22 dB</strong></td><td class="n"><strong>35.11 dB</strong></td><td class="n"><strong>5.11 dB</strong></td></tr>
+</tbody></table></div>
+<div class="caveat">
+  <span class="caveat-label">This one is not output-neutral, and that is the finding</span>
+  <p>
+    All nine output videos across the three arms pass the sanity check, verified visually and
+    numerically. But the delivered pixels differ: 35.11 dB against a 40.22 dB floor
+    measured by running the <em>same</em> configuration twice, a gap of 5.11 dB that is
+    consistent in sign and size across every clip. That floor independently reproduces the
+    regeneration floor measured earlier from a different pair of runs.
+  </p>
+  <p>
+    Chasing the difference found a defect in the path being replaced, not in the new one. The
+    file that writes video contains two writers that disagree about two separate things. One
+    passes an explicit block alignment and an explicit quality setting; the one the pipeline
+    actually uses passes neither, so the encoder applies its own defaults. Every frame size
+    the pipeline computes is two pixels short of the encoder's default alignment, so
+    <b>every delivered video is scaled up by two pixels in each dimension and re-encoded at
+    55% of the bitrate</b> the sibling writer would have used for the same
+    content. The library warns about the rescale, through a logging channel this application
+    never configures for output: zero such warnings across every run log.
+  </p>
+  <p>
+    So this does not get counted with the two changes that shipped. Those were bit-exact by
+    construction and output-neutral; this is a measured win that also changes the output. The
+    alignment is now configurable with <b>the default left unchanged</b>, because lowering it
+    changes the dimensions of delivered video, and that is not a decision to make as a side
+    effect of a performance change. Before this ships, both writers have to agree &mdash;
+    then the two outputs should meet at the floor and the speed can be judged on its own.
   </p>
 </div>
 <div class="caveat">

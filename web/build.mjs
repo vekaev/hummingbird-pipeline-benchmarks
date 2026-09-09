@@ -102,6 +102,26 @@ const packSeq = mdCell('results/measured.md', 'Does a second job fit on the same
 const packCon = mdCell('results/measured.md', 'Does a second job fit on the same GPU?', '>concurrent<', 4);
 const packSeqW = mdCell('results/measured.md', 'Does a second job fit on the same GPU?', '>sequential<', 3);
 const packConW = mdCell('results/measured.md', 'Does a second job fit on the same GPU?', '>concurrent<', 3);
+// In-memory arm. Every figure comes out of the generated tables; the raw JSON is read
+// only for values that are not tabulated (file counts, the writer's two defaults).
+const imEff = mdCell('results/measured.md', 'Keeping stage boundaries in memory', '>mean<', 3);
+const imCtlW = mdCell('results/measured.md', 'Keeping stage boundaries in memory', '>mean<', 1);
+const imTrtW = mdCell('results/measured.md', 'Keeping stage boundaries in memory', '>mean<', 2);
+const imFloor = mdCell('results/measured.md', 'The change is NOT output-neutral, and that is the interesting part', '>mean<', 1);
+const imAgree = mdCell('results/measured.md', 'The change is NOT output-neutral, and that is the interesting part', '>mean<', 2);
+const imGap = mdCell('results/measured.md', 'The change is NOT output-neutral, and that is the interesting part', '>mean<', 3);
+const imPeak = mdCell('results/measured.md', 'Memory, which the code had only ever reasoned about', '>peak<', 3);
+const imMean = mdCell('results/measured.md', 'Memory, which the code had only ever reasoned about', '>mean<', 3);
+const imRaw = JSON.parse(readFileSync(join(root, 'results/raw/inmem.json'), 'utf8'));
+const imDrift = (() => {
+  const d = imRaw.clips.reduce((a, c) => a + 100 * (c.controlRepeat - c.control) / c.control, 0)
+    / imRaw.clips.length;
+  return `${d.toFixed(2)}%`;
+})();
+const imBitrateShare = `${(100 * imRaw.writerDefect.diskBitrate / imRaw.writerDefect.memoryBitrate).toFixed(0)}%`;
+const imWritesFrom = imRaw.writes.diskPathPerClip;
+const imWritesTo = imRaw.writes.memoryPathPerClip;
+const imWritesGone = imRaw.writes.eliminated.length;
 const coFc = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3fc5<', 4);
 const coBoth = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3both<', 4);
 const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
@@ -414,6 +434,67 @@ ${mdTable('results/measured.md', 'Neither resource the projection reasoned about
     pipeline is not accelerator-bound, after the utilization sampling and the three null
     arithmetic arms. A density test that fails <em>because the accelerator was never
     scarce</em> is unusually direct evidence.
+  </p>
+</div>
+
+<h3>Keeping stage boundaries in memory</h3>
+<p>
+  The packing result says the constraint is the CPU and software video encoding, not the
+  accelerator. This change follows from that: it keeps stage boundaries in memory instead of
+  round-tripping them through video files, so it removes encodes. It had been merged into the
+  codebase during this work and never measured.
+</p>
+${mdTable('results/measured.md', 'Keeping stage boundaries in memory')}
+<div class="verdict"><b>${imCtlW}s becomes ${imTrtW}s, ${imEff} at the job level.</b> The
+control was run a second time around the treatment and came back within ${imDrift} &mdash;
+the tightest bracket in this work, with one clip reproducing to a hundredth of a second. The
+effect clears the pre-registered 3% gate against a bracket roughly a hundred times
+smaller.</div>
+${mdTable('results/measured.md', 'The attribution names its own cost')}
+<p>
+  The saving sits in one stage, and the change is honest about the new cost it introduces:
+  writing the final video once, from memory, at the end. Nothing else moved by more than two
+  tenths of a second. Counted rather than assumed, ${imWritesFrom} intermediate video files
+  per clip become ${imWritesTo}, so ${imWritesGone} disappear.
+</p>
+${mdTable('results/measured.md', 'Memory, which the code had only ever reasoned about')}
+<p>
+  The codebase carried a memory budget worked out by hand and flagged as never measured. It
+  is right about the sustained footprint (${imMean} against a predicted figure in the same
+  range) and wrong about the peak, which is <b>unchanged</b> at ${imPeak}. Peak is the number
+  that decides whether a job fits in a memory limit, so this matters more than the mean. The
+  reason is in that same comment, in a passage it did not draw the conclusion from: the
+  existing path already holds the whole source video at full resolution while cropping, so
+  the two paths peak at different moments &mdash; and the peaks turn out to be equal.
+</p>
+${mdTable('results/measured.md', 'The change is NOT output-neutral, and that is the interesting part')}
+<div class="caveat">
+  <span class="caveat-label">This one is not output-neutral, and that is the finding</span>
+  <p>
+    All nine output videos across the three arms pass the sanity check, verified visually and
+    numerically. But the delivered pixels differ: ${imAgree} against a ${imFloor} floor
+    measured by running the <em>same</em> configuration twice, a gap of ${imGap} that is
+    consistent in sign and size across every clip. That floor independently reproduces the
+    regeneration floor measured earlier from a different pair of runs.
+  </p>
+  <p>
+    Chasing the difference found a defect in the path being replaced, not in the new one. The
+    file that writes video contains two writers that disagree about two separate things. One
+    passes an explicit block alignment and an explicit quality setting; the one the pipeline
+    actually uses passes neither, so the encoder applies its own defaults. Every frame size
+    the pipeline computes is two pixels short of the encoder's default alignment, so
+    <b>every delivered video is scaled up by two pixels in each dimension and re-encoded at
+    ${imBitrateShare} of the bitrate</b> the sibling writer would have used for the same
+    content. The library warns about the rescale, through a logging channel this application
+    never configures for output: zero such warnings across every run log.
+  </p>
+  <p>
+    So this does not get counted with the two changes that shipped. Those were bit-exact by
+    construction and output-neutral; this is a measured win that also changes the output. The
+    alignment is now configurable with <b>the default left unchanged</b>, because lowering it
+    changes the dimensions of delivered video, and that is not a decision to make as a side
+    effect of a performance change. Before this ships, both writers have to agree &mdash;
+    then the two outputs should meet at the floor and the speed can be judged on its own.
   </p>
 </div>
 <div class="caveat">

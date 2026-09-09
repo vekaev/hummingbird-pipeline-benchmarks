@@ -166,7 +166,7 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <div class="shell pack">
 
 <header class="masthead">
-  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T22</p>
+  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T26</p>
   <h1>Results pack: every number, with the table it came from</h1>
   <p class="standfirst">
     The companion to the <a href="index.html">article page</a>. Each figure is followed by the
@@ -214,7 +214,11 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <li><a href="#t19"><span class="tag">T19</span>Run-to-run spread</a></li>
 <li><a href="#t20"><span class="tag">T20</span>Two jobs per accelerator</a></li>
 <li><a href="#t21"><span class="tag">T21</span>What was not the constraint</a></li>
-<li><a href="#t22"><span class="tag">T22</span>Configuration key</a></li></ul>
+<li><a href="#t22"><span class="tag">T22</span>Stage boundaries in memory</a></li>
+<li><a href="#t23"><span class="tag">T23</span>Where the saving comes from</a></li>
+<li><a href="#t24"><span class="tag">T24</span>Memory cost of holding frames</a></li>
+<li><a href="#t25"><span class="tag">T25</span>Output agreement, in-memory arm</a></li>
+<li><a href="#t26"><span class="tag">T26</span>Configuration key</a></li></ul>
   <h2>Carry with the numbers</h2>
   <ul>
     <li><a href="#measured">What was measured</a></li>
@@ -314,7 +318,9 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
     <li><b>Reduce the parsing output on the device instead of on the host.</b> -2.66% at the job level and -35.5% on the stage, every clip faster, bus traffic down 76x and blocking transfers from 751 to 24. REJECTED: the gate is 3% at the job level and this is 2.66%. Left rejected rather than reinterpreting the gate <span class="ft">F2 T8</span></li>
     <li><b>Confirmed the build fix end to end by rebuilding from the merged branch.</b> torch 2.5.1+cu121 beside torchaudio 2.5.1+cu121 in the built image, with no runtime patching; every pip layer cached, so the resolved dependency set is now stable across builds <span class="ft">T1</span></li>
     <li><b>Ran the two kept changes together.</b> -22.66% together, and the renderer change REPLICATED at -13.66% against -14.30% measured separately on a different image. Predicting the combined arm from the two separate experiments lands 2.24s off, 0.57% of the job and inside the run-to-run spread, so the savings add. Each change moves only its own stage <span class="ft">F2 T8</span></li>
-    <li><b>Tested whether a second job fits on the same accelerator.</b> Density is WORSE, not free: total wall clock for two jobs rises from 715s to 780s, +9.1%, and throughput falls from 10.1 to 9.2 jobs per GPU-hour. Neither resource the projection reasoned about was the constraint — memory peaked at 56.7% of the card and utilization averaged 34.4% with 37.2% of samples at exactly zero. CPU cores and software video encoding bind. This retracts an earlier projection in this work that packing would roughly double throughput per card; a density test that fails because the accelerator was never scarce is direct evidence the pipeline is not accelerator-bound <span class="ft">F2 T8</span></li></ol>
+    <li><b>Tested whether a second job fits on the same accelerator.</b> Density is WORSE, not free: total wall clock for two jobs rises from 715s to 780s, +9.1%, and throughput falls from 10.1 to 9.2 jobs per GPU-hour. Neither resource the projection reasoned about was the constraint — memory peaked at 56.7% of the card and utilization averaged 34.4% with 37.2% of samples at exactly zero. CPU cores and software video encoding bind. This retracts an earlier projection in this work that packing would roughly double throughput per card; a density test that fails because the accelerator was never scarce is direct evidence the pipeline is not accelerator-bound <span class="ft">F2 T8</span></li>
+    <li><b>Measured keeping stage boundaries in memory instead of writing video between them.</b> -5.04% paired at the job level, 306.70s to 291.25s, against a drift bracket of -0.05% -- the tightest in this work, with one clip reproducing to a hundredth of a second. The effect is roughly a hundred times the bracket and clears the 3% gate. Attribution is clean and declares its own new cost: -17.57s in one stage, plus +1.94s for writing the final video once from memory at the end, reconciling with the -15.45s job delta. Counted rather than assumed, 19 intermediate video files per clip become 14, so five disappear -- a prediction of 13 was recorded before the run and was wrong, because the documentation claims six gated writes but the full-resolution paste-back video is still written in both arms. Memory: the hand arithmetic in the code, flagged there as unmeasured, is right about the sustained footprint (+2176 MiB) and wrong about the peak, which is UNCHANGED at -110 MiB, because the existing path already holds the whole source at full resolution while cropping. NOT KEPT AS OUTPUT-NEUTRAL: 9 of 9 videos pass the sanity check, but delivered pixels differ at 35.11 dB against a 40.22 dB same-configuration floor, consistently across all three clips, so this is not counted with the two bit-exact changes that shipped <span class="ft">F2 T8</span></li>
+    <li><b>Made the video writer's frame alignment and rate control explicit, and audible.</b> Not measured &mdash; The default is deliberately LEFT UNCHANGED, because lowering the alignment changes the dimensions of delivered video and that is not a decision to make as a side effect of a performance change. The alignment is now configurable, and the writer announces once per file when it is about to rescale, on the same stream as the rest of the pipeline. 16 checks pin it, including the three real frame sizes observed and the requirement that the default stay as it was; one of those checks caught a defect in the announcement itself, where a bracketed prefix was being silently eaten by the terminal formatter <span class="ft">T1</span></li></ol>
 </section>
 
 <section id="figures">
@@ -1158,6 +1164,8 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <tr><td class="n">21</td><td>Confirmed the build fix end to end by rebuilding from the merged branch</td><td>The deploy failure was a mixed-CUDA torch stack: PyPI's torch 2.5.1 is built against CUDA 12.4 and the index build against 12.1, and both report the same version string, so a version pin does not identify the artefact. Every run on the experiment box until now needed a --force-reinstall inside the container to obtain a consistent stack. A fresh image built from the merged branch was then inspected for what it actually contains.</td><td>torch 2.5.1+cu121 beside torchaudio 2.5.1+cu121 in the built image, with no runtime patching; every pip layer cached, so the resolved dependency set is now stable across builds</td></tr>
 <tr><td class="n">22</td><td>Ran the two kept changes together</td><td>They target different stages, so they ought to add — but two earlier attempts at this test were void: one passed flags to an image built before either change existed, the other set the cache to a size that misses on every frame.</td><td>-22.66% together, and the renderer change REPLICATED at -13.66% against -14.30% measured separately on a different image. Predicting the combined arm from the two separate experiments lands 2.24s off, 0.57% of the job and inside the run-to-run spread, so the savings add. Each change moves only its own stage</td></tr>
 <tr><td class="n">23</td><td>Tested whether a second job fits on the same accelerator</td><td>This was the largest untested lever in the work and the one the deployment arithmetic leaned on hardest: one job peaks at under half the card's memory and leaves it idle a third of the time, so a second job ought to have been nearly free. Two jobs were run in sequence, then the same two at once on the same clips at the same seed, with both kept optimizations on and the per-process memory cap lowered to 0.45 so two processes could not together claim more than the card holds. Hardware was sampled every two seconds throughout.</td><td>Density is WORSE, not free: total wall clock for two jobs rises from 715s to 780s, +9.1%, and throughput falls from 10.1 to 9.2 jobs per GPU-hour. Neither resource the projection reasoned about was the constraint — memory peaked at 56.7% of the card and utilization averaged 34.4% with 37.2% of samples at exactly zero. CPU cores and software video encoding bind. This retracts an earlier projection in this work that packing would roughly double throughput per card; a density test that fails because the accelerator was never scarce is direct evidence the pipeline is not accelerator-bound</td></tr>
+<tr><td class="n">24</td><td>Measured keeping stage boundaries in memory instead of writing video between them</td><td>Merged into the codebase during this work and never measured. It is the test that follows from the density result: if the binding resource is CPU-side video encoding rather than the accelerator, then the change worth trying is the one that removes encodes. Three clips, seeded, both kept optimizations on in every arm, and the treatment bracketed by two runs of the control, because a repeat of one arm earlier in this work drifted 1.85% -- larger than every effect then being chased.</td><td>-5.04% paired at the job level, 306.70s to 291.25s, against a drift bracket of -0.05% -- the tightest in this work, with one clip reproducing to a hundredth of a second. The effect is roughly a hundred times the bracket and clears the 3% gate. Attribution is clean and declares its own new cost: -17.57s in one stage, plus +1.94s for writing the final video once from memory at the end, reconciling with the -15.45s job delta. Counted rather than assumed, 19 intermediate video files per clip become 14, so five disappear -- a prediction of 13 was recorded before the run and was wrong, because the documentation claims six gated writes but the full-resolution paste-back video is still written in both arms. Memory: the hand arithmetic in the code, flagged there as unmeasured, is right about the sustained footprint (+2176 MiB) and wrong about the peak, which is UNCHANGED at -110 MiB, because the existing path already holds the whole source at full resolution while cropping. NOT KEPT AS OUTPUT-NEUTRAL: 9 of 9 videos pass the sanity check, but delivered pixels differ at 35.11 dB against a 40.22 dB same-configuration floor, consistently across all three clips, so this is not counted with the two bit-exact changes that shipped</td></tr>
+<tr><td class="n">25</td><td>Made the video writer's frame alignment and rate control explicit, and audible</td><td>Found by asking why the in-memory arm's output files are LARGER than the disk path's despite being smaller in both dimensions. The file that writes video contains two writers that disagree about two separate things: one passes an explicit block alignment of 2 and an explicit quality setting, and the class the pipeline actually uses passes neither, so the encoder applies its own defaults. Every frame size the pipeline computes is two pixels short of the default alignment, so every delivered video is scaled up by two pixels in each dimension and re-encoded at 55% of the bitrate the sibling writer would have used. The library does warn about the rescale, through a logging channel this application never configures for output -- zero such warnings across every run log, on a path that was rescaling every frame.</td><td><strong>not measured</strong> — The default is deliberately LEFT UNCHANGED, because lowering the alignment changes the dimensions of delivered video and that is not a decision to make as a side effect of a performance change. The alignment is now configurable, and the writer announces once per file when it is about to rescale, on the same stream as the rest of the pipeline. 16 checks pin it, including the three real frame sizes observed and the requirement that the default stay as it was; one of those checks caught a defect in the announcement itself, where a bracketed prefix was being silently eaten by the terminal formatter</td></tr>
 </tbody></table></div>
 </div>
 
@@ -1466,6 +1474,50 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 
 <div class="item" id="t22">
   <span class="id">T22</span>
+  <h3>Stage boundaries in memory</h3>
+  <p class="meta">Paired per clip, with the treatment bracketed by two runs of the control — the rightmost column is that second control run, and it is the drift measurement the effect has to beat. It beats it by roughly a hundredfold, which is why this one is reportable. Follows directly from T20: if the constraint is CPU-side encoding, the change to try is the one that removes encodes.</p>
+  <div class="tw"><table><thead><tr><th>clip</th><th class="n">control (s)</th><th class="n">treated (s)</th><th class="n">change</th><th class="n">control re-run (s)</th></tr></thead><tbody>
+<tr><td>clip 1</td><td class="n">308.57</td><td class="n">292.12</td><td class="n">-5.33 %</td><td class="n">308.58</td></tr>
+<tr><td>clip 2</td><td class="n">309.22</td><td class="n">293.95</td><td class="n">-4.94 %</td><td class="n">311.37</td></tr>
+<tr><td>clip 3</td><td class="n">302.30</td><td class="n">287.67</td><td class="n">-4.84 %</td><td class="n">299.70</td></tr>
+<tr><td><strong>mean</strong></td><td class="n"><strong>306.70</strong></td><td class="n"><strong>291.25</strong></td><td class="n"><strong>-5.04 %</strong></td><td class="n">—</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t23">
+  <span class="id">T23</span>
+  <h3>Where the saving comes from</h3>
+  <p class="meta">One stage gives up the time, and the change declares the new cost it introduces in exchange: writing the final video once, from memory, at the end. No other stage moved by more than two tenths of a second.</p>
+  <div class="tw"><table><thead><tr><th>stage</th><th class="n">control (s)</th><th class="n">treated (s)</th><th class="n">delta (s)</th></tr></thead><tbody>
+<tr><td><code>run_lipsync</code></td><td class="n">300.10</td><td class="n">282.53</td><td class="n"><strong>-17.57</strong></td></tr>
+<tr><td><code>materialize_lipsync_output</code></td><td class="n">0.00</td><td class="n">1.94</td><td class="n"><strong>+1.94</strong></td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t24">
+  <span class="id">T24</span>
+  <h3>Memory cost of holding frames</h3>
+  <p class="meta">The codebase carried this budget as hand arithmetic, explicitly flagged as never measured. It is right about the sustained footprint and wrong about the peak, which is unchanged — and peak is the number that decides whether a job fits a memory limit. The reason is in that same comment, in a passage that did not draw the conclusion.</p>
+  <div class="tw"><table><thead><tr><th></th><th class="n">disk path</th><th class="n">in memory</th><th class="n">difference</th><th class="n">predicted</th></tr></thead><tbody>
+<tr><td>mean</td><td class="n">7849 MiB</td><td class="n">10025 MiB</td><td class="n"><strong>+2176 MiB</strong></td><td class="n">+1772 MiB</td></tr>
+<tr><td>peak</td><td class="n">16064 MiB</td><td class="n">15954 MiB</td><td class="n"><strong>-110 MiB</strong></td><td class="n">+1772 MiB</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t25">
+  <span class="id">T25</span>
+  <h3>Output agreement, in-memory arm</h3>
+  <p class="meta">The middle column only means something against the left one, which is the same configuration run twice — the floor. The gap is consistent across every clip, so the difference is real. It traces to a defect in the path being replaced: two writers in the same file disagree about frame alignment and about rate control, so delivered video is scaled up two pixels per dimension and encoded at roughly half the bitrate the sibling writer would use. This arm is therefore NOT counted with the two bit-exact changes that shipped.</p>
+  <div class="tw"><table><thead><tr><th>clip</th><th class="n">same configuration twice</th><th class="n">disk vs in-memory</th><th class="n">gap</th></tr></thead><tbody>
+<tr><td>clip 1</td><td class="n">39.54 dB</td><td class="n">34.49 dB</td><td class="n">5.05 dB</td></tr>
+<tr><td>clip 2</td><td class="n">41.27 dB</td><td class="n">35.43 dB</td><td class="n">5.84 dB</td></tr>
+<tr><td>clip 3</td><td class="n">39.86 dB</td><td class="n">35.42 dB</td><td class="n">4.44 dB</td></tr>
+<tr><td><strong>mean</strong></td><td class="n"><strong>40.22 dB</strong></td><td class="n"><strong>35.11 dB</strong></td><td class="n"><strong>5.11 dB</strong></td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t26">
+  <span class="id">T26</span>
   <h3>Configuration key</h3>
   <p class="meta">What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.</p>
   <div class="tw"><table><thead><tr><th>Configuration</th><th>Hardware</th><th>Video parameters</th><th>Deployment</th><th>Protocol</th></tr></thead><tbody>
