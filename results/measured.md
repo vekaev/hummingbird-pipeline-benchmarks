@@ -575,26 +575,30 @@ The contaminated ratio was not reused either. 33/67 against the clean 28/72 look
 
 ### Inside the larger phase
 
-The larger of the two phases, opened up. Six of its internal steps were instrumented and the run was repeated: the phase came back at 74.35 s against 74.42 s measured with only two decorators, 0.1 % apart, so the additional instrumentation again costs nothing measurable.
+The larger of the two phases, opened up completely. Instrumented in two rounds and the run repeated each time: the phase came back at 74.42, 74.35 and 74.74 seconds across three runs carrying different amounts of instrumentation, so none of it costs anything measurable. The steps now account for the whole phase.
 
 | step | seconds | of the phase | kind |
 |---|---:|---:|---|
-| `optimize_wflw_lms_only` | 18.52 | 24.91 % | optimization loop |
-| `optimize_lms_only` | 17.77 | 23.90 % | optimization loop |
-| `calibrate_camera_gd` | 12.15 | 16.34 % | optimization loop, already optimized |
-| `preload_batched_data` | 3.13 | 4.21 % | setup |
-| `optimize_wflw_lms_only_eyelids` | 1.46 | 1.96 % | optimization loop |
-| **everything else** | **21.32** | **28.68 %** | reads, saves and writes |
-| the phase | 74.35 | 100 % | |
+| `visualize_tracking` | 20.86 | 27.91 % | renders geometry and writes three videos |
+| `optimize_wflw_lms_only` | 18.70 | 25.02 % | optimization loop |
+| `optimize_lms_only` | 17.82 | 23.84 % | optimization loop |
+| `calibrate_camera_gd` | 12.66 | 16.94 % | optimization loop, already optimized |
+| `preload_batched_data` | 3.13 | 4.19 % | setup |
+| `optimize_wflw_lms_only_eyelids` | 1.57 | 2.10 % | optimization loop |
+| `load_data` | 0.00 | 0.01 % | no-op: assigns readers, decodes nothing |
+| **the phase** | **74.74** | **100 %** | |
 
-**The leftover is the largest single item in the phase** — larger than either
-optimization loop. It is not compute. The phase also reads two videos in, saves its parameters, and writes three more videos out, and none of those three are among the writes the in-memory change eliminates -- so they are still written even with it on. That is the finding: inside the biggest compute stage in the pipeline, the biggest sub-item is still I/O.
+The steps sum to 74.74 s against a measured 74.74 s, a residual of
+0.00 s, so the phase is fully accounted for.
 
-The 4 optimization loops come to 49.90 s in
+**The largest single step is `visualize_tracking`, at 27.91 % of
+the phase — more than any optimization loop in it.** Two things about it are worth noting. It is not an optimization loop at all: it renders geometry meshes and writes three more videos, and none of those three writes are among the ones the in-memory change eliminates, so they still happen with it on. And the step that reads the input videos costs four thousandths of a second -- it assigns lazy readers and decodes nothing -- so an earlier guess that this phase spent its time reading was wrong.
+
+The 4 optimization loops come to 50.75 s in
 total, of which one has already been optimized in this work. Of the 3 untouched,
-2 are closely matched at 18.52 and 17.77 s and
-the third is negligible at 1.46 s.
-So the real target here is 36.29 s across two
+2 are closely matched at 18.70 and 17.82 s and
+the third is negligible at 1.57 s.
+So the real target here is 36.52 s across two
 comparable loops, not one dominant one. That matters: the shape of any fix is two moderate
 changes rather than a single lever, which is a different piece of work to plan.
 

@@ -726,12 +726,14 @@ if (diff) {
     for (const st of ip.steps) {
       P(`| \`${st.name}\` | ${fmt(st.seconds)} | ${fmt(100 * st.seconds / parent)} % | ${st.kind} |`);
     }
-    P(`| **everything else** | **${fmt(left)}** | **${fmt(100 * left / parent)} %** `
-      + '| reads, saves and writes |');
-    P(`| the phase | ${fmt(parent)} | 100 % | |`);
+    // Everything is now named, so the residual is a reconciliation check rather than a row.
+    P(`| **the phase** | **${fmt(parent)}** | **100 %** | |`);
     P('');
-    P(`**The leftover is the largest single item in the phase** — larger than either`);
-    P(`optimization loop. ${ip.unaccountedNote}\n`);
+    const topStep = ip.steps.reduce((a, b) => (a.seconds > b.seconds ? a : b));
+    P(`The steps sum to ${fmt(named)} s against a measured ${fmt(parent)} s, a residual of`);
+    P(`${fmt(Math.abs(left), 2)} s, so the phase is fully accounted for.\n`);
+    P(`**The largest single step is \`${topStep.name}\`, at ${fmt(100 * topStep.seconds / parent)} % of`);
+    P(`the phase — more than any optimization loop in it.** ${ip.unaccountedNote}\n`);
     const loops = ip.steps.filter((st) => st.kind.startsWith('optimization'));
     const fresh = loops.filter((st) => !st.kind.includes('already'));
     const sorted = [...fresh].sort((a, b) => b.seconds - a.seconds);

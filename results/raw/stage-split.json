@@ -31,23 +31,28 @@
     "loopIterations": 1100
   },
   "innerPhases": {
-    "note": "The larger of the two phases, opened up. Six of its internal steps were instrumented and the run was repeated: the phase came back at 74.35 s against 74.42 s measured with only two decorators, 0.1 % apart, so the additional instrumentation again costs nothing measurable.",
-    "parentSeconds": 74.35,
+    "note": "The larger of the two phases, opened up completely. Instrumented in two rounds and the run repeated each time: the phase came back at 74.42, 74.35 and 74.74 seconds across three runs carrying different amounts of instrumentation, so none of it costs anything measurable. The steps now account for the whole phase.",
+    "parentSeconds": 74.74,
     "parentSecondsPriorRun": 74.42,
     "steps": [
       {
+        "name": "visualize_tracking",
+        "seconds": 20.86,
+        "kind": "renders geometry and writes three videos"
+      },
+      {
         "name": "optimize_wflw_lms_only",
-        "seconds": 18.52,
+        "seconds": 18.7,
         "kind": "optimization loop"
       },
       {
         "name": "optimize_lms_only",
-        "seconds": 17.77,
+        "seconds": 17.82,
         "kind": "optimization loop"
       },
       {
         "name": "calibrate_camera_gd",
-        "seconds": 12.15,
+        "seconds": 12.66,
         "kind": "optimization loop, already optimized"
       },
       {
@@ -57,10 +62,16 @@
       },
       {
         "name": "optimize_wflw_lms_only_eyelids",
-        "seconds": 1.46,
+        "seconds": 1.57,
         "kind": "optimization loop"
+      },
+      {
+        "name": "load_data",
+        "seconds": 0.004,
+        "kind": "no-op: assigns readers, decodes nothing"
       }
     ],
-    "unaccountedNote": "It is not compute. The phase also reads two videos in, saves its parameters, and writes three more videos out, and none of those three are among the writes the in-memory change eliminates -- so they are still written even with it on. That is the finding: inside the biggest compute stage in the pipeline, the biggest sub-item is still I/O."
+    "unaccountedNote": "Two things about it are worth noting. It is not an optimization loop at all: it renders geometry meshes and writes three more videos, and none of those three writes are among the ones the in-memory change eliminates, so they still happen with it on. And the step that reads the input videos costs four thousandths of a second -- it assigns lazy readers and decodes nothing -- so an earlier guess that this phase spent its time reading was wrong.",
+    "parentSecondsThirdRun": 74.35
   }
 }

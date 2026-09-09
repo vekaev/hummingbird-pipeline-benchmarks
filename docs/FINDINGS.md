@@ -3888,6 +3888,54 @@ one prior success in this stage came from restructuring exactly this kind of loo
 
 **What is NOT established** is that batching is the lever. `preload_batched_data` exists, so
 these loops may already operate on batched frames, in which case the question is whether 500
-iterations are needed at all -- a convergence question, not a batching one. Which of the
-three loops dominates is being measured now; until that lands, "74 s in three loops" is the
-honest resolution. [PARTIALLY MEASURED]
+iterations are needed at all -- a convergence question, not a batching one.
+
+## Measured: inside the largest block, the largest item is not compute
+
+Six internal steps instrumented, run repeated. `face_track` came back at **74.35 s** against
+74.42 s with only the two outer decorators -- **0.1 % apart** -- so the additional
+instrumentation again costs nothing measurable, and the earlier contamination really was the
+stderr tee rather than decorators in general.
+
+| step | seconds | of the phase | kind |
+|---|---:|---:|---|
+| `optimize_wflw_lms_only` | 18.52 | 24.9 % | optimization loop |
+| `optimize_lms_only` | 17.77 | 23.9 % | optimization loop |
+| `calibrate_camera_gd` | 12.15 | 16.3 % | optimization loop, **already optimized here** |
+| `preload_batched_data` | 3.13 | 4.2 % | setup |
+| `optimize_wflw_lms_only_eyelids` | 1.46 | 2.0 % | optimization loop |
+| **everything else** | **21.32** | **28.7 %** | reads, saves and writes |
+| the phase | 74.35 | 100 % | |
+
+**The leftover is the largest single item in the phase**, larger than either optimization
+loop. It is I/O: `face_track` reads two videos in via `load_data`, saves its parameters, and
+writes three videos out via `visualize_tracking` -- `original_geometry`,
+`original_geometry_lp` and `original_lower_mask`. **None of those three are among the five
+writes `LIPSYNC_INMEM` eliminates**, so they still happen with it on.
+
+So inside the biggest compute stage in the pipeline, the biggest sub-item is still I/O. That
+is the **fourth** independent line of evidence for the same conclusion, after the
+utilization sampling, the three null arithmetic arms, and the packing test.
+
+## Two corrections to what I wrote an hour ago, both caught by the generated table
+
+1. **"Three optimization loops."** There are four. `calibrate_camera_gd` is one of them and
+   is the one already optimized in this work.
+2. **"1,100 iterations in three loops"** implied they were comparable. They are not:
+   18.52 s, 17.77 s and **1.46 s**. The eyelid loop is negligible despite its 100
+   iterations, so iteration count is a poor proxy for cost here -- which is the whole reason
+   to measure rather than count.
+
+**The target is therefore 36.29 s across two comparable loops, not one dominant one.** That
+changes the shape of the work: two moderate changes rather than a single lever. Worth
+stating plainly, because "one big win in the biggest stage" was the natural expectation and
+it is wrong.
+
+## What to do before renting a GPU again
+
+The open question on those two loops is answerable **without** hardware. Both run a fixed
+iteration count -- 500 each at this clip length -- and nobody has checked whether the loss
+has stopped moving well before the end. Logging the loss curve per iteration on a single
+clip settles whether the fix is early stopping, a lower fixed count, or a genuine
+restructuring. Only the last of those needs a GPU session to evaluate. [UNMEASURED, and
+cheap to resolve]
