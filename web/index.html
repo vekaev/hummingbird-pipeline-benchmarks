@@ -667,6 +667,16 @@ reaching for a stage-level threshold now &mdash; because this is a result worth 
   is worth -9.61 % of the job and cuts the tracking stage -29.8%. Verifying that it
   still picked the same focal is what turned this up.
 </p>
+<p>
+  <strong>That -9.61 % is a ceiling, not the shipped configuration.</strong> It measures the
+  sweep batched outright. The version kept instead hands the top-ranked candidates back to
+  the untouched sequential solver to confirm the winner &mdash; because no batched
+  formulation of this optimiser is bit-identical to the sequential one, which is the wall
+  the reads below describe. That confirmation trades a 9.3x reduction in solver
+  iterations for 3.7x, so the default lands materially lower. It is the better
+  trade, protecting the one value the rest of the stage depends on at a third of the win.
+  The shipped configuration has not been timed, and this page does not estimate it.
+</p>
 <div class="tw"><table><thead><tr><th class="n">Run</th><th>Path</th><th class="n">Selected focal</th><th class="n">Projection error</th></tr></thead><tbody>
 <tr><td class="n">1</td><td><strong>sequential (unmodified)</strong></td><td class="n"><strong>2900</strong></td><td class="n">3.019861698</td></tr>
 <tr><td class="n">2</td><td>batched</td><td class="n">1850</td><td class="n">3.026734352</td></tr>

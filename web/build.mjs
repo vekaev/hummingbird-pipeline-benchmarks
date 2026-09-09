@@ -91,6 +91,9 @@ const ledger = `<dl class="ledger">${LEDGER.map(([dt, dd, small]) => `
 // --- numbers quoted in prose come out of the generated tables ---------------
 // The repeat spread, read from the generated table so the prose cannot disagree with it.
 // Frame-cache headline figures, read from the generated tables.
+const fsRaw0 = JSON.parse(readFileSync(join(root, 'results/raw/focal-search.json'), 'utf8'));
+const focalIterUnconf = fsRaw0.timing.iterationReductionUnconfirmed;
+const focalIterConf = fsRaw0.timing.iterationReductionConfirmed;
 const paRaw = JSON.parse(readFileSync(join(root, 'results/raw/parse-argmax.json'), 'utf8'));
 const paDelta = mdCell('results/measured.md', 'A change that works and is rejected anyway', '>mean<', 3);
 const paStage = `${(100 * (paRaw.stage.on - paRaw.stage.off) / paRaw.stage.off).toFixed(1)}%`;
@@ -376,6 +379,16 @@ reaching for a stage-level threshold now &mdash; because this is a result worth 
   so it fixes the whole 3D tracking geometry for the job. Batching those independent solves
   is worth ${focalDelta} of the job and cuts the tracking stage ${focalStage}. Verifying that it
   still picked the same focal is what turned this up.
+</p>
+<p>
+  <strong>That ${focalDelta} is a ceiling, not the shipped configuration.</strong> It measures the
+  sweep batched outright. The version kept instead hands the top-ranked candidates back to
+  the untouched sequential solver to confirm the winner &mdash; because no batched
+  formulation of this optimiser is bit-identical to the sequential one, which is the wall
+  the reads below describe. That confirmation trades a ${focalIterUnconf}x reduction in solver
+  iterations for ${focalIterConf}x, so the default lands materially lower. It is the better
+  trade, protecting the one value the rest of the stage depends on at a third of the win.
+  The shipped configuration has not been timed, and this page does not estimate it.
 </p>
 ${mdTable('results/measured.md', 'Four reads, one clip, one seed')}
 <div class="verdict"><b>Two runs of the unmodified code chose ${focalA} and ${focalB}.</b> Same
