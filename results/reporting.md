@@ -6,8 +6,8 @@ per-stage number in the configuration table is recomputed from `results/raw/`.
 ## Changes made
 
 In the order they were made. A change is only credited with an effect when a
-measurement exists for it; the two marked "not measured" are implemented and
-instrumented but have no number yet, and the reason is given.
+measurement exists for it; the one marked "not measured" is implemented and
+instrumented but has no number yet, and the reason is given.
 
 | # | Change | What it does | Effect |
 |---:|---|---|---|
@@ -16,13 +16,15 @@ instrumented but have no number yet, and the reason is given.
 | 3 | Pinned the dependency graph and made the image buildable | 28 of 62 requirement lines carried no version, so every rebuild resolved a different environment and nothing had rebuilt cleanly in roughly sixteen months. | 221 packages pinned; first green build of the repository since May 2025 |
 | 4 | Found and fixed a mixed-CUDA torch stack | A version pin does not identify a build variant. Pinning torch to a version installed a CUDA 12.4 wheel from the public index, while the build's own later step installed CUDA 12.1 builds of torchaudio and torchvision. torchaudio then refuses to import, and the pipeline imports it before serving its first request. | The container reached a running state; a full clip completed in 398 s |
 | 5 | Made the sampler seedable per run | The audio-to-expression model seeded once at construction, so the first prediction in a warm process was reproducible and every later one was not. Two runs of one clip shared zero identical frames out of 1074. | Prerequisite for a paired A/B, and for the cache in the same section |
-| 6 | Renderer batch size 4 to 16 | Roadmap item, premised on the GPU being under-fed at batch 4. Exposed as one environment variable so a single build serves both sides of the comparison. | +0.32% slower, paired across three clips, all three the same direction: rejected |
-| 7 | fp16 autocast in the neural renderer | Roadmap item. Also exposed as one environment variable, default off. | +0.51% with mixed per-clip signs, and 39.37 dB PSNR against the fp32 output: rejected |
+| 6 | Renderer batch size 4 to 16 | Roadmap item, premised on the GPU being under-fed at batch 4. Exposed as one environment variable so a single build serves both sides of the comparison. | -0.14% once the session drift measured by a repeated baseline is removed, and inside the output noise floor: rejected. The renderer waits on video decode, not on arithmetic |
+| 7 | fp16 autocast in the neural renderer | Roadmap item. Also exposed as one environment variable, default off. | -0.41% drift-adjusted and inside the output noise floor: rejected as null. Its output sits no further from the baseline than a repeat of the baseline itself, so this is not a fidelity finding |
 | 8 | Asynchronous host-to-device transfers in the renderer | Roadmap item, partially implemented: non_blocking on six host-to-device copies. Pinned memory already existed; CUDA streams were not built. | **not measured** — Always on, so it is inside every arm including the baseline and cannot be isolated by this design |
-| 9 | cuDNN autotuning scoped to the render loop | Not a roadmap item. The animator's seeding helper disables cuDNN autotuning process-wide as a side effect, and the renderer inherits it: hundreds of convolutions at one fixed input shape, run without autotuned kernels. | **not measured** — Arm was still running when this site was built |
+| 9 | cuDNN autotuning scoped to the render loop | Not a roadmap item. The animator's seeding helper disables cuDNN autotuning process-wide as a side effect, and the renderer inherits it: hundreds of convolutions at one fixed input shape, run without autotuned kernels. | +0.50% drift-adjusted: rejected. The raw +1.89% was almost entirely session drift, which a repeated baseline caught |
 | 10 | Paste-back composites only the mask bounding box | Where the warped mask is zero the composite writes the source back over itself. Restricting it to the mask's bounding box is bit-exact by construction rather than an approximation. | Bit-identical across 44 cases and 400 random transforms; 1.55x to 2.90x on the function, which is about 14% of the timed stage |
 | 11 | Output sanity checks on every generated video | A timing harness cannot see a black frame, a frozen output, or a face whose mouth never moves. An arm that is faster because it produced garbage would otherwise read as a win. | 16 of 16 open-dataset outputs pass, confirmed by automated checks and by frame inspection |
 | 12 | Made result writes concurrency-safe | The quality harness loaded its whole result file at start, held it for minutes, then wrote it back whole. Two concurrent scorings destroyed one another's results. | A completed three-clip result set was lost this way before the fix; writes now merge and rename atomically |
+| 13 | A baseline repeated as the last pass of the session | Produces no information about any optimization. Its only job is to measure how much the machine itself moved between the first arm and the last. | +1.85% slower than the identical first pass, on the same three clips with the same seed and no code change. This is the drift correction applied to every arm above, and it is why none of them was kept |
+| 14 | The whole branch measured against the unmodified upstream code | Checks the reverse risk: that the accumulated changes cost something incidental even where each was individually null. | -0.47% against the adjacent baseline with mixed per-clip signs, and every output inside the noise floor: the branch is performance-neutral |
 
 ## Per-stage timing by configuration
 

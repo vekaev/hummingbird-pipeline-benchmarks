@@ -29,9 +29,11 @@ P('per-stage number in the configuration table is recomputed from `results/raw/`
 
 // ---------------------------------------------------------------- the ledger
 P('## Changes made\n');
+const unmeasured = ledger.changes.filter((c) => c.effect !== 'measured');
+const nWord = ['none', 'one', 'two', 'three', 'four'][unmeasured.length] ?? String(unmeasured.length);
 P('In the order they were made. A change is only credited with an effect when a');
-P('measurement exists for it; the two marked "not measured" are implemented and');
-P('instrumented but have no number yet, and the reason is given.\n');
+P(`measurement exists for it; the ${nWord} marked "not measured" ${unmeasured.length === 1 ? 'is' : 'are'} implemented and`);
+P(`instrumented but ${unmeasured.length === 1 ? 'has' : 'have'} no number yet, and the reason is given.\n`);
 P('| # | Change | What it does | Effect |');
 P('|---:|---|---|---|');
 for (const c of ledger.changes) {

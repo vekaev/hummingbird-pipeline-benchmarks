@@ -46,7 +46,7 @@
       "change": "Renderer batch size 4 to 16",
       "what": "Roadmap item, premised on the GPU being under-fed at batch 4. Exposed as one environment variable so a single build serves both sides of the comparison.",
       "effect": "measured",
-      "detail": "+0.32% slower, paired across three clips, all three the same direction: rejected",
+      "detail": "-0.14% once the session drift measured by a repeated baseline is removed, and inside the output noise floor: rejected. The renderer waits on video decode, not on arithmetic",
       "section": "arms",
       "arm": "arm1",
       "roadmap": true
@@ -56,7 +56,7 @@
       "change": "fp16 autocast in the neural renderer",
       "what": "Roadmap item. Also exposed as one environment variable, default off.",
       "effect": "measured",
-      "detail": "+0.51% with mixed per-clip signs, and 39.37 dB PSNR against the fp32 output: rejected",
+      "detail": "-0.41% drift-adjusted and inside the output noise floor: rejected as null. Its output sits no further from the baseline than a repeat of the baseline itself, so this is not a fidelity finding",
       "section": "arms",
       "arm": "arm2",
       "roadmap": true
@@ -73,8 +73,8 @@
       "n": 9,
       "change": "cuDNN autotuning scoped to the render loop",
       "what": "Not a roadmap item. The animator's seeding helper disables cuDNN autotuning process-wide as a side effect, and the renderer inherits it: hundreds of convolutions at one fixed input shape, run without autotuned kernels.",
-      "effect": "not measured",
-      "detail": "Arm was still running when this site was built",
+      "effect": "measured",
+      "detail": "+0.50% drift-adjusted: rejected. The raw +1.89% was almost entirely session drift, which a repeated baseline caught",
       "section": "arms",
       "arm": "arm3",
       "roadmap": false
@@ -102,6 +102,26 @@
       "effect": "measured",
       "detail": "A completed three-clip result set was lost this way before the fix; writes now merge and rename atomically",
       "section": "how"
+    },
+    {
+      "n": 13,
+      "change": "A baseline repeated as the last pass of the session",
+      "what": "Produces no information about any optimization. Its only job is to measure how much the machine itself moved between the first arm and the last.",
+      "effect": "measured",
+      "detail": "+1.85% slower than the identical first pass, on the same three clips with the same seed and no code change. This is the drift correction applied to every arm above, and it is why none of them was kept",
+      "section": "arms",
+      "arm": "arm0b",
+      "roadmap": false
+    },
+    {
+      "n": 14,
+      "change": "The whole branch measured against the unmodified upstream code",
+      "what": "Checks the reverse risk: that the accumulated changes cost something incidental even where each was individually null.",
+      "effect": "measured",
+      "detail": "-0.47% against the adjacent baseline with mixed per-clip signs, and every output inside the noise floor: the branch is performance-neutral",
+      "section": "arms",
+      "arm": "control",
+      "roadmap": false
     }
   ],
   "configurations": [
