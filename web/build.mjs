@@ -91,6 +91,19 @@ const ledger = `<dl class="ledger">${LEDGER.map(([dt, dd, small]) => `
 // --- numbers quoted in prose come out of the generated tables ---------------
 // The repeat spread, read from the generated table so the prose cannot disagree with it.
 // Frame-cache headline figures, read from the generated tables.
+const fsRaw = JSON.parse(readFileSync(join(root, 'results/raw/focal-search.json'), 'utf8'));
+const seqReads = fsRaw.reads.filter((r) => r.path.startsWith('sequential'));
+const focalA = seqReads[0].focal;
+const focalB = seqReads[1].focal;
+const focalDelta = mdCell('results/measured.md', 'What it cost to find, and what the batching is worth', '>mean<', 3);
+const focalStage = (() => {
+  const t = fsRaw.timing;
+  return `${(100 * (t.trackFaceOn - t.trackFaceOff) / t.trackFaceOff).toFixed(1)}%`;
+})();
+const focalErrSpread = (() => {
+  const e = fsRaw.reads.map((r) => r.projError);
+  return `${(100 * (Math.max(...e) - Math.min(...e)) / Math.min(...e)).toFixed(2)}%`;
+})();
 const fcRaw = JSON.parse(readFileSync(join(root, 'results/raw/frame-cache.json'), 'utf8'));
 const seekIdent = fcRaw.seekExactness.identical;
 const seekN = fcRaw.seekExactness.indices;
@@ -323,6 +336,41 @@ ${mdTable('results/measured.md', 'Does it change the output?')}
     statistics did not. <strong>The cache is output-neutral</strong>, and it stays off by
     default anyway: switching it on is a deployment decision wanting a wider validation set,
     which is not the same as wanting more evidence of this kind.
+  </p>
+</div>
+
+<h3>The check that mattered more than the change</h3>
+<p>
+  The pipeline calibrates a camera focal by sweeping 46 candidates and exporting one
+  integer. That integer configures the mesh renderer and feeds every landmark projection,
+  so it fixes the whole 3D tracking geometry for the job. Batching those independent solves
+  is worth ${focalDelta} of the job and cuts the tracking stage ${focalStage}. Verifying that it
+  still picked the same focal is what turned this up.
+</p>
+${mdTable('results/measured.md', 'Four reads, one clip, one seed')}
+<div class="verdict"><b>Two runs of the unmodified code chose ${focalA} and ${focalB}.</b> Same
+code, same seed, same clip. Every projection error across the four reads sits within
+${focalErrSpread} of every other, so the objective is flat and the choice is settled by numerical
+noise rather than by the data. The run with the <em>lowest</em> error was the outlier &mdash;
+a global minimum wandering across a plateau. The batching speedup is real; its equivalence
+is withdrawn, and it now appears there was never a stable selection to preserve.</div>
+<div class="caveat">
+  <span class="caveat-label">Two things worth taking from this</span>
+  <p>
+    <strong>The value was invisible.</strong> Not one line of that module&rsquo;s logging
+    reaches any run log, so no production job could report the focal it chose and nobody
+    could have noticed. One print statement exposed it &mdash; the second time in this work
+    that adding a single log line turned up a real defect, the first being a silent
+    frame-dropping bug on the shipping path.
+  </p>
+  <p>
+    <strong>It suggests a cause for something written off as irreducible.</strong> This work
+    measured that requesting deterministic kernels buys no reproducibility, and concluded
+    the residual lives in libraries outside the framework&rsquo;s control. An
+    ill-conditioned selection amplifying a one-in-ten-million difference into a large change
+    in camera geometry is a better candidate &mdash; and unlike that earlier explanation, it
+    is testable by pinning the focal and re-running. Two draws per path is not enough to
+    characterise how often or how widely this varies, and this is one clip.
   </p>
 </div>
 

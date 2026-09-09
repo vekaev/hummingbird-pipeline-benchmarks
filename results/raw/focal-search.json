@@ -1,0 +1,22 @@
+{
+  "note": "The camera-focal calibration sweep. It evaluates 26 coarse candidates and 20 fine ones, each a fresh 300-iteration solve, and exports one integer focal. That focal configures the mesh renderer and feeds every FLAME landmark projection, so it determines the whole 3D tracking geometry. Every read below is the SAME clip at the SAME seed; the only variable is which code path ran and that it ran twice. The value was unobservable until this work added one print statement: not one line of that module's logging reaches any run log.",
+  "clip": "hdtf01",
+  "reads": [
+    { "run": 1, "path": "sequential (unmodified)", "focal": 2900, "projError": 3.019861698 },
+    { "run": 2, "path": "batched", "focal": 1850, "projError": 3.026734352 },
+    { "run": 3, "path": "sequential (unmodified), repeat", "focal": 1830, "projError": 3.034506559 },
+    { "run": 4, "path": "batched, repeat", "focal": 1810, "projError": 3.030848980 }
+  ],
+  "timing": {
+    "note": "Wall clock of the batching change, measured separately across three clips.",
+    "clips": [
+      { "clip": "hdtf01", "sequential": 387.91, "batched": 355.23 },
+      { "clip": "hdtf02", "sequential": 396.95, "batched": 353.98 },
+      { "clip": "hdtf03", "sequential": 387.56, "batched": 350.39 }
+    ],
+    "trackFaceOff": 137.74,
+    "trackFaceOn": 96.65,
+    "iterationsSequential": 14800,
+    "iterationsBatched": 1600
+  }
+}

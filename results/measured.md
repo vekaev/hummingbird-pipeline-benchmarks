@@ -212,6 +212,76 @@ between two runs of the same configuration with the same seed. Seeding is necess
 a comparable A/B and is demonstrably not sufficient for reproducibility: the residual
 comes from CUDA-level nondeterminism outside the seeded generators.
 
+## The camera calibration does not agree with itself
+
+This began as a check on an optimization and ended somewhere more important.
+
+The pipeline calibrates a camera focal by sweeping 46 candidates, each a fresh
+300-iteration solve, and exporting one integer. That integer is not a diagnostic: it
+configures the mesh renderer and feeds every landmark projection, so it determines the
+whole 3D tracking geometry for the job. Batching those 46 independent solves into one
+is worth real time, and checking that it picked the same focal is what exposed this.
+
+### Four reads, one clip, one seed
+
+| Run | Path | Selected focal | Projection error |
+|---:|---|---:|---:|
+| 1 | **sequential (unmodified)** | **2900** | 3.019861698 |
+| 2 | batched | 1850 | 3.026734352 |
+| 3 | **sequential (unmodified), repeat** | **1830** | 3.034506559 |
+| 4 | batched, repeat | 1810 | 3.030848980 |
+
+**The two runs of the unmodified path chose 2900 and 1830** — same code, same
+seed, same clip, a difference of 1070, or
+58.47 % of the smaller value.
+
+And every projection error sits within **0.48 %** of every other. The
+objective is flat across most of the search range, so the choice is settled by
+numerical noise rather than by the data — and the pipeline reproduces zero of 751
+frames at a fixed seed, so there is always noise available to settle it. Note which run
+had the *lowest* error: run 1, the 2900 outlier. It genuinely fit best that
+time. That is what a global minimum wandering across a plateau looks like.
+
+| Path | draws | spread |
+|---|---|---:|
+| sequential | 2900, 1830 | **1070** |
+| batched | 1850, 1810 | **40** |
+
+Two draws each is far too few to claim the batched path is *more* stable, and that is
+not claimed here. What the four reads establish is that **neither path is
+reproducible**, and that the unmodified one has the wider spread of the two.
+
+### What it cost to find, and what the batching is worth
+
+| Clip | sequential (s) | batched (s) | delta |
+|---|---:|---:|---:|
+| hdtf01 | 387.91 | 355.23 | **-8.42 %** |
+| hdtf02 | 396.95 | 353.98 | **-10.83 %** |
+| hdtf03 | 387.56 | 350.39 | **-9.59 %** |
+| **mean** | **390.81** | **353.20** | **-9.61 %** |
+
+The tracking stage falls 137.74 s to 96.65 s,
+-29.83 %, as 14,800
+sequential iterations become 1,600. The speedup is real.
+**Its equivalence is withdrawn**: the per-candidate losses are bit-identical, the
+selection is not preserved, and it now appears there was never a stable selection to
+preserve.
+
+### Two things worth taking from this
+
+**The value was invisible.** Not one line of that module’s logging reaches any run
+log, so no production job could report the focal it chose, and nobody could have
+noticed this. One print statement exposed it. That is the second time in this work that
+adding a single log line turned up a real defect — the first was a silent frame-dropping
+bug on the shipping path.
+
+**It suggests a cause for something written off as irreducible.** This work measured
+that requesting deterministic kernels buys no reproducibility and concluded the residual
+lives in libraries outside the framework’s control. An ill-conditioned selection
+amplifying a one-in-ten-million numerical difference into a large change in camera
+geometry is a better candidate, and unlike the earlier explanation it is testable by
+pinning the focal and re-running.
+
 ## The change that was not null: caching decoded frames
 
 Every optimization above returned null. This one did not, and it is worth more than

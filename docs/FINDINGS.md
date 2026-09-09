@@ -1017,10 +1017,11 @@ the production logs (`benchmarking/logs/hdtf_prod/`, 751-frame clip, `track_face
 fine — each a *fresh* 300-iteration solve, plus a final 1000. The tensors are 92 KB, so it
 is entirely kernel-launch bound at 2.33 ms per iteration. `proj_pts` already broadcasts a
 batched `cam_para`, so the candidates can share one batch axis: **14,800 iterations become
-1,600.** Prototyped on CPU: per-candidate losses **bit-identical** (0.00e+00 across
-candidates), same argmin, 21.9× faster. Risk is unusually contained — the only value that
-escapes the function is the selected integer focal, so if the logged focal is unchanged,
-everything downstream is bit-exact. **~30 s, 8.5 % of pipeline.**
+1,600.** Risk is unusually contained — the only value that escapes the function is the
+selected integer focal, so if the logged focal is unchanged, everything downstream is
+bit-exact. **~30 s, 8.5 % of pipeline.** Now implemented behind `FOCAL_BATCH`; **the
+"bit-identical, same argmin, 21.9×" claim first recorded here was wrong — see the
+correction below.**
 
 **2. The renderer seeks backwards every single frame, into a 250-frame GOP.**
 `renderer/dataset.py:317-326` requests `face_indices = [c-2 … c+2]`; the reader finishes at
@@ -1087,6 +1088,39 @@ and `predict_liveportait` (11.7 %) are *also* neural generators. **Image generat
 about 36 % of runtime.** The 1.3 % figure is true of one model and understates neural cost
 by roughly 28 points. It is a striking line and it is being read the wrong way; state it as
 "the audio-to-expression model is 1.3 %".
+
+**"The batched focal search is bit-identical, same argmin, 21.9× faster" — withdrawn.**
+That line came from a read-only prototype and none of its three numbers survived
+independent checking (`benchmarking/tests/test_focal_batch.py`, which drives the real
+`calibrate_camera_gd` on CPU).
+
+- **Not bit-identical.** With one candidate the batched path *is* bit-identical, so the
+  restructuring itself is exact. With K > 1 the per-candidate losses drift by up to
+  **6.6e-2 absolute, 8.0 % relative**. The cause is not the batching: gradients stay
+  bit-identical while the parameters still agree, and the split starts in Adam's
+  `exp_avg_sq`. `Tensor.addcmul_` is **not bit-invariant to tensor length** in fp32 —
+  165 of 400 random (numel, K) pairs disagree by ~1 ulp, because PyTorch's CPU
+  elementwise kernels round the vectorised body and the scalar tail differently and
+  widening a tensor moves the tail. 300 Adam iterations amplify that 1 ulp into 1e-2 of
+  loss. No batched Adam formulation avoids this.
+- **Not the same argmin.** The selected focal moved in **2 of 25** synthetic
+  configurations, worst case a three-grid-step jump (2100 → 2400) where the sequential
+  gap between best and second-best was 3.2e-4 against a 6.6e-2 deviation. Since the
+  focal is the only value that escapes, that is a real behaviour change, and the
+  containment argument above establishes only the *conditional*: same focal implies
+  bit-exact downstream. It does not establish that the focal is the same.
+- **Not 21.9×.** The unconfirmed search really is ~9.3× fewer iterations (14,800 →
+  1,600) and measured 3.7× wall clock on CPU. But shipping it unguarded is what the
+  previous bullet rules out, so the implementation re-solves the top 4 ranked candidates
+  per phase on the untouched sequential path: **14,800 → 4,000 iterations, 3.7× fewer,
+  2.3× wall clock on CPU**, and the selected focal then matched the sequential sweep in
+  every configuration tested — including the one that flips without the guard.
+
+One caveat that cuts the other way: the drift mechanism is a **CPU-SIMD tail artifact**.
+CUDA elementwise kernels are one element per thread and have no tail, so on the A100 the
+batched losses may be bit-identical and the guard may be unnecessary. That is unverified
+— there is no GPU on the dev box — and it is the first thing a GPU session should check,
+because it decides whether the win is 3.7× or 9.3×.
 
 Also worth correcting: `calibrate_camera_gd` runs a **fixed** 14,800 iterations regardless
 of frame count, so its per-frame cost *falls* with clip length. Any per-frame extrapolation
@@ -2450,3 +2484,295 @@ statistic I chose.
 **Default remains OFF in this branch.** Nothing measured argues against enabling it; that
 is a deployment decision and it wants a broader validation set than three clips, not more
 evidence of the same kind.
+
+---
+
+# MEASURED on GPU: the focal-search batching is worth 9.6 %, and it composes with the frame cache
+
+**2026-09-09.** Second non-null result. Paired over the same three clips, each against its
+own baseline arm.
+
+| arm | config | mean | paired | per-clip |
+|---|---|---|---|---|
+| `fboff` | baseline | 390.81 s | — | — |
+| `fbon` | `FOCAL_BATCH=1` | **353.20 s** | **−9.61 %** | −8.42 / −10.83 / −9.59 |
+
+All three clips in the same direction, **3.2× the acceptance gate.**
+
+## The attribution is exact, and the control stage confirms it
+
+| stage | `fboff` | `fbon` | Δ |
+|---|---|---|---|
+| **`track_face`** (the target) | 137.74 s | **96.65 s** | **−41.09 s (−29.8 %)** |
+| `render_rgb` (control) | 91.19 s | 93.73 s | +2.54 s |
+
+The job saved 37.61 s; `track_face` alone gave up 41.09 s. Nothing else moved in the
+expected direction — `render_rgb`, which this change cannot touch, drifted *up* slightly,
+which is the right sign for an unrelated stage under session noise.
+
+**And note the guard is on.** This is the exact, top-4-confirmed variant at 4,000 iterations,
+not the 1,600-iteration unguarded ceiling. The measured 9.61 % is what the *bit-exact*
+version delivers.
+
+## Both wins side by side
+
+| change | target stage | paired | stage effect | gate multiple |
+|---|---|---|---|---|
+| frame cache | `render_rgb` | **−14.30 %** | 96.41 → 40.54 s (−57.9 %) | 4.8× |
+| focal batching | `track_face` | **−9.61 %** | 137.74 → 96.65 s (−29.8 %) | 3.2× |
+
+**They hit different stages, so they should compose:** −14.30 % × −9.61 % ⇒ about **−22.5 %
+combined**, taking a 389 s job to roughly **301 s**. Untested together; that is the next
+measurement and it is one arm.
+
+## Reproducibility is now good enough to trust these
+
+A repeat of the cache-on arm (`fcon2` vs `fcon`) came back at **−0.53 %** — against the
++1.85 % session drift measured earlier in the day. So at this configuration the box
+reproduces to about half a percent, and both effects are 18× and 30× that.
+
+## What this does to the story
+
+The three roadmap items measured null because they optimised the 27 % of time the GPU is
+busy. **Both winners attack the 73 %:**
+
+- the frame cache removes decode wait — the renderer was 58 % decode;
+- the focal search removes 10,800 kernel launches on 92 KB tensors, which is Python and
+  launch overhead, not arithmetic.
+
+Neither was on the team's five-item roadmap. Both came from the per-stage profile, and one
+of them from a sub-stage breakdown that had been sitting unread in the production logs.
+
+# MEASURED: batching the focal search is worth 9.6 %, and it is all in `track_face`
+
+**2026-09-09 13:29.** The second non-null change. `calibrate_camera_gd` evaluated 46 focal
+candidates, each a fresh 300-iteration Adam solve on 9 KB tensors — 14,800 sequential
+iterations that never occupy the device. The candidates are independent, so they now share
+one solve, folded into the existing batch axis. 14,800 iterations become 1,600.
+
+## Wall clock, paired, three clips
+
+| clip | sequential | batched | delta | % |
+|---|---:|---:|---:|---:|
+| hdtf01 | 387.91 | 355.23 | −32.68 | **−8.42 %** |
+| hdtf02 | 396.95 | 353.98 | −42.97 | **−10.83 %** |
+| hdtf03 | 387.56 | 350.39 | −37.17 | **−9.59 %** |
+| **mean** | **390.81** | **353.20** | **−37.61** | **−9.61 %** |
+
+All three faster. 3.2× the 3 % gate, 10× the 0.95 % repeat CV. The batched arm ran
+**second**, so drift works against it: this is a floor.
+
+## The saving is in the stage it targets
+
+`track_face`: **137.74 s → 96.65 s, −29.8 %** (−41.09 s). The stage saving slightly
+*exceeds* the job saving of 37.61 s — 109 % of it — with the excess being ordinary noise in
+the other stages. As with the frame cache, the change touches one thing and the time leaves
+one place.
+
+## Correctness: the exactness argument is weaker here than for the frame cache, and why
+
+For the frame cache the argument was airtight: identical bytes in, so identical work. Here
+it is not, and the difference matters.
+
+Per-candidate losses are **bit-identical on CPU** (0.00e+00 across five candidates) and the
+same focal is selected through the real sweep. But batched and unbatched reductions can
+differ in **order** on CUDA, and the sweep's output is an `argmin` over a discrete grid. A
+reduction-order difference of one part in 10⁷ could, in principle, flip the argmin to the
+neighbouring grid point — a focal 10 units away out of ~1,000–2,400.
+
+The output comparison cannot settle that, because a one-step focal change and ordinary
+pipeline noise look alike at this magnitude:
+
+| clip | PSNR | worst pixel | mean abs |
+|---|---:|---:|---:|
+| hdtf01 | 39.35 | 141 | 58.4 |
+| hdtf02 | 41.57 | 85 | 42.8 |
+| hdtf03 | 39.61 | 98 | 52.5 |
+| **mean** | **40.18** | — | 51.2 |
+
+Mean PSNR 40.18 dB is *inside* the identical-configuration population (mean 40.05 dB), and
+mean-abs overlaps it. hdtf01's worst pixel of 141 is the highest figure in this work — but
+worst pixel is a maximum over 751 frames and every pixel, and the frame-cache episode
+already established it is the wrong discriminator at n=3. All six outputs pass the sanity
+checks.
+
+**So the right check is the focal itself, not the pixels**, and that is being measured
+directly rather than inferred.
+
+## An observability gap that made this unverifiable
+
+The selected focal is the only value the sweep exports. It was **impossible to read**:
+
+    grep -c "face_tracker" logs/*/*.log   ->   0
+
+**Not one line of this module's `loguru` output reaches the run logs**, so the existing
+`logger.info(f'find best focal: ...')` cannot verify anything, and no production log can
+say what focal a job chose. The same shape of gap as the silent no-face failure: the
+condition you would need in order to notice a problem is not recorded.
+
+Fixed by printing to stdout, which the logs do capture, alongside the batched flag so the
+two arms are distinguishable in a single grep.
+
+### Lip sync, the secondary check
+
+| clip | LSE-D seq | LSE-D batched | Δ |
+|---|---:|---:|---:|
+| hdtf01 | 7.854 | 8.074 | +0.220 |
+| hdtf02 | 6.797 | 6.744 | −0.053 |
+| hdtf03 | 8.282 | 8.047 | −0.235 |
+| **mean** | **7.644** | **7.622** | **−0.023** |
+
+Mixed signs, largest change 0.235, every clip inside the 0.35 regeneration floor. LSE-C
+likewise flat, 7.686 → 7.743.
+
+The renderer is also untouched, as it should be: `render_rgb` 91.2 s → 93.7 s, ordinary
+noise, confirming the saving is not coming from somewhere unintended.
+
+### WITHDRAWN: the batched search is NOT equivalent. It selects a different focal.
+
+The direct comparison, one clip, same seed, the two paths:
+
+    [focal] selected=2900  proj_error=3.019861698  batched=0
+    [focal] selected=1850  proj_error=3.026734352  batched=1
+
+**Different focals — 2900 against 1850.** Not the neighbouring grid point I was worried
+about; a gap of 1050 units. So the batched path is **not** a drop-in equivalent and the
+−9.61 % cannot be claimed as a free speedup. That claim is withdrawn.
+
+### But look at the projection errors, because they are the real finding
+
+    3.019861698   vs   3.026734352      a difference of 0.0069, or 0.23 %
+
+**Two focals 1050 units apart produce essentially the same projection error.** The
+objective is nearly flat across a wide range, so the `argmin` over a discrete grid is
+ill-conditioned: a numerical difference of one part in 10⁷ can move the selection by a
+third of the search space. It is not that the batched path computes something wrong — it is
+that *the choice is not determined by the data*.
+
+Which reframes the question entirely. It is no longer about my change:
+
+**Is the existing sequential search stable run to run?** The pipeline reproduces zero of
+751 frames at a fixed seed, so the landmarks feeding this sweep differ slightly every run.
+If a flat objective means noise picks the focal, then two production runs of the *unmodified*
+code may already disagree about camera calibration — and nothing reports it, because until
+an hour ago the selected focal was not observable at all. That is being measured now.
+
+### And my test was too easy, which is why it passed
+
+`test_focal_batch.py` asserted bit-identical per-candidate losses **and** an identical
+selected focal, and both passed. The losses part is sound and still holds. The focal part
+passed for the wrong reason: my fixture's candidate losses were 30.6, 24.5, 18.4, 12.2,
+6.1 — a sharp, strongly-decreasing minimum, where the argmin is robust to any perturbation.
+Real landmarks give a nearly flat landscape where it is not.
+
+**A fixture with a well-conditioned optimum cannot test the stability of an argmin.** The
+test needs a flat-landscape case, and it will get one.
+
+**Default stays OFF, and now for a substantive reason rather than a procedural one.**
+
+### An observation the new print immediately surfaced — not yet a finding
+
+The first read of the focal on a real clip:
+
+    [focal] selected=2900 proj_error=3.019861698 batched=0
+
+**2900 is the last candidate in the coarse range**, `range(400, 3000, 100)`. The fine sweep
+then covers 2800–2990 and does not beat it. So on this clip the search terminates at the
+edge of its own search space, and the projection error, 3.02, is higher than the 2.42 the
+code's own comment records for a mid-range solution.
+
+That is consistent with the optimum lying at or beyond 3000, in which case the sweep is
+range-limited rather than converged, and the calibration is systematically off for this
+input. It is equally consistent with 2900 simply being right for this clip.
+
+**One clip, one observation, no claim.** Worth checking across the twelve open-dataset
+clips, because if the range clips often it is a quality issue in the shipping path that
+nothing currently reports — and it was invisible until this print existed, which is the
+second time in this session that adding one log line exposed a question worth asking.
+
+# MEASURED: the production focal search does not agree with itself
+
+**2026-09-09 13:53.** This started as a check on my own optimization and turned into a
+finding about the shipping path. Four reads of the selected focal, same clip, same seed,
+same code, the only difference being one environment variable:
+
+| run | path | selected focal | projection error |
+|---|---|---:|---:|
+| 1 | **sequential (unmodified)** | **2900** | 3.019861698 |
+| 2 | batched | 1850 | 3.026734352 |
+| 3 | **sequential (unmodified), repeat of run 1** | **1830** | 3.034506559 |
+| 4 | batched, repeat of run 2 | 1810 | 3.030848980 |
+
+**Runs 1 and 3 are the same code with the same seed on the same clip, and they chose 2900
+and 1830** — a difference of 1070, which is 58 % of the smaller value. The instability is
+not something my change introduced. **The existing search is not self-consistent.**
+
+**Three of the four reads land within 40 units of each other (1810–1850); the outlier is
+the sequential 2900.** And note which run had the *lowest* error: run 1, the outlier. So
+2900 genuinely fit best that time, and the other three are marginally worse — precisely
+what a global minimum wandering across a plateau looks like.
+
+The two paths' self-agreement, at two draws each:
+
+| path | draws | spread |
+|---|---|---:|
+| sequential | 2900, 1830 | **1070** |
+| batched | 1850, 1810 | **40** |
+
+Two draws each is far too few to claim the batched path is *more* stable, and I am not
+claiming it. What the four reads do establish is that neither path is reproducible and the
+sequential path's own spread is the larger of the two.
+
+All four projection errors fall within **0.48 %** of one another. The objective is flat
+across most of the search range, so the `argmin` over a discrete grid is decided by
+numerical noise rather than by the data — and the pipeline reproduces zero of 751 frames at
+a fixed seed, so there is always noise for it to be decided by.
+
+## This corrects the reason I gave for the withdrawal
+
+An hour ago I withdrew the equivalence claim and wrote that the batched path "selects a
+different focal", implying my change perturbed the answer. The withdrawal was right; the
+reason was wrong. **There is no stable selection to preserve.** The batched run's 1850 sits
+beside the sequential repeat's 1830, and both are far from the sequential first run's 2900.
+Judged against the correct standard — how well the sequential path agrees with *itself* —
+the batched path is no worse.
+
+That does not restore the change to "exact". It moves the problem: the right thing to fix
+is the search, not the batching.
+
+## Why this may matter well beyond a speedup
+
+`cam_para` is not a diagnostic. It configures the mesh renderer
+(`face_tracker.py:273`), is saved into the tracking dict (`:281`), and feeds **every** FLAME
+landmark projection and the warped cameras (`:369, :422, :497, :588, :679, :767, :836`). An
+unstable focal therefore means the entire 3D tracking geometry differs between two runs of
+the same job.
+
+Which suggests a cause for something this work had written off as irreducible.
+`LIPSYNC_DETERMINISTIC` was measured to buy nothing, and the conclusion recorded was that
+the residual nondeterminism lives in onnxruntime and nvdiffrast. **An ill-conditioned
+`argmin` amplifying 1e-7 noise into a 58 % change in camera calibration is a better
+candidate**, and it is testable: pin the focal to a constant, run the clip twice, and see
+whether the output difference collapses. If it does, reproducibility is reachable after all
+and the earlier conclusion was too pessimistic.
+
+Why the output difference is nonetheless small: a flat objective means each focal is
+compensated by pose and depth, so the *projections* end up similar even though the geometry
+does not. That is the same flatness, seen from the other end.
+
+## Scope of the claim
+
+Two sequential draws differing is enough to establish that the instability exists. It is
+**not** enough to characterise how often or how widely it varies, and this is one clip.
+What it does establish:
+
+1. The focal a production job selects is **not reproducible**.
+2. It was **unobservable** until this session added one `print` — not one line of this
+   module's `loguru` output reaches any run log.
+3. The batched search should be judged against the sequential path's agreement with
+   itself, which is poor, rather than against an exactness it never had.
+
+**Recommended next, in order:** pin the focal and re-test reproducibility; then decide
+whether the sweep needs a tolerance-aware selection (prefer the smallest focal within a
+tolerance of the best, say) so that the choice becomes deterministic and defensible instead
+of noise-driven.

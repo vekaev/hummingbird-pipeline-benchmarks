@@ -280,6 +280,85 @@ if (diff) {
   }
 }
 
+// ---------------------------------------------------------------- focal search
+{
+  const fs = raw('focal-search');
+  const t = fs.timing;
+  const pct = (a, b) => 100 * (a - b) / b;
+  const clipD = t.clips.map((c) => pct(c.batched, c.sequential));
+  const meanSeq = mean(t.clips.map((c) => c.sequential));
+  const meanBat = mean(t.clips.map((c) => c.batched));
+  const focals = fs.reads.map((r) => r.focal);
+  const errs = fs.reads.map((r) => r.projError);
+  const errSpread = 100 * (Math.max(...errs) - Math.min(...errs)) / Math.min(...errs);
+  const seqF = fs.reads.filter((r) => r.path.startsWith('sequential')).map((r) => r.focal);
+  const batF = fs.reads.filter((r) => r.path.startsWith('batched')).map((r) => r.focal);
+
+  P('## The camera calibration does not agree with itself\n');
+  P('This began as a check on an optimization and ended somewhere more important.\n');
+  P('The pipeline calibrates a camera focal by sweeping 46 candidates, each a fresh');
+  P('300-iteration solve, and exporting one integer. That integer is not a diagnostic: it');
+  P('configures the mesh renderer and feeds every landmark projection, so it determines the');
+  P('whole 3D tracking geometry for the job. Batching those 46 independent solves into one');
+  P('is worth real time, and checking that it picked the same focal is what exposed this.\n');
+
+  P('### Four reads, one clip, one seed\n');
+  P('| Run | Path | Selected focal | Projection error |');
+  P('|---:|---|---:|---:|');
+  for (const r of fs.reads) {
+    const em = r.path.startsWith('sequential');
+    P(`| ${r.run} | ${em ? '**' + r.path + '**' : r.path} | ${em ? '**' + r.focal + '**' : r.focal} `
+      + `| ${r.projError.toFixed(9)} |`);
+  }
+  P('');
+  P(`**The two runs of the unmodified path chose ${seqF[0]} and ${seqF[1]}** — same code, same`);
+  P(`seed, same clip, a difference of ${Math.abs(seqF[0] - seqF[1])}, or`);
+  P(`${fmt(100 * Math.abs(seqF[0] - seqF[1]) / Math.min(...seqF))} % of the smaller value.\n`);
+  P(`And every projection error sits within **${fmt(errSpread)} %** of every other. The`);
+  P('objective is flat across most of the search range, so the choice is settled by');
+  P('numerical noise rather than by the data — and the pipeline reproduces zero of 751');
+  P('frames at a fixed seed, so there is always noise available to settle it. Note which run');
+  P(`had the *lowest* error: run 1, the ${Math.max(...focals)} outlier. It genuinely fit best that`);
+  P('time. That is what a global minimum wandering across a plateau looks like.\n');
+
+  P('| Path | draws | spread |');
+  P('|---|---|---:|');
+  P(`| sequential | ${seqF.join(', ')} | **${Math.abs(seqF[0] - seqF[1])}** |`);
+  P(`| batched | ${batF.join(', ')} | **${Math.abs(batF[0] - batF[1])}** |`);
+  P('');
+  P('Two draws each is far too few to claim the batched path is *more* stable, and that is');
+  P('not claimed here. What the four reads establish is that **neither path is');
+  P('reproducible**, and that the unmodified one has the wider spread of the two.\n');
+
+  P('### What it cost to find, and what the batching is worth\n');
+  P('| Clip | sequential (s) | batched (s) | delta |');
+  P('|---|---:|---:|---:|');
+  t.clips.forEach((c, i) => {
+    P(`| ${c.clip} | ${fmt(c.sequential)} | ${fmt(c.batched)} | **${signed(clipD[i])} %** |`);
+  });
+  P(`| **mean** | **${fmt(meanSeq)}** | **${fmt(meanBat)}** | **${signed(mean(clipD))} %** |`);
+  P('');
+  P(`The tracking stage falls ${fmt(t.trackFaceOff)} s to ${fmt(t.trackFaceOn)} s,`);
+  P(`${signed(pct(t.trackFaceOn, t.trackFaceOff))} %, as ${t.iterationsSequential.toLocaleString()}`);
+  P(`sequential iterations become ${t.iterationsBatched.toLocaleString()}. The speedup is real.`);
+  P('**Its equivalence is withdrawn**: the per-candidate losses are bit-identical, the');
+  P('selection is not preserved, and it now appears there was never a stable selection to');
+  P('preserve.\n');
+
+  P('### Two things worth taking from this\n');
+  P('**The value was invisible.** Not one line of that module\u2019s logging reaches any run');
+  P('log, so no production job could report the focal it chose, and nobody could have');
+  P('noticed this. One print statement exposed it. That is the second time in this work that');
+  P('adding a single log line turned up a real defect — the first was a silent frame-dropping');
+  P('bug on the shipping path.\n');
+  P('**It suggests a cause for something written off as irreducible.** This work measured');
+  P('that requesting deterministic kernels buys no reproducibility and concluded the residual');
+  P('lives in libraries outside the framework\u2019s control. An ill-conditioned selection');
+  P('amplifying a one-in-ten-million numerical difference into a large change in camera');
+  P('geometry is a better candidate, and unlike the earlier explanation it is testable by');
+  P('pinning the focal and re-running.\n');
+}
+
 // ---------------------------------------------------------------- frame cache
 {
   const fc = raw('frame-cache');

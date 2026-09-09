@@ -182,7 +182,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
   <h2>What was done</h2>
 
 <p>
-  Twelve changes, in the order they were made. 16 carry a measured effect;
+  Twelve changes, in the order they were made. 18 carry a measured effect;
   the rest are implemented and instrumented with no number yet, and say so. Nothing here is
   credited with an estimate.
 </p>
@@ -204,7 +204,8 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
 <tr><td class="n">15</td><td>Deterministic kernels behind a second flag</td><td>Asks torch for deterministic algorithms and a fixed cuBLAS workspace on top of the reseed, to test whether the pipeline can reproduce its own output exactly. Run as two independent pairs.</td><td>0 of 751 frames identical in BOTH pairs, and an 11% to 13% wall clock cost: the floor does not move, so the flag stays off. The nondeterminism sits outside torch, which is what decides the cache design</td></tr>
 <tr><td class="n">16</td><td>A third baseline, with the accumulated output cleared first</td><td>Tests whether the session drift has an avoidable cause. The pipeline writes eighteen intermediate videos per job into one directory, which had reached 20 GB. Free space was ruled out first: the volume stayed 39 % full.</td><td>Recovered 0.91 of the 1.85 points of drift, consistent in sign across all three clips. About the size of the 0.95% repeat CV, so it is grounds for clearing the directory between arms, not a result</td></tr>
 <tr><td class="n">17</td><td>Cache the last few decoded frames in the renderer’s reader</td><td>Not a roadmap item; it came out of the mechanism the three null arms exposed. The reader had one fast path, the next frame in sequence, while the renderer asks for five frames around each position — so every item opened with a one-frame backward step that re-decoded from the previous keyframe.</td><td>-14.30% and -14.76% across two independent passes 0.53% apart, all clips same direction. The neural render falls 57.9% and accounts for the whole job saving. Output-neutral on every robust statistic; still default off pending a wider validation set</td></tr>
-<tr><td class="n">18</td><td>Batch the focal-length search into one solve</td><td>The camera calibration evaluates 46 focal candidates, each a fresh 300-iteration solve on 9 KB tensors, so 14,800 iterations run one after another and never occupy the device. The candidates are independent, so they now share one solve.</td><td><strong>not measured</strong> — Implemented and verified exact — per-candidate losses bit-identical to the sequential function and the same focal selected — but its wall-clock effect has not been measured on the GPU. 14,800 iterations become 1,600</td></tr>
+<tr><td class="n">18</td><td>Batch the focal-length search into one solve</td><td>The camera calibration evaluates 46 focal candidates, each a fresh 300-iteration solve on 9 KB tensors, so 14,800 iterations run one after another and never occupy the device. The candidates are independent, so they now share one solve.</td><td>-9.61% paired across three clips, all faster, and the tracking stage falls 29.8%. But the equivalence claim is WITHDRAWN: it selects a different focal on real data. The per-candidate losses are bit-identical; the selection is not preserved</td></tr>
+<tr><td class="n">19</td><td>Made the selected camera focal observable</td><td>The focal is the only value the calibration sweep exports, and not one line of that module’s logging reached any run log, so no job could report what focal it chose. One print, to the stream the logs already capture.</td><td>It immediately showed that the sweep is not reproducible: four reads on ONE clip at ONE seed gave 2900, 1850, 1830, 1810, with all four projection errors inside 0.48% of each other. Two of those were the unmodified sequential path, at 2900 and 1830</td></tr>
 </tbody></table></div>
 <div class="verdict"><b>Net effect on the shipping system:</b> the build works again, and no
 optimization was kept. Both measurable roadmap items were rejected on their own numbers.</div>
@@ -619,6 +620,46 @@ where the time was going.</div>
     statistics did not. <strong>The cache is output-neutral</strong>, and it stays off by
     default anyway: switching it on is a deployment decision wanting a wider validation set,
     which is not the same as wanting more evidence of this kind.
+  </p>
+</div>
+
+<h3>The check that mattered more than the change</h3>
+<p>
+  The pipeline calibrates a camera focal by sweeping 46 candidates and exporting one
+  integer. That integer configures the mesh renderer and feeds every landmark projection,
+  so it fixes the whole 3D tracking geometry for the job. Batching those independent solves
+  is worth -9.61 % of the job and cuts the tracking stage -29.8%. Verifying that it
+  still picked the same focal is what turned this up.
+</p>
+<div class="tw"><table><thead><tr><th class="n">Run</th><th>Path</th><th class="n">Selected focal</th><th class="n">Projection error</th></tr></thead><tbody>
+<tr><td class="n">1</td><td><strong>sequential (unmodified)</strong></td><td class="n"><strong>2900</strong></td><td class="n">3.019861698</td></tr>
+<tr><td class="n">2</td><td>batched</td><td class="n">1850</td><td class="n">3.026734352</td></tr>
+<tr><td class="n">3</td><td><strong>sequential (unmodified), repeat</strong></td><td class="n"><strong>1830</strong></td><td class="n">3.034506559</td></tr>
+<tr><td class="n">4</td><td>batched, repeat</td><td class="n">1810</td><td class="n">3.030848980</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Two runs of the unmodified code chose 2900 and 1830.</b> Same
+code, same seed, same clip. Every projection error across the four reads sits within
+0.48% of every other, so the objective is flat and the choice is settled by numerical
+noise rather than by the data. The run with the <em>lowest</em> error was the outlier &mdash;
+a global minimum wandering across a plateau. The batching speedup is real; its equivalence
+is withdrawn, and it now appears there was never a stable selection to preserve.</div>
+<div class="caveat">
+  <span class="caveat-label">Two things worth taking from this</span>
+  <p>
+    <strong>The value was invisible.</strong> Not one line of that module&rsquo;s logging
+    reaches any run log, so no production job could report the focal it chose and nobody
+    could have noticed. One print statement exposed it &mdash; the second time in this work
+    that adding a single log line turned up a real defect, the first being a silent
+    frame-dropping bug on the shipping path.
+  </p>
+  <p>
+    <strong>It suggests a cause for something written off as irreducible.</strong> This work
+    measured that requesting deterministic kernels buys no reproducibility, and concluded
+    the residual lives in libraries outside the framework&rsquo;s control. An
+    ill-conditioned selection amplifying a one-in-ten-million difference into a large change
+    in camera geometry is a better candidate &mdash; and unlike that earlier explanation, it
+    is testable by pinning the focal and re-running. Two draws per path is not enough to
+    characterise how often or how widely this varies, and this is one clip.
   </p>
 </div>
 

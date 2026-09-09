@@ -6,8 +6,8 @@ per-stage number in the configuration table is recomputed from `results/raw/`.
 ## Changes made
 
 In the order they were made. A change is only credited with an effect when a
-measurement exists for it; the two marked "not measured" are implemented and
-instrumented but have no number yet, and the reason is given.
+measurement exists for it; the one marked "not measured" is implemented and
+instrumented but has no number yet, and the reason is given.
 
 | # | Change | What it does | Effect |
 |---:|---|---|---|
@@ -28,7 +28,8 @@ instrumented but have no number yet, and the reason is given.
 | 15 | Deterministic kernels behind a second flag | Asks torch for deterministic algorithms and a fixed cuBLAS workspace on top of the reseed, to test whether the pipeline can reproduce its own output exactly. Run as two independent pairs. | 0 of 751 frames identical in BOTH pairs, and an 11% to 13% wall clock cost: the floor does not move, so the flag stays off. The nondeterminism sits outside torch, which is what decides the cache design |
 | 16 | A third baseline, with the accumulated output cleared first | Tests whether the session drift has an avoidable cause. The pipeline writes eighteen intermediate videos per job into one directory, which had reached 20 GB. Free space was ruled out first: the volume stayed 39 % full. | Recovered 0.91 of the 1.85 points of drift, consistent in sign across all three clips. About the size of the 0.95% repeat CV, so it is grounds for clearing the directory between arms, not a result |
 | 17 | Cache the last few decoded frames in the renderer’s reader | Not a roadmap item; it came out of the mechanism the three null arms exposed. The reader had one fast path, the next frame in sequence, while the renderer asks for five frames around each position — so every item opened with a one-frame backward step that re-decoded from the previous keyframe. | -14.30% and -14.76% across two independent passes 0.53% apart, all clips same direction. The neural render falls 57.9% and accounts for the whole job saving. Output-neutral on every robust statistic; still default off pending a wider validation set |
-| 18 | Batch the focal-length search into one solve | The camera calibration evaluates 46 focal candidates, each a fresh 300-iteration solve on 9 KB tensors, so 14,800 iterations run one after another and never occupy the device. The candidates are independent, so they now share one solve. | **not measured** — Implemented and verified exact — per-candidate losses bit-identical to the sequential function and the same focal selected — but its wall-clock effect has not been measured on the GPU. 14,800 iterations become 1,600 |
+| 18 | Batch the focal-length search into one solve | The camera calibration evaluates 46 focal candidates, each a fresh 300-iteration solve on 9 KB tensors, so 14,800 iterations run one after another and never occupy the device. The candidates are independent, so they now share one solve. | -9.61% paired across three clips, all faster, and the tracking stage falls 29.8%. But the equivalence claim is WITHDRAWN: it selects a different focal on real data. The per-candidate losses are bit-identical; the selection is not preserved |
+| 19 | Made the selected camera focal observable | The focal is the only value the calibration sweep exports, and not one line of that module’s logging reached any run log, so no job could report what focal it chose. One print, to the stream the logs already capture. | It immediately showed that the sweep is not reproducible: four reads on ONE clip at ONE seed gave 2900, 1850, 1830, 1810, with all four projection errors inside 0.48% of each other. Two of those were the unmodified sequential path, at 2900 and 1830 |
 
 ## Per-stage timing by configuration
 
