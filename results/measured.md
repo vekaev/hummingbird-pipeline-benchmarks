@@ -606,6 +606,41 @@ changes rather than a single lever, which is a different piece of work to plan.
 
 Now measured rather than guessed. The two untouched optimization loops are the compute target, at about 18 seconds each, and the leftover I/O is larger than either of them. The one prior success in this stage came from restructuring a loop of exactly this kind, for a 9 % job-level saving, so the pattern is proven -- but it would have to be done twice here for a comparable return, and what is NOT established is that the same lever applies: batched data loading already exists in this phase, so these loops may already run batched, in which case the question is whether their iteration counts are needed at all. That is a convergence question, not a batching one, and it is answerable without a GPU by logging the loss curves.
 
+## Writes that nobody reads
+
+One phase of the face-tracking stage writes two tensor files per frame into a directory named "debug". Their only reader has exactly two call sites, and neither of those functions is called from anywhere in the repository -- verified by parsing the source rather than searching it. So on every path the pipeline takes, these files are written and never read. The phase's outputs that ARE consumed are computed before the per-frame loop, so skipping the loop cannot be observed downstream: bit-exact by construction rather than by tolerance.
+
+| | without | with | change |
+|---|---:|---:|---:|
+| the writing phase | 3.13 s | **0.04 s** | **-98.69 %** |
+| the enclosing phase | 74.74 s | **70.44 s** | **-5.74 %** |
+| the whole stage | 104.49 s | **99.65 s** | **-4.63 %** |
+| tensor files per job | 1505 | **3** | **-1502** |
+| total output per job | 1096 MB | **31 MB** | **-97.17 %** |
+| delivered videos | 14 | 14 | unchanged |
+
+The enclosing phase measured 74.35, 74.42 and 74.74 s across three runs without the change, a spread of 0.4 s, and 70.44 s with it -- roughly four seconds outside that band. The stage-level saving is unambiguous.
+
+### And it still fails the gate
+
+| run | job wall |
+|---|---:|
+| control A | 290.77 s |
+| control B | 292.12 s |
+| control C | 298.16 s |
+| control D | 299.40 s |
+| **treated** | **289.06 s** |
+
+**The 4 runs without the change span 2.97 % on their own.** The treated
+run sits 0.59 % below the fastest of them and
+2.05 % below their mean.
+
+REJECTED on latency. The gate is 3% paired at the JOB level, and at the job level this cannot be resolved: the four runs without the change span 2.97% on their own, and the treated run sits 0.59% below the fastest of them. A single pair cannot separate a roughly 1% job effect from a 3% spread, so comparing the treated run against the slowest control alone -- which would read as clearing the gate -- is a comparison chosen after the fact and is not quoted. Rejected the same way the on-device reduce was at 2.66%, and the gate is not reinterpreted to admit a change that happens to be appealing.
+
+**Why it is recommended anyway.** It is recommended on a different claim, kept deliberately separate from the latency one: it removes 97% of the job's output volume, about 1.07 GB and 1,502 files, with bit-exact output and no measurable speed cost. That is a storage, disk-wear and contention argument, and it matters most in the case the density test exposed -- when several jobs share a machine, an unnecessary gigabyte of writes per job competes for bandwidth that was already the binding resource. The honest one-line form is: frees a gigabyte per job, bit-exact, no measurable speed change.
+
+**Not claimed:** That it speeds anything up. The three seconds the phase gives back are real and measurable at the stage level, but they are about 1% of the job and disappear into run-to-run variance there. Quoting this as a speedup means quoting the stage in place of the job.
+
 ## A change that works and is rejected anyway
 
 The parsing stage reduced a 19-class, 512-square floating-point tensor **on the host,

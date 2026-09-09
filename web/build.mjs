@@ -144,6 +144,13 @@ const ssRaw = JSON.parse(readFileSync(join(root, 'results/raw/stage-split.json')
 const ssBig = ssRaw.phases.reduce((a, b) => (a.seconds > b.seconds ? a : b));
 const ssBigShare = mdCell('results/measured.md', 'What the largest stage is actually doing', `>${ssBig.name}<`, 3);
 const ssStageShare = mdCell('results/measured.md', 'What the largest stage is actually doing', '>the stage<', 3);
+const dwOut = mdCell('results/measured.md', 'Writes that nobody reads', '>total output per job<', 3);
+const dwFiles = mdCell('results/measured.md', 'Writes that nobody reads', '>tensor files per job<', 3);
+const dwPhase = mdCell('results/measured.md', 'Writes that nobody reads', '>the writing phase<', 3);
+const dwRaw = JSON.parse(readFileSync(join(root, 'results/raw/dead-writes.json'), 'utf8'));
+const dwFilesGone = (dwRaw.artifacts.tensorFilesWithout - dwRaw.artifacts.tensorFilesWith).toLocaleString('en-US');
+const dwMbGone = (dwRaw.artifacts.outputMbWithout - dwRaw.artifacts.outputMbWith).toLocaleString('en-US');
+const dwVideos = dwRaw.artifacts.deliveredVideosWith;
 const coFc = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3fc5<', 4);
 const coBoth = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3both<', 4);
 const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
@@ -629,6 +636,42 @@ produced, so the decorators cost nothing measurable.</div>
     other 8% &mdash; so the ratio was wrong by five percentage points. Correcting it
     proportionally would have been wrong in a way that looked right. The control that caught
     all of this was three earlier runs of the same clip, kept for exactly this purpose.
+  </p>
+</div>
+
+<h3>Writes that nobody reads</h3>
+<p>
+  One phase of that stage writes two tensor files per frame into a directory named
+  &ldquo;debug&rdquo;. Their only reader has exactly two call sites, and neither of those
+  functions is called from anywhere in the repository &mdash; established by parsing the
+  source, not searching it. So on every path the pipeline takes, those files are written and
+  never read. The outputs that <em>are</em> consumed are computed before the loop that writes
+  them, so skipping it cannot be observed downstream: bit-exact by construction rather than
+  by tolerance.
+</p>
+${mdTable('results/measured.md', 'Writes that nobody reads')}
+<div class="verdict"><b>${dwFilesGone} fewer files and ${dwMbGone} MB less output per job,
+for the same ${dwVideos} delivered videos</b> &mdash; the writing phase itself drops
+${dwPhase}. And it is <b>rejected on latency anyway</b>; see below.</div>
+${mdTable('results/measured.md', 'And it still fails the gate')}
+<div class="caveat">
+  <span class="caveat-label">Two claims that must not be merged into one</span>
+  <p>
+    The gate is 3% paired at the job level, and at the job level this cannot be resolved:
+    the runs without the change span nearly 3% on their own, and the treated run sits under
+    1% below the fastest of them. Comparing it against the <em>slowest</em> control alone
+    would read as clearing the gate, and that is a comparison chosen after the fact. So it
+    is rejected on latency, the same way the on-device reduce was, and the gate is not
+    reinterpreted to admit a change that happens to be appealing.
+  </p>
+  <p>
+    It is still recommended, on a different basis: it frees roughly a gigabyte per job with
+    bit-exact output and no measurable speed cost. That is a storage, disk-wear and
+    contention argument. It matters most in the case the density test exposed &mdash; when
+    several jobs share a machine, an unnecessary gigabyte of writes competes for the
+    bandwidth that was already the binding resource. The honest one-line form is
+    <em>frees a gigabyte per job, bit-exact, no measurable speed change</em>, and anyone
+    quoting it as a speedup is quoting the stage in place of the job.
   </p>
 </div>
 <div class="caveat">

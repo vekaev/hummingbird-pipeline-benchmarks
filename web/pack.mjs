@@ -160,7 +160,11 @@ const TABLES = [
     note: 'The distribution is the control on the row above. Two stages carry almost all of the saving and nothing else moves much; a change that shifted every stage would indicate a measurement artefact rather than an optimization. Both of those two stages came out of the per-stage profile, and neither appeared on the optimization roadmap.' },
   { id: 'T30', file: 'results/measured.md', heading: 'What the largest stage is actually doing', title: 'Inside the largest stage',
     note: 'The stage that remains largest after every kept change, split into its two phases for the first time. The code had always emitted this split and nothing had ever captured it. Read the caveat on the page with it: the first attempt at this measurement was inflated ~15% by the instrumentation itself, caught by comparing against three earlier uninstrumented runs of the same clip, and the contaminated ratio was discarded rather than rescaled because the inflation was uneven.' },
-  { id: 'T31', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
+  { id: 'T31', file: 'results/measured.md', heading: 'Writes that nobody reads', title: 'Removing writes nobody reads',
+    note: 'Bit-exact by construction: the files removed have no reachable reader, established by parsing the source rather than searching it. Read it together with T32, which is why it is REJECTED on latency despite the stage numbers here. The recommendation rests on output volume, not speed.' },
+  { id: 'T32', file: 'results/measured.md', heading: 'And it still fails the gate', title: 'Why that change fails the gate',
+    note: 'The control runs span nearly 3% among themselves and the treated run sits under 1% below the fastest of them, so a single pair cannot resolve a roughly 1% job effect. Comparing against the slowest control alone would read as clearing the 3% gate; that comparison is chosen after the fact and is not quoted. Included because a rejected change with a clean stage-level effect is the case where the gate does real work.' },
+  { id: 'T33', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
     note: 'What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.' },
 ];
 

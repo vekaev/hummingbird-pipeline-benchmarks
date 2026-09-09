@@ -238,6 +238,16 @@
       "section": "arms",
       "arm": "w1off/w1on",
       "roadmap": false
+    },
+    {
+      "n": 27,
+      "change": "Stopped writing per-frame tensor files that have no reachable reader",
+      "what": "One phase of the face-tracking stage writes two tensor files per frame into a directory named \"debug\". Their only reader has exactly two call sites, and neither of those functions is called from anywhere in the repository -- established by parsing the source rather than searching it, after a first attempt with a text search flagged its own documentation as a call site. The phase's consumed outputs are computed before the loop that writes the files, so skipping it cannot be observed downstream: bit-exact by construction rather than by tolerance. Default off, and the reader now raises if it is ever reached with the flag set, so reviving one of those dead functions fails loudly instead of reading files that were never written.",
+      "effect": "measured",
+      "detail": "REJECTED on latency, and kept anyway on a separate claim. The writing phase drops from 3.125s to 0.041s and the enclosing stage from 104.49s to 99.65s, which is unambiguous -- that phase spanned 0.4s across three runs without the change and lands four seconds outside the band with it. But the gate is 3% at the JOB level and the job level cannot resolve this: four comparable runs without the change span 2.97% among themselves, and the treated run sits 0.59% below the fastest of them. Comparing it against the slowest control alone gives -3.05% and would read as clearing the gate; that comparison is chosen after the fact and is not quoted. What the change does deliver is 1,502 fewer files and 1,065 MB less output per job for the same 14 delivered videos -- a storage and I/O-contention argument rather than a speed one, which matters most in the case the density test exposed. Honest one-line form: frees a gigabyte per job, bit-exact, no measurable speed change",
+      "section": "arms",
+      "arm": "dead1 vs four controls",
+      "roadmap": false
     }
   ],
   "configurations": [

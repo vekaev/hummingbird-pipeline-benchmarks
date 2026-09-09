@@ -1454,10 +1454,21 @@ earlier, and this quantifies it.
    5.40 s and stitch 5.62 s, and split is cheaper in all six runs.
 
 Also found: **`original_geometry_lp.mp4` is produced by `track_face` and read by nothing** —
-its only consumer is commented out at `inference.py:257`. And `track_face` writes **420
-per-frame `.pt` tensors, about 296 MB**, into a directory named "debug" and re-reads them
-unconditionally; those are consumed inside the stage the cache skips, so they never need
-storing.
+its only consumer is commented out at `inference.py:257`. And `track_face` writes **two
+`.pt` tensors per frame** into a directory named "debug"; those are consumed inside the
+stage the cache skips, so they never need storing.
+
+> **CORRECTION, later the same day.** Two things in the original wording were wrong.
+> "420 tensors, about 296 MB" was measured on a shorter clip and left unlabelled; on the
+> 751-frame clip used for every arm in this session it is **1,502 files**, and the job's
+> whole output directory measures **1,096 MB** with them against **25 MB** without.
+> And "re-reads them unconditionally" is **false**: their only reader is
+> `load_data_batch`, whose only two call sites are `optimize_litex` and
+> `optimize_exps_rts`, and **neither function is called from anywhere in the repository**
+> — verified from the AST, not by grep. So on every path the pipeline takes they are
+> written and never read at all, which is a stronger statement than the original and
+> makes skipping them bit-exact by construction. See `FACETRACK_SKIP_DEBUG_TENSORS` and
+> gate 10.
 
 ## Good news on determinism
 
@@ -3908,10 +3919,39 @@ stderr tee rather than decorators in general.
 | the phase | 74.35 | 100 % | |
 
 **The leftover is the largest single item in the phase**, larger than either optimization
-loop. It is I/O: `face_track` reads two videos in via `load_data`, saves its parameters, and
-writes three videos out via `visualize_tracking` -- `original_geometry`,
-`original_geometry_lp` and `original_lower_mask`. **None of those three are among the five
-writes `LIPSYNC_INMEM` eliminates**, so they still happen with it on.
+loop. A second round of instrumentation resolved it, and the phase is now fully accounted
+for -- residual **0.00 s**:
+
+| step | seconds | of the phase | what it is |
+|---|---:|---:|---|
+| **`visualize_tracking`** | **20.86** | **27.9 %** | renders geometry, writes three videos |
+| `optimize_wflw_lms_only` | 18.70 | 25.0 % | optimization loop |
+| `optimize_lms_only` | 17.82 | 23.8 % | optimization loop |
+| `calibrate_camera_gd` | 12.66 | 16.9 % | optimization loop, already optimized here |
+| `preload_batched_data` | 3.13 | 4.2 % | setup |
+| `optimize_wflw_lms_only_eyelids` | 1.57 | 2.1 % | optimization loop |
+| `load_data` | 0.004 | 0.0 % | assigns readers, decodes nothing |
+| **the phase** | **74.74** | **100 %** | |
+
+`face_track` measured 74.42, 74.35 and 74.74 s across three runs carrying different amounts
+of instrumentation, so none of it costs anything measurable.
+
+**CORRECTION to what I wrote an hour ago.** I said this phase "reads two videos in via
+`load_data`". It does not: `load_data` costs **four thousandths of a second**, because it
+assigns lazy readers and decodes nothing. The reads happen inside the optimization loops.
+The leftover was never the input side.
+
+**The largest single step is a write, not a loop.** `visualize_tracking` renders geometry
+meshes and writes `original_geometry`, `original_geometry_lp` and `original_lower_mask`.
+**None of those three is among the five writes `LIPSYNC_INMEM` eliminates**, so they still
+happen with it on.
+
+**What that does and does not license.** It is the obvious next candidate, because
+extending the in-memory path to cover them is the same change that already returned -5.04 %
+for five other writes. But `visualize_tracking` both *renders* and *writes*, and **the split
+between rendering and encoding inside those 20.86 s is not measured** -- so the recoverable
+part is some unknown fraction of 7.2 % of the job, not all of it. Measuring that needs one
+more timer inside the function, not a GPU session. [UNMEASURED]
 
 So inside the biggest compute stage in the pipeline, the biggest sub-item is still I/O. That
 is the **fourth** independent line of evidence for the same conclusion, after the
@@ -3939,3 +3979,72 @@ has stopped moving well before the end. Logging the loss curve per iteration on 
 clip settles whether the fix is early stopping, a lower fixed count, or a genuine
 restructuring. Only the last of those needs a GPU session to evaluate. [UNMEASURED, and
 cheap to resolve]
+
+---
+
+# Skipping writes nobody reads: measured, and it FAILS the gate
+
+**2026-09-09.** `preload_batched_data` writes two `.pt` tensors per frame into a directory
+named "debug". Their only reader is `load_data_batch`, whose only two call sites are
+`optimize_litex` and `optimize_exps_rts` -- and **neither function is called from anywhere
+in the repository**, verified from the AST rather than by grep. `forward_face_track` reaches
+neither. So on every path the pipeline takes, those files are written and never read.
+
+`FACETRACK_SKIP_DEBUG_TENSORS=1` skips the per-frame loop. The function's consumed outputs,
+`warped_cams` and `inv_warp_mats`, are computed *before* it, so nothing downstream can
+observe the difference: bit-exact by construction, not by tolerance.
+
+## What it does
+
+| | without | with | change |
+|---|---:|---:|---:|
+| `preload_batched_data` | 3.125 s | **0.041 s** | **−98.7 %** |
+| `face_track` | 74.736 s | 70.443 s | −5.74 % |
+| `track_face` | 104.486 s | 99.652 s | −4.63 % |
+| `.pt` files per job | 1,505 | **3** | −1,502 |
+| total output per job | 1,096 MB | **31 MB** | **−97 %** |
+| delivered videos | 14 | 14 | unchanged |
+
+The stage-level saving is unambiguous. `face_track` measured 74.35, 74.42 and 74.74 s across
+three runs without the change -- a spread of 0.4 s -- and 70.44 s with it, roughly four
+seconds outside that band.
+
+## And it still FAILS the pre-registered gate
+
+The gate is **≥3 % paired at the JOB level**, and at the job level this cannot be resolved:
+
+| run | hdtf01 job wall |
+|---|---:|
+| w1on | 290.77 s |
+| i1on (3-clip arm) | 292.12 s |
+| split4 | 298.16 s |
+| split3 | 299.40 s |
+| **dead1, with the skip** | **289.06 s** |
+
+**The four runs without the change span 2.97 % on their own.** dead1 is 2.05 % below their
+mean and **0.59 % below the fastest of them**. A single pair cannot separate a ~1.3 % job
+effect from a 2.97 % spread, so the tempting −3.05 % against `split4` alone is **not
+quotable** -- it is a comparison against the slowest control, chosen after the fact.
+
+**Verdict: REJECTED on latency, exactly like the parsing on-device reduce at −2.66 %.** The
+gate was pre-registered and is not being reinterpreted to admit a change I happen to like.
+Left off by default.
+
+## Why it is still worth having, stated as a different claim
+
+It removes **97 % of the job's output volume** -- 1,502 files and about 1.07 GB per job --
+with bit-exact output and no measurable latency cost. That is a storage, disk-wear and
+I/O-contention argument, not a speed one, and it matters most in exactly the case the
+packing test exposed: when several jobs share a machine, an unnecessary gigabyte of writes
+per job competes for the same bandwidth that was already the binding resource.
+
+**So it is recommended on operational grounds and rejected on latency grounds, and those are
+two separate claims that should not be merged into one.** The honest one-line form: *frees a
+gigabyte per job, bit-exact, no measurable speed change.*
+
+## What is NOT claimed
+
+That it speeds anything up. The ~3.1 s the function itself gives back is real and
+measurable at the stage level, but it is about 1.1 % of the job and disappears into
+run-to-run variance there. Anyone quoting this as a speedup is quoting the stage in place of
+the job. [MEASURED, and rejected against the gate]

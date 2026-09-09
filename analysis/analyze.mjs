@@ -752,6 +752,51 @@ if (diff) {
   P(`${ss.nextTarget.note}\n`);
 }
 
+// ------------------------------------------------- writes nobody reads
+{
+  const dw = raw('dead-writes');
+  const pct = (a, b) => 100 * (a - b) / b;
+  const ctl = dw.jobWalls.filter((r) => !r.treated).map((r) => r.wall);
+  const trt = dw.jobWalls.find((r) => r.treated).wall;
+  const ctlMin = Math.min(...ctl);
+  const ctlMax = Math.max(...ctl);
+  const ctlSpread = 100 * (ctlMax - ctlMin) / ctlMin;
+
+  P('## Writes that nobody reads\n');
+  P(`${dw.note}\n`);
+  P('| | without | with | change |');
+  P('|---|---:|---:|---:|');
+  for (const st of dw.stages) {
+    P(`| ${st.name} | ${fmt(st.without, 2)} s | **${fmt(st.with, 2)} s** `
+      + `| **${signed(pct(st.with, st.without))} %** |`);
+  }
+  const a = dw.artifacts;
+  // A file count is an integer; two decimals on it reads as false precision.
+  const dFiles = a.tensorFilesWith - a.tensorFilesWithout;
+  P(`| tensor files per job | ${a.tensorFilesWithout} | **${a.tensorFilesWith}** `
+    + `| **${dFiles > 0 ? '+' : ''}${dFiles}** |`);
+  P(`| total output per job | ${a.outputMbWithout} MB | **${a.outputMbWith} MB** `
+    + `| **${signed(pct(a.outputMbWith, a.outputMbWithout))} %** |`);
+  P(`| delivered videos | ${a.deliveredVideosWithout} | ${a.deliveredVideosWith} | unchanged |`);
+  P('');
+  P(`${dw.stageNote}\n`);
+
+  P('### And it still fails the gate\n');
+  P('| run | job wall |');
+  P('|---|---:|');
+  for (const r of dw.jobWalls) {
+    P(`| ${r.treated ? '**' + r.run + '**' : r.run} `
+      + `| ${r.treated ? '**' + fmt(r.wall) + ' s**' : fmt(r.wall) + ' s'} |`);
+  }
+  P('');
+  P(`**The ${ctl.length} runs without the change span ${fmt(ctlSpread)} % on their own.** The treated`);
+  P(`run sits ${fmt(Math.abs(pct(trt, ctlMin)))} % below the fastest of them and`);
+  P(`${fmt(Math.abs(pct(trt, mean(ctl))))} % below their mean.\n`);
+  P(`${dw.verdict}\n`);
+  P(`**Why it is recommended anyway.** ${dw.keepAnyway}\n`);
+  P(`**Not claimed:** ${dw.notClaimed}\n`);
+}
+
 // ---------------------------------------------------------------- parse argmax
 {
   const pa = raw('parse-argmax');
