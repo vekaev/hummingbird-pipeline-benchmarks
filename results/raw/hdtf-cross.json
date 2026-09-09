@@ -1,0 +1,118 @@
+[
+ {
+  "clip": "x01_hdtf01_RD_Radio11_001__aud_WDA_JoeCrowley1_000",
+  "stages": {
+   "crop_face": 19.272086,
+   "detect_landmarks": 5.630323,
+   "parse_face": 28.731932,
+   "track_face": 112.318172,
+   "run_animator": 4.379849,
+   "create_driving_geo_and_mask": 13.730104,
+   "predict_liveportait": 45.442296,
+   "reshape_liveportrait": 8.910881,
+   "render_rgb": 85.291517,
+   "paste_back_video": 12.25108
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 5.52,
+   "adjust_video_length_to_audio": 1.83,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 335.98,
+   "attach_audio": 0.11,
+   "upload_to_s3": 1.23
+  },
+  "total": 344.68,
+  "frames": 751,
+  "fps": 25,
+  "gpu": null,
+  "torch": null
+ },
+ {
+  "clip": "x02_hdtf05_WDA_HenryWaxman_000__aud_WRA_JuddGregg_002",
+  "stages": {
+   "crop_face": 19.824079,
+   "detect_landmarks": 5.205957,
+   "parse_face": 28.292429,
+   "track_face": 112.429047,
+   "run_animator": 4.378357,
+   "create_driving_geo_and_mask": 14.067163,
+   "predict_liveportait": 46.423246,
+   "reshape_liveportrait": 9.230205,
+   "render_rgb": 85.846987,
+   "paste_back_video": 30.182375
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 10.16,
+   "adjust_video_length_to_audio": 5.25,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 355.9,
+   "attach_audio": 0.11,
+   "upload_to_s3": 2.43
+  },
+  "total": 373.86,
+  "frames": 751,
+  "fps": 25,
+  "gpu": null,
+  "torch": null
+ },
+ {
+  "clip": "x03_hdtf09_WRA_JoniErnst0_000__aud_RD_Radio32_000",
+  "stages": {
+   "crop_face": 18.659318,
+   "detect_landmarks": 7.303943,
+   "parse_face": 28.03999,
+   "track_face": 112.843648,
+   "run_animator": 4.390202,
+   "create_driving_geo_and_mask": 14.015617,
+   "predict_liveportait": 45.105318,
+   "reshape_liveportrait": 8.89414,
+   "render_rgb": 87.90532,
+   "paste_back_video": 12.283519
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 4.56,
+   "adjust_video_length_to_audio": 1.43,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 339.46,
+   "attach_audio": 0.12,
+   "upload_to_s3": 0.99
+  },
+  "total": 346.55,
+  "frames": 751,
+  "fps": 25,
+  "gpu": null,
+  "torch": null
+ },
+ {
+  "clip": "x04_hdtf11_WRA_PeterRoskam1_000__aud_WDA_JoeNeguse_001",
+  "stages": {
+   "crop_face": 20.602555,
+   "detect_landmarks": 5.626517,
+   "parse_face": 29.141006,
+   "track_face": 115.334762,
+   "run_animator": 4.374992,
+   "create_driving_geo_and_mask": 13.593844,
+   "predict_liveportait": 52.168444,
+   "reshape_liveportrait": 9.470406,
+   "render_rgb": 92.394714,
+   "paste_back_video": 19.655481
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 11.33,
+   "adjust_video_length_to_audio": 4.22,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 362.39,
+   "attach_audio": 0.12,
+   "upload_to_s3": 1.27
+  },
+  "total": 379.32,
+  "frames": 751,
+  "fps": 25,
+  "gpu": null,
+  "torch": null
+ }
+]

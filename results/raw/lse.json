@@ -1,0 +1,324 @@
+{
+  "smoketest": {
+    "scores": {
+      "1_r9dfbfca75.mp4": {
+        "lse_d": 8.70665168762207,
+        "lse_c": 6.590898513793945,
+        "offset": 0,
+        "eval_seconds": 80.8
+      }
+    },
+    "device": "cpu"
+  },
+  "baseline": {
+    "scores": {
+      "1_r9dfbfca75.mp4": {
+        "lse_d": 8.70665168762207,
+        "lse_c": 6.590898513793945,
+        "offset": 0,
+        "eval_seconds": 79.6
+      },
+      "2_r0cfe75f54.mp4": {
+        "lse_d": 8.195486068725586,
+        "lse_c": 7.184147834777832,
+        "offset": 1,
+        "eval_seconds": 97.6
+      },
+      "3_rf888be6eb.mp4": {
+        "lse_d": 7.5918660163879395,
+        "lse_c": 7.591765880584717,
+        "offset": 1,
+        "eval_seconds": 83.5
+      },
+      "4_r271ef741e.mp4": {
+        "lse_d": 8.565760612487793,
+        "lse_c": 5.3453216552734375,
+        "offset": 1,
+        "eval_seconds": 87.4
+      }
+    },
+    "device": "cpu"
+  },
+  "repeat_A": {
+    "scores": {
+      "1_r9dfbfca75.mp4": {
+        "lse_d": 8.70665168762207,
+        "lse_c": 6.590898513793945,
+        "offset": 0,
+        "eval_seconds": 81.8
+      }
+    },
+    "device": "cpu"
+  },
+  "repeat_B": {
+    "scores": {
+      "1_r9dfbfca75.mp4": {
+        "lse_d": 8.70665168762207,
+        "lse_c": 6.590898513793945,
+        "offset": 0,
+        "eval_seconds": 81.8
+      }
+    },
+    "device": "cpu"
+  },
+  "gen_null_runA": {
+    "scores": {
+      "1_r9dfbfca75.mp4": {
+        "lse_d": 8.962648391723633,
+        "lse_c": 6.303384780883789,
+        "offset": 0,
+        "eval_seconds": 81.7
+      }
+    },
+    "device": "cpu"
+  },
+  "ground_truth": {
+    "scores": {
+      "1_r9dfbfca75_source_video.mp4": {
+        "lse_d": 8.055469512939453,
+        "lse_c": 6.996757507324219,
+        "offset": 1,
+        "eval_seconds": 268.0
+      }
+    },
+    "device": "cpu"
+  },
+  "hdtf_probe_gen": {
+    "scores": {
+      "hdtf01_RD_Radio11_001.mp4": {
+        "lse_d": 7.9361419677734375,
+        "lse_c": 7.695832252502441,
+        "offset": 1,
+        "eval_seconds": 15.9
+      }
+    },
+    "device": "cpu"
+  },
+  "hdtf_probe_gt": {
+    "scores": {
+      "hdtf01_RD_Radio11_001.mp4": {
+        "lse_d": 6.82507848739624,
+        "lse_c": 9.130746841430664,
+        "offset": 2,
+        "eval_seconds": 15.9
+      }
+    },
+    "device": "cpu"
+  },
+  "hdtf_prod": {
+    "scores": {
+      "hdtf01_RD_Radio11_001.mp4": {
+        "lse_d": 7.9361419677734375,
+        "lse_c": 7.695832252502441,
+        "offset": 1,
+        "eval_seconds": 22.8
+      },
+      "hdtf02_RD_Radio32_000.mp4": {
+        "lse_d": 6.7564239501953125,
+        "lse_c": 8.518893241882324,
+        "offset": 2,
+        "eval_seconds": 35.0
+      },
+      "hdtf03_RD_Radio42_000.mp4": {
+        "lse_d": 8.17101001739502,
+        "lse_c": 7.082235336303711,
+        "offset": 2,
+        "eval_seconds": 27.4
+      },
+      "hdtf04_RD_Radio4_000.mp4": {
+        "lse_d": 6.65183162689209,
+        "lse_c": 8.209285736083984,
+        "offset": 2,
+        "eval_seconds": 50.0
+      },
+      "hdtf05_WDA_HenryWaxman_000.mp4": {
+        "lse_d": 7.467379093170166,
+        "lse_c": 7.457639217376709,
+        "offset": 1,
+        "eval_seconds": 79.9
+      },
+      "hdtf06_WDA_JoeCrowley1_000.mp4": {
+        "lse_d": 7.209117412567139,
+        "lse_c": 7.467505931854248,
+        "offset": 2,
+        "eval_seconds": 47.7
+      },
+      "hdtf07_WDA_JoeNeguse_001.mp4": {
+        "lse_d": 8.99209976196289,
+        "lse_c": 6.198451042175293,
+        "offset": 1,
+        "eval_seconds": 37.1
+      },
+      "hdtf08_WDA_XavierBecerra_002.mp4": {
+        "lse_d": 8.248139381408691,
+        "lse_c": 6.593649864196777,
+        "offset": 1,
+        "eval_seconds": 21.5
+      },
+      "hdtf09_WRA_JoniErnst0_000.mp4": {
+        "lse_d": 6.763969421386719,
+        "lse_c": 9.341796875,
+        "offset": 1,
+        "eval_seconds": 14.9
+      }
+    },
+    "device": "cpu"
+  },
+  "hdtf_gt": {
+    "scores": {
+      "hdtf01_RD_Radio11_001.mp4": {
+        "lse_d": 6.82507848739624,
+        "lse_c": 9.130746841430664,
+        "offset": 2,
+        "eval_seconds": 15.9
+      },
+      "hdtf02_RD_Radio32_000.mp4": {
+        "lse_d": 6.88564395904541,
+        "lse_c": 8.923675537109375,
+        "offset": 4,
+        "eval_seconds": 20.8
+      },
+      "hdtf03_RD_Radio42_000.mp4": {
+        "lse_d": 6.303555011749268,
+        "lse_c": 9.797904968261719,
+        "offset": 4,
+        "eval_seconds": 17.7
+      },
+      "hdtf04_RD_Radio4_000.mp4": {
+        "lse_d": 6.563002109527588,
+        "lse_c": 8.788675308227539,
+        "offset": 2,
+        "eval_seconds": 20.4
+      },
+      "hdtf05_WDA_HenryWaxman_000.mp4": {
+        "lse_d": 6.122486591339111,
+        "lse_c": 9.136833190917969,
+        "offset": 0,
+        "eval_seconds": 37.6
+      },
+      "hdtf06_WDA_JoeCrowley1_000.mp4": {
+        "lse_d": 7.0180206298828125,
+        "lse_c": 8.297643661499023,
+        "offset": 3,
+        "eval_seconds": 23.4
+      },
+      "hdtf07_WDA_JoeNeguse_001.mp4": {
+        "lse_d": 6.67356538772583,
+        "lse_c": 9.162893295288086,
+        "offset": 4,
+        "eval_seconds": 25.5
+      },
+      "hdtf08_WDA_XavierBecerra_002.mp4": {
+        "lse_d": 6.682750701904297,
+        "lse_c": 9.48422622680664,
+        "offset": 3,
+        "eval_seconds": 21.4
+      },
+      "hdtf09_WRA_JoniErnst0_000.mp4": {
+        "lse_d": 6.661523342132568,
+        "lse_c": 9.709882736206055,
+        "offset": 1,
+        "eval_seconds": 15.5
+      }
+    },
+    "device": "cpu"
+  },
+  "baseline_gt": {
+    "scores": {
+      "1_r9dfbfca75_source_video.mp4": {
+        "lse_d": 8.055469512939453,
+        "lse_c": 6.996757507324219,
+        "offset": 1,
+        "eval_seconds": 259.2
+      },
+      "2_r0cfe75f54_source_video.mp4": {
+        "lse_d": 7.492140293121338,
+        "lse_c": 8.106775283813477,
+        "offset": 3,
+        "eval_seconds": 252.4
+      },
+      "3_rf888be6eb_source_video.mp4": {
+        "lse_d": 6.697510242462158,
+        "lse_c": 8.84747314453125,
+        "offset": 2,
+        "eval_seconds": 257.4
+      }
+    },
+    "device": "cpu"
+  },
+  "hdtf_cross": {
+    "scores": {
+      "x01_hdtf01_RD_Radio11_001__aud_WDA_JoeCrowley1_000.mp4": {
+        "lse_d": 7.591363906860352,
+        "lse_c": 6.888772964477539,
+        "offset": 1,
+        "eval_seconds": 19.8
+      },
+      "x02_hdtf05_WDA_HenryWaxman_000__aud_WRA_JuddGregg_002.mp4": {
+        "lse_d": 8.740174293518066,
+        "lse_c": 5.675446510314941,
+        "offset": 1,
+        "eval_seconds": 42.1
+      },
+      "x03_hdtf09_WRA_JoniErnst0_000__aud_RD_Radio32_000.mp4": {
+        "lse_d": 7.224647521972656,
+        "lse_c": 8.215575218200684,
+        "offset": 2,
+        "eval_seconds": 18.8
+      },
+      "x04_hdtf11_WRA_PeterRoskam1_000__aud_WDA_JoeNeguse_001.mp4": {
+        "lse_d": 8.43363094329834,
+        "lse_c": 6.88881778717041,
+        "offset": 2,
+        "eval_seconds": 22.5
+      }
+    },
+    "device": "cpu"
+  },
+  "hdtf_prod_rest": {
+    "scores": {
+      "hdtf10_WRA_JuddGregg_002.mp4": {
+        "lse_d": 7.945894718170166,
+        "lse_c": 5.927609920501709,
+        "offset": 1,
+        "eval_seconds": 23.5
+      },
+      "hdtf11_WRA_PeterRoskam1_000.mp4": {
+        "lse_d": 7.893116474151611,
+        "lse_c": 7.57993745803833,
+        "offset": 2,
+        "eval_seconds": 23.7
+      },
+      "hdtf12_WRA_ShelleyMooreCapito1_001.mp4": {
+        "lse_d": 9.373023986816406,
+        "lse_c": 5.189175605773926,
+        "offset": 2,
+        "eval_seconds": 15.3
+      }
+    },
+    "device": "cpu"
+  },
+  "hdtf_gt_rest": {
+    "scores": {
+      "hdtf10_WRA_JuddGregg_002.mp4": {
+        "lse_d": 6.9978790283203125,
+        "lse_c": 7.867403984069824,
+        "offset": -2,
+        "eval_seconds": 23.2
+      },
+      "hdtf11_WRA_PeterRoskam1_000.mp4": {
+        "lse_d": 7.005046844482422,
+        "lse_c": 9.071615219116211,
+        "offset": 0,
+        "eval_seconds": 22.2
+      },
+      "hdtf12_WRA_ShelleyMooreCapito1_001.mp4": {
+        "lse_d": 7.982753276824951,
+        "lse_c": 7.691956043243408,
+        "offset": 3,
+        "eval_seconds": 15.3
+      }
+    },
+    "device": "cpu"
+  }
+}

@@ -1,0 +1,478 @@
+[
+ {
+  "arm": "arm0",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 388.74,
+  "clip": "hdtf01_RD_Radio11_001",
+  "stages": {
+   "crop_face": 17.98976,
+   "detect_landmarks": 6.159058,
+   "parse_face": 35.991198,
+   "track_face": 138.860402,
+   "run_animator": 5.606544,
+   "create_driving_geo_and_mask": 20.51887,
+   "predict_liveportait": 47.60802,
+   "reshape_liveportrait": 7.919044,
+   "render_rgb": 89.707391,
+   "paste_back_video": 11.029168
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 4.84,
+   "adjust_video_length_to_audio": 1.29,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 381.42,
+   "attach_audio": 0.15,
+   "upload_to_s3": 0.98
+  },
+  "total": 388.69,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm0",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 393.43,
+  "clip": "hdtf02_RD_Radio32_000",
+  "stages": {
+   "crop_face": 18.07629,
+   "detect_landmarks": 5.130176,
+   "parse_face": 37.779378,
+   "track_face": 140.831099,
+   "run_animator": 4.025538,
+   "create_driving_geo_and_mask": 20.838123,
+   "predict_liveportait": 47.373401,
+   "reshape_liveportrait": 7.931817,
+   "render_rgb": 89.839203,
+   "paste_back_video": 14.72177
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 4.03,
+   "adjust_video_length_to_audio": 1.63,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 386.61,
+   "attach_audio": 0.13,
+   "upload_to_s3": 0.98
+  },
+  "total": 393.38,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm0",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 385.46,
+  "clip": "hdtf03_RD_Radio42_000",
+  "stages": {
+   "crop_face": 17.709025,
+   "detect_landmarks": 6.526924,
+   "parse_face": 35.547022,
+   "track_face": 137.987087,
+   "run_animator": 4.037537,
+   "create_driving_geo_and_mask": 20.996501,
+   "predict_liveportait": 47.657595,
+   "reshape_liveportrait": 7.881112,
+   "render_rgb": 89.919019,
+   "paste_back_video": 11.367269
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 3.42,
+   "adjust_video_length_to_audio": 1.26,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 379.67,
+   "attach_audio": 0.16,
+   "upload_to_s3": 0.89
+  },
+  "total": 385.41,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm1",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "16",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 390.34,
+  "clip": "hdtf01_RD_Radio11_001",
+  "stages": {
+   "crop_face": 18.107981,
+   "detect_landmarks": 7.593527,
+   "parse_face": 36.593025,
+   "track_face": 139.585872,
+   "run_animator": 5.558214,
+   "create_driving_geo_and_mask": 20.8358,
+   "predict_liveportait": 46.373952,
+   "reshape_liveportrait": 7.952644,
+   "render_rgb": 89.289626,
+   "paste_back_video": 11.102432
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 4.88,
+   "adjust_video_length_to_audio": 1.32,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 383.03,
+   "attach_audio": 0.15,
+   "upload_to_s3": 0.91
+  },
+  "total": 390.29,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm1",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "16",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 393.87,
+  "clip": "hdtf02_RD_Radio32_000",
+  "stages": {
+   "crop_face": 18.136965,
+   "detect_landmarks": 4.671127,
+   "parse_face": 36.818225,
+   "track_face": 141.571909,
+   "run_animator": 4.028164,
+   "create_driving_geo_and_mask": 21.046773,
+   "predict_liveportait": 47.621084,
+   "reshape_liveportrait": 7.9426,
+   "render_rgb": 90.472497,
+   "paste_back_video": 14.76341
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 3.99,
+   "adjust_video_length_to_audio": 1.61,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 387.12,
+   "attach_audio": 0.13,
+   "upload_to_s3": 0.97
+  },
+  "total": 393.82,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm1",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "16",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 387.17,
+  "clip": "hdtf03_RD_Radio42_000",
+  "stages": {
+   "crop_face": 17.686551,
+   "detect_landmarks": 5.007332,
+   "parse_face": 36.561742,
+   "track_face": 139.927772,
+   "run_animator": 3.972038,
+   "create_driving_geo_and_mask": 21.110828,
+   "predict_liveportait": 47.842751,
+   "reshape_liveportrait": 7.875471,
+   "render_rgb": 89.845091,
+   "paste_back_video": 11.530956
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 3.34,
+   "adjust_video_length_to_audio": 1.27,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 381.4,
+   "attach_audio": 0.16,
+   "upload_to_s3": 0.94
+  },
+  "total": 387.12,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm2",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "16",
+   "RENDER_AMP": "1",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 391.64,
+  "clip": "hdtf01_RD_Radio11_001",
+  "stages": {
+   "crop_face": 18.325093,
+   "detect_landmarks": 7.604872,
+   "parse_face": 35.463809,
+   "track_face": 139.69856,
+   "run_animator": 5.911827,
+   "create_driving_geo_and_mask": 20.942801,
+   "predict_liveportait": 48.271735,
+   "reshape_liveportrait": 7.910145,
+   "render_rgb": 89.229384,
+   "paste_back_video": 10.904485
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 4.9,
+   "adjust_video_length_to_audio": 1.3,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 384.3,
+   "attach_audio": 0.15,
+   "upload_to_s3": 0.95
+  },
+  "total": 391.59,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm2",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "16",
+   "RENDER_AMP": "1",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 391.26,
+  "clip": "hdtf02_RD_Radio32_000",
+  "stages": {
+   "crop_face": 18.160775,
+   "detect_landmarks": 5.930592,
+   "parse_face": 37.217395,
+   "track_face": 140.85187,
+   "run_animator": 4.04372,
+   "create_driving_geo_and_mask": 20.793423,
+   "predict_liveportait": 46.984226,
+   "reshape_liveportrait": 7.904857,
+   "render_rgb": 87.884413,
+   "paste_back_video": 14.812396
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 3.93,
+   "adjust_video_length_to_audio": 1.62,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 384.62,
+   "attach_audio": 0.13,
+   "upload_to_s3": 0.91
+  },
+  "total": 391.21,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm2",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "16",
+   "RENDER_AMP": "1",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "0",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 390.59,
+  "clip": "hdtf03_RD_Radio42_000",
+  "stages": {
+   "crop_face": 17.794621,
+   "detect_landmarks": 6.536783,
+   "parse_face": 35.689031,
+   "track_face": 142.276525,
+   "run_animator": 4.087038,
+   "create_driving_geo_and_mask": 20.799283,
+   "predict_liveportait": 48.071303,
+   "reshape_liveportrait": 7.93748,
+   "render_rgb": 90.075929,
+   "paste_back_video": 11.395755
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 3.47,
+   "adjust_video_length_to_audio": 1.26,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 384.71,
+   "attach_audio": 0.15,
+   "upload_to_s3": 0.96
+  },
+  "total": 390.54,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm3",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "1",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 396.04,
+  "clip": "hdtf01_RD_Radio11_001",
+  "stages": {
+   "crop_face": 18.26851,
+   "detect_landmarks": 5.314563,
+   "parse_face": 35.947315,
+   "track_face": 140.460591,
+   "run_animator": 5.586822,
+   "create_driving_geo_and_mask": 20.811714,
+   "predict_liveportait": 49.024496,
+   "reshape_liveportrait": 7.938656,
+   "render_rgb": 94.060146,
+   "paste_back_video": 11.090987
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 4.95,
+   "adjust_video_length_to_audio": 1.32,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 388.54,
+   "attach_audio": 0.15,
+   "upload_to_s3": 1.03
+  },
+  "total": 395.99,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm3",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "1",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 399.3,
+  "clip": "hdtf02_RD_Radio32_000",
+  "stages": {
+   "crop_face": 18.400561,
+   "detect_landmarks": 6.29148,
+   "parse_face": 37.169317,
+   "track_face": 143.240758,
+   "run_animator": 4.10158,
+   "create_driving_geo_and_mask": 20.994631,
+   "predict_liveportait": 47.729371,
+   "reshape_liveportrait": 7.887281,
+   "render_rgb": 91.63544,
+   "paste_back_video": 14.961439
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 4,
+   "adjust_video_length_to_audio": 1.63,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 392.48,
+   "attach_audio": 0.13,
+   "upload_to_s3": 1.01
+  },
+  "total": 399.25,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm3",
+  "knobs": {
+   "RENDER_BATCH_SIZE": "4",
+   "RENDER_AMP": "0",
+   "RENDER_NUM_WORKERS": "0",
+   "RENDER_CUDNN_BENCHMARK": "1",
+   "LIPSYNC_SEED": "0"
+  },
+  "wall_s": 394.34,
+  "clip": "hdtf03_RD_Radio42_000",
+  "stages": {
+   "crop_face": 17.752464,
+   "detect_landmarks": 6.258639,
+   "parse_face": 35.599911,
+   "track_face": 145.485445,
+   "run_animator": 4.081468,
+   "create_driving_geo_and_mask": 20.959631,
+   "predict_liveportait": 48.526436,
+   "reshape_liveportrait": 7.940607,
+   "render_rgb": 89.917189,
+   "paste_back_video": 11.772376
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 3.45,
+   "adjust_video_length_to_audio": 1.27,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 388.34,
+   "attach_audio": 0.16,
+   "upload_to_s3": 1.08
+  },
+  "total": 394.29,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ },
+ {
+  "arm": "arm0b",
+  "knobs": {},
+  "wall_s": null,
+  "clip": "hdtf01_RD_Radio11_001",
+  "stages": {
+   "setup_job_dir": 0.000206,
+   "download_and_preprocess": 4.925917,
+   "adjust_video_length_to_audio": 1.3277,
+   "upload_input_files_to_s3": 0.000003,
+   "crop_face": 18.392711,
+   "detect_landmarks": 5.04374
+  },
+  "job": {},
+  "total": null,
+  "frames": null,
+  "fps": null,
+  "gpu": "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+  "torch": "2.5.1+cu121"
+ }
+]

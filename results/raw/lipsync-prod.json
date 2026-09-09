@@ -1,0 +1,147 @@
+[
+ {
+  "clip": "1_r9dfbfca75",
+  "stages": {
+   "crop_face": 28.627585,
+   "detect_landmarks": 7.952184,
+   "parse_face": 38.340345,
+   "track_face": 143.824652,
+   "run_animator": 6.698816,
+   "create_driving_geo_and_mask": 19.278841,
+   "predict_liveportait": 61.659246,
+   "reshape_liveportrait": 12.642758,
+   "render_rgb": 126.721257,
+   "paste_back_video": 70.743773
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 106.42,
+   "adjust_video_length_to_audio": 14.01,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 516.52,
+   "attach_audio": 0.48,
+   "upload_to_s3": 1.72
+  },
+  "total": 639.15,
+  "frames": 1074,
+  "fps": 25,
+  "gpu": null,
+  "torch": null
+ },
+ {
+  "clip": "1_r9dfbfca75",
+  "stages": {
+   "crop_face": 31.577697,
+   "detect_landmarks": 7.661084,
+   "parse_face": 38.141892,
+   "track_face": 142.861514,
+   "run_animator": 6.602351,
+   "create_driving_geo_and_mask": 19.143398,
+   "predict_liveportait": 60.962171,
+   "reshape_liveportrait": 12.755965,
+   "render_rgb": 126.996379,
+   "paste_back_video": 72.020097
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 107.09,
+   "adjust_video_length_to_audio": 13.95,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 518.75,
+   "attach_audio": 0.48,
+   "upload_to_s3": 1.91
+  },
+  "total": 642.19,
+  "frames": 1074,
+  "fps": 25,
+  "gpu": null,
+  "torch": null
+ },
+ {
+  "clip": "2_r0cfe75f54",
+  "stages": {
+   "crop_face": 32.967121,
+   "detect_landmarks": 7.928101,
+   "parse_face": 42.952865,
+   "track_face": 154.059151,
+   "run_animator": 6.918178,
+   "create_driving_geo_and_mask": 21.261747,
+   "predict_liveportait": 65.161066,
+   "reshape_liveportrait": 14.082365,
+   "render_rgb": 135.772493,
+   "paste_back_video": 78.115961
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 94.79,
+   "adjust_video_length_to_audio": 15.06,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 559.26,
+   "attach_audio": 0.52,
+   "upload_to_s3": 4.2
+  },
+  "total": 673.83,
+  "frames": 1167,
+  "fps": 25,
+  "gpu": null,
+  "torch": null
+ },
+ {
+  "clip": "3_rf888be6eb",
+  "stages": {
+   "crop_face": 29.54862,
+   "detect_landmarks": 7.501821,
+   "parse_face": 39.12866,
+   "track_face": 145.747588,
+   "run_animator": 6.687557,
+   "create_driving_geo_and_mask": 19.338275,
+   "predict_liveportait": 61.057963,
+   "reshape_liveportrait": 12.312826,
+   "render_rgb": 124.970012,
+   "paste_back_video": 70.284553
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 106.36,
+   "adjust_video_length_to_audio": 14.9,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 516.61,
+   "attach_audio": 0.5,
+   "upload_to_s3": 2.82
+  },
+  "total": 641.19,
+  "frames": 1077,
+  "fps": 25,
+  "gpu": null,
+  "torch": null
+ },
+ {
+  "clip": "4_r271ef741e",
+  "stages": {
+   "crop_face": 30.649837,
+   "detect_landmarks": 7.771932,
+   "parse_face": 39.721868,
+   "track_face": 146.557904,
+   "run_animator": 6.590785,
+   "create_driving_geo_and_mask": 19.47013,
+   "predict_liveportait": 61.234511,
+   "reshape_liveportrait": 13.049435,
+   "render_rgb": 133.687222,
+   "paste_back_video": 74.101064
+  },
+  "job": {
+   "setup_job_dir": 0,
+   "download_and_preprocess": 60.75,
+   "adjust_video_length_to_audio": 20.06,
+   "upload_input_files_to_s3": 0,
+   "run_lipsync": 532.87,
+   "attach_audio": 0.56,
+   "upload_to_s3": 1.99
+  },
+  "total": 616.23,
+  "frames": 1081,
+  "fps": 25,
+  "gpu": null,
+  "torch": null
+ }
+]

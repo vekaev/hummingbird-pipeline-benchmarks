@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo 'no dependencies: the pages build from committed data using Node builtins only'",
+  "buildCommand": "node analysis/analyze.mjs && node analysis/reporting.mjs && node analysis/figures.mjs && node web/build.mjs && node web/pack.mjs && mkdir -p web/dist && cp web/index.html web/results-pack.html web/dist/",
+  "outputDirectory": "web/dist",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}

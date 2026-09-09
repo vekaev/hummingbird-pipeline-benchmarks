@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 618" width="900" height="618" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<rect width="900" height="618" fill="#ffffff"/>
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="#141920" text-anchor="start" font-weight="650" opacity="1">The largest single line on the bill is not a stage at all</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Cost per 1000 videos, sorted. Stage seconds are measured means over n=5 production runs; cold start and the remainder come from</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">the platform's own metering. Shares are of the 931.31 s billed total, not the 528.77 s of stages.</text>
+<line x1="244" y1="142" x2="244" y2="476" stroke="#dde2e9" stroke-width="1"/><text x="244" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">$0</text>
+<line x1="364" y1="142" x2="364" y2="476" stroke="#dde2e9" stroke-width="1"/><text x="364" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">$40</text>
+<line x1="484" y1="142" x2="484" y2="476" stroke="#dde2e9" stroke-width="1"/><text x="484" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">$80</text>
+<line x1="604" y1="142" x2="604" y2="476" stroke="#dde2e9" stroke-width="1"/><text x="604" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">$120</text>
+<line x1="724" y1="142" x2="724" y2="476" stroke="#dde2e9" stroke-width="1"/><text x="724" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">$160</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">cost per 1000 videos at $1.99/GPU-hour</text>
+<rect x="458.6" y="99" width="11" height="11" fill="#1f4fd8" rx="2"/>
+<text x="475.6" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">source-only prefix</text>
+<rect x="587.7" y="99" width="11" height="11" fill="#141920" rx="2"/>
+<text x="604.7" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">audio-dependent stage</text>
+<rect x="740.8" y="99" width="11" height="11" fill="#96450a" rx="2"/>
+<text x="757.8" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">billed, but not a stage</text>
+<text x="230" y="169.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="650" opacity="1">Container cold start</text>
+<rect x="244" y="157" width="473.3" height="17" fill="#96450a" rx="2"/>
+<text x="727.3" y="169.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#96450a" text-anchor="start" font-weight="600" opacity="1">$157.77 · 30.6%</text>
+<text x="230" y="196.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">3D face tracking</text>
+<rect x="244" y="184" width="243.1" height="17" fill="#1f4fd8" rx="2"/>
+<text x="497.1" y="196.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#1f4fd8" text-anchor="start" font-weight="600" opacity="1">$81.04 · 15.7%</text>
+<text x="230" y="223.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">Neural render + super-res</text>
+<rect x="244" y="211" width="215.0" height="17" fill="#141920" rx="2"/>
+<text x="469.0" y="223.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="start" font-weight="600" opacity="1">$71.66 · 13.9%</text>
+<text x="230" y="250.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="650" opacity="1">Unattributed in-container</text>
+<rect x="244" y="238" width="194.2" height="17" fill="#96450a" rx="2"/>
+<text x="448.2" y="250.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#96450a" text-anchor="start" font-weight="600" opacity="1">$64.75 · 12.6%</text>
+<text x="230" y="277.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">Paste-back compositing</text>
+<rect x="244" y="265" width="121.1" height="17" fill="#141920" rx="2"/>
+<text x="375.1" y="277.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="start" font-weight="600" opacity="1">$40.38 · 7.8%</text>
+<text x="230" y="304.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">LivePortrait warp</text>
+<rect x="244" y="292" width="102.8" height="17" fill="#141920" rx="2"/>
+<text x="356.8" y="304.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="start" font-weight="600" opacity="1">$34.28 · 6.7%</text>
+<text x="230" y="331.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">Face parsing</text>
+<rect x="244" y="319" width="65.8" height="17" fill="#1f4fd8" rx="2"/>
+<text x="319.8" y="331.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#1f4fd8" text-anchor="start" font-weight="600" opacity="1">$21.92 · 4.3%</text>
+<text x="230" y="358.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">Face crop</text>
+<rect x="244" y="346" width="50.9" height="17" fill="#1f4fd8" rx="2"/>
+<text x="304.9" y="358.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#1f4fd8" text-anchor="start" font-weight="600" opacity="1">$16.96 · 3.3%</text>
+<text x="230" y="385.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">Driving geometry + mask</text>
+<rect x="244" y="373" width="32.7" height="17" fill="#141920" rx="2"/>
+<text x="286.7" y="385.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="start" font-weight="600" opacity="1">$10.89 · 2.1%</text>
+<text x="230" y="412.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">Warp reshaping</text>
+<rect x="244" y="400" width="21.5" height="17" fill="#141920" rx="2"/>
+<text x="275.5" y="412.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="start" font-weight="600" opacity="1">$7.17 · 1.4%</text>
+<text x="230" y="439.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">Landmark detection</text>
+<rect x="244" y="427" width="12.9" height="17" fill="#1f4fd8" rx="2"/>
+<text x="266.9" y="439.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#1f4fd8" text-anchor="start" font-weight="600" opacity="1">$4.29 · 0.8%</text>
+<text x="230" y="466.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="end" font-weight="500" opacity="1">Audio to expression</text>
+<rect x="244" y="454" width="11.1" height="17" fill="#141920" rx="2"/>
+<text x="265.1" y="466.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#141920" text-anchor="start" font-weight="600" opacity="1">$3.70 · 0.7%</text>
+<text x="32" y="525" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Cold start is 285.41 s, 30.6% of the billed total and 1.95× the largest stage — and the deployment's cooldown is set to 30 s against it, so</text>
+<text x="32" y="540" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">the machine is torn down long before the next job can reuse it. The unattributed 117.13 s is metered predict time the stage timers never</text>
+<text x="32" y="555" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">account for: downloads, length adjustment, uploads. A cost model built on the stage sum alone understates the GPU seconds actually bought by</text>
+<text x="32" y="570" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">22%. Seconds are measured; the money is modelled from one input, printed here: A100 40GB, on-demand at $1.99/GPU-hour. The GPU model behind</text>
+<text x="32" y="585" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">the production runs is recorded nowhere in the logs or the deployment config, so that rate cannot be reconciled against the hardware that</text>
+<text x="32" y="600" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">produced these timings.</text>
+</svg>

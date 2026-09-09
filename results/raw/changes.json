@@ -1,0 +1,160 @@
+{
+  "note": "The change ledger. These are facts about the work rather than samples, so they are committed as data and rendered into a table by analysis/reporting.mjs. 'effect' must be either a measured number with its source table, or the literal string 'not measured' - never an estimate dressed as a result.",
+  "changes": [
+    {
+      "n": 1,
+      "change": "Recovered a per-stage profile from container logs",
+      "what": "The pipeline's timing decorators printed to stdout and nothing persisted them. The platform retains container stdout, so the profile was pulled back over its API from real production runs with no instrumentation change.",
+      "effect": "measured",
+      "detail": "Ten stages, n=5, reconciling to the independently printed job total within 0.03 s",
+      "section": "stage-profile"
+    },
+    {
+      "n": 2,
+      "change": "Fixed the timing decorator so repeated stages accumulate",
+      "what": "The decorator overwrote a stage's time on each call, so any job invoking a stage more than once reported only the last invocation. Every multi-segment word-replacement job was affected.",
+      "effect": "measured",
+      "detail": "Every timing table on this site flows through the fixed code path",
+      "section": "how"
+    },
+    {
+      "n": 3,
+      "change": "Pinned the dependency graph and made the image buildable",
+      "what": "28 of 62 requirement lines carried no version, so every rebuild resolved a different environment and nothing had rebuilt cleanly in roughly sixteen months.",
+      "effect": "measured",
+      "detail": "221 packages pinned; first green build of the repository since May 2025",
+      "section": "build"
+    },
+    {
+      "n": 4,
+      "change": "Found and fixed a mixed-CUDA torch stack",
+      "what": "A version pin does not identify a build variant. Pinning torch to a version installed a CUDA 12.4 wheel from the public index, while the build's own later step installed CUDA 12.1 builds of torchaudio and torchvision. torchaudio then refuses to import, and the pipeline imports it before serving its first request.",
+      "effect": "measured",
+      "detail": "The container reached a running state; a full clip completed in 398 s",
+      "section": "build"
+    },
+    {
+      "n": 5,
+      "change": "Made the sampler seedable per run",
+      "what": "The audio-to-expression model seeded once at construction, so the first prediction in a warm process was reproducible and every later one was not. Two runs of one clip shared zero identical frames out of 1074.",
+      "effect": "measured",
+      "detail": "Prerequisite for a paired A/B, and for the cache in the same section",
+      "section": "arms"
+    },
+    {
+      "n": 6,
+      "change": "Renderer batch size 4 to 16",
+      "what": "Roadmap item, premised on the GPU being under-fed at batch 4. Exposed as one environment variable so a single build serves both sides of the comparison.",
+      "effect": "measured",
+      "detail": "+0.32% slower, paired across three clips, all three the same direction: rejected",
+      "section": "arms",
+      "arm": "arm1",
+      "roadmap": true
+    },
+    {
+      "n": 7,
+      "change": "fp16 autocast in the neural renderer",
+      "what": "Roadmap item. Also exposed as one environment variable, default off.",
+      "effect": "measured",
+      "detail": "+0.51% with mixed per-clip signs, and 39.37 dB PSNR against the fp32 output: rejected",
+      "section": "arms",
+      "arm": "arm2",
+      "roadmap": true
+    },
+    {
+      "n": 8,
+      "change": "Asynchronous host-to-device transfers in the renderer",
+      "what": "Roadmap item, partially implemented: non_blocking on six host-to-device copies. Pinned memory already existed; CUDA streams were not built.",
+      "effect": "not measured",
+      "detail": "Always on, so it is inside every arm including the baseline and cannot be isolated by this design",
+      "section": "arms"
+    },
+    {
+      "n": 9,
+      "change": "cuDNN autotuning scoped to the render loop",
+      "what": "Not a roadmap item. The animator's seeding helper disables cuDNN autotuning process-wide as a side effect, and the renderer inherits it: hundreds of convolutions at one fixed input shape, run without autotuned kernels.",
+      "effect": "not measured",
+      "detail": "Arm was still running when this site was built",
+      "section": "arms",
+      "arm": "arm3",
+      "roadmap": false
+    },
+    {
+      "n": 10,
+      "change": "Paste-back composites only the mask bounding box",
+      "what": "Where the warped mask is zero the composite writes the source back over itself. Restricting it to the mask's bounding box is bit-exact by construction rather than an approximation.",
+      "effect": "measured",
+      "detail": "Bit-identical across 44 cases and 400 random transforms; 1.55x to 2.90x on the function, which is about 14% of the timed stage",
+      "section": "unproposed"
+    },
+    {
+      "n": 11,
+      "change": "Output sanity checks on every generated video",
+      "what": "A timing harness cannot see a black frame, a frozen output, or a face whose mouth never moves. An arm that is faster because it produced garbage would otherwise read as a win.",
+      "effect": "measured",
+      "detail": "16 of 16 open-dataset outputs pass, confirmed by automated checks and by frame inspection",
+      "section": "quality"
+    },
+    {
+      "n": 12,
+      "change": "Made result writes concurrency-safe",
+      "what": "The quality harness loaded its whole result file at start, held it for minutes, then wrote it back whole. Two concurrent scorings destroyed one another's results.",
+      "effect": "measured",
+      "detail": "A completed three-clip result set was lost this way before the fix; writes now merge and rename atomically",
+      "section": "how"
+    }
+  ],
+  "configurations": [
+    {
+      "id": "prod-lipsync",
+      "label": "Production lipsync",
+      "deployment": "Deployed production build, serverless GPU, scale-to-zero",
+      "hardware": "A100, from deployment configuration (the container does not print its GPU)",
+      "hardwareMeasured": false,
+      "video": "1920x1080, 1074-1167 frames at 25 fps, 43.0-46.7 s",
+      "protocol": "Driven predictions, one per log",
+      "dataset": "lipsync-prod"
+    },
+    {
+      "id": "prod-wordreplacement",
+      "label": "Production word replacement",
+      "deployment": "Same deployed build, harvested from live traffic",
+      "hardware": "A100, from deployment configuration",
+      "hardwareMeasured": false,
+      "video": "1920x1080, one changed segment, 198 frames extracted then time-warped to 210",
+      "protocol": "Harvested, not driven; six replicas of one fixture",
+      "dataset": "wordreplacement-prod"
+    },
+    {
+      "id": "hdtf-self",
+      "label": "HDTF self-driven",
+      "deployment": "Same deployed build, version pinned",
+      "hardware": "A100, from deployment configuration",
+      "hardwareMeasured": false,
+      "video": "462-1026 px square, 751 frames at 25 fps, 30.0 s",
+      "protocol": "A clip's own audio drives it, so ground truth exists",
+      "dataset": "hdtf-self"
+    },
+    {
+      "id": "hdtf-cross",
+      "label": "HDTF cross-driven",
+      "deployment": "Same deployed build, version pinned",
+      "hardware": "A100, from deployment configuration",
+      "hardwareMeasured": false,
+      "video": "462-1040 px square, 751 frames at 25 fps",
+      "protocol": "One speaker's audio drives another's video; no ground truth by construction",
+      "dataset": "hdtf-cross"
+    },
+    {
+      "id": "ab-arms",
+      "label": "A/B arms",
+      "deployment": "Dedicated machine, image built from the pinned lock",
+      "hardware": "NVIDIA A100-SXM4-40GB, driver 580.105.08, torch 2.5.1+cu121, cuDNN 90100 - read from the log header, measured",
+      "hardwareMeasured": true,
+      "video": "Three HDTF clips, 478-654 px square, 751 frames",
+      "protocol": "One warm process per arm, sampler seeded, sequential, paired per clip",
+      "dataset": "arms"
+    }
+  ],
+  "roadmapItemCount": 5
+}

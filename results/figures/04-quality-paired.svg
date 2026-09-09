@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 597" width="900" height="597" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<rect width="900" height="597" fill="#ffffff"/>
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="#141920" text-anchor="start" font-weight="650" opacity="1">4 of 12 clips are indistinguishable from their own real footage</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Measured LSE-D under the published SyncNet protocol. Each generated clip is joined to the real footage it was made from, so the</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">comparison is within-clip. Rows sorted by gap; colour is whether the gap clears the noise floor.</text>
+<line x1="228" y1="146" x2="228" y2="470" stroke="#dde2e9" stroke-width="1"/><text x="228" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">5.5</text>
+<line x1="297.5" y1="146" x2="297.5" y2="470" stroke="#dde2e9" stroke-width="1"/><text x="297.5" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">6.0</text>
+<line x1="367" y1="146" x2="367" y2="470" stroke="#dde2e9" stroke-width="1"/><text x="367" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">6.5</text>
+<line x1="436.5" y1="146" x2="436.5" y2="470" stroke="#dde2e9" stroke-width="1"/><text x="436.5" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">7.0</text>
+<line x1="506" y1="146" x2="506" y2="470" stroke="#dde2e9" stroke-width="1"/><text x="506" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">7.5</text>
+<line x1="575.5" y1="146" x2="575.5" y2="470" stroke="#dde2e9" stroke-width="1"/><text x="575.5" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">8.0</text>
+<line x1="645" y1="146" x2="645" y2="470" stroke="#dde2e9" stroke-width="1"/><text x="645" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">8.5</text>
+<line x1="714.5" y1="146" x2="714.5" y2="470" stroke="#dde2e9" stroke-width="1"/><text x="714.5" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">9.0</text>
+<line x1="784" y1="146" x2="784" y2="470" stroke="#dde2e9" stroke-width="1"/><text x="784" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">9.5</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">LSE-D, lower is better — measured with SyncNet on cpu, n=12 clips</text>
+
+<text x="868" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="end" font-weight="400" opacity="1">each clip against its own real footage</text>
+<rect x="220.5433999999998" y="119" width="26" height="11" fill="#dde2e9"/>
+<text x="252.5433999999998" y="128" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">±0.256 noise floor around the real clip</text>
+<circle cx="465.6297999999999" cy="124" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<text x="477.6297999999999" y="128" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">real footage</text>
+<circle cx="558.4323999999999" cy="124" r="5" fill="#5f6b79"/>
+<text x="570.4323999999999" y="128" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">generated, inside the floor</text>
+<circle cx="723.7162" cy="124" r="5" fill="#a92218"/>
+<text x="735.7162" y="128" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#a92218" text-anchor="start" font-weight="400" opacity="1">generated, clears the floor</text>
+<rect x="385.0" y="164" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="175" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">RD_Radio32_000</text>
+<line x1="420.6" y1="171" x2="402.6" y2="171" stroke="#5f6b79" stroke-width="2"/>
+<circle cx="420.6" cy="171" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="402.6" cy="171" r="5" fill="#5f6b79"/>
+<text x="800" y="175" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="600" opacity="1">-0.129</text>
+<rect x="340.2" y="190" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="201" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">RD_Radio4_000</text>
+<line x1="375.8" y1="197" x2="388.1" y2="197" stroke="#5f6b79" stroke-width="2"/>
+<circle cx="375.8" cy="197" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="388.1" cy="197" r="5" fill="#5f6b79"/>
+<text x="800" y="201" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="600" opacity="1">+0.089</text>
+<rect x="353.9" y="216" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="227" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">WRA_JoniErnst0_000</text>
+<line x1="389.5" y1="223" x2="403.7" y2="223" stroke="#5f6b79" stroke-width="2"/>
+<circle cx="389.5" cy="223" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="403.7" cy="223" r="5" fill="#5f6b79"/>
+<text x="800" y="227" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="600" opacity="1">+0.102</text>
+<rect x="403.4" y="242" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="253" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">WDA_JoeCrowley1_000</text>
+<line x1="439.0" y1="249" x2="465.6" y2="249" stroke="#5f6b79" stroke-width="2"/>
+<circle cx="439.0" cy="249" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="465.6" cy="249" r="5" fill="#5f6b79"/>
+<text x="800" y="253" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="600" opacity="1">+0.191</text>
+<rect x="401.6" y="268" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="279" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">WRA_PeterRoskam1_000</text>
+<line x1="437.2" y1="275" x2="560.6" y2="275" stroke="#a92218" stroke-width="2"/>
+<circle cx="437.2" cy="275" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="560.6" cy="275" r="5" fill="#a92218"/>
+<text x="800" y="279" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="600" opacity="1">+0.888</text>
+<rect x="400.6" y="294" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="305" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">WRA_JuddGregg_002</text>
+<line x1="436.2" y1="301" x2="568.0" y2="301" stroke="#a92218" stroke-width="2"/>
+<circle cx="436.2" cy="301" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="568.0" cy="301" r="5" fill="#a92218"/>
+<text x="800" y="305" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="600" opacity="1">+0.948</text>
+<rect x="376.6" y="320" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="331" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">RD_Radio11_001</text>
+<line x1="412.2" y1="327" x2="566.6" y2="327" stroke="#a92218" stroke-width="2"/>
+<circle cx="412.2" cy="327" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="566.6" cy="327" r="5" fill="#a92218"/>
+<text x="800" y="331" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="600" opacity="1">+1.111</text>
+<rect x="278.9" y="346" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="357" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">WDA_HenryWaxman_000</text>
+<line x1="314.5" y1="353" x2="501.5" y2="353" stroke="#a92218" stroke-width="2"/>
+<circle cx="314.5" cy="353" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="501.5" cy="353" r="5" fill="#a92218"/>
+<text x="800" y="357" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="600" opacity="1">+1.345</text>
+<rect x="537.5" y="372" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="383" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">WRA_ShelleyMooreCapito1_001</text>
+<line x1="573.1" y1="379" x2="766.4" y2="379" stroke="#a92218" stroke-width="2"/>
+<circle cx="573.1" cy="379" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="766.4" cy="379" r="5" fill="#a92218"/>
+<text x="800" y="383" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="600" opacity="1">+1.390</text>
+<rect x="356.8" y="398" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="409" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">WDA_XavierBecerra_002</text>
+<line x1="392.4" y1="405" x2="610.0" y2="405" stroke="#a92218" stroke-width="2"/>
+<circle cx="392.4" cy="405" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="610.0" cy="405" r="5" fill="#a92218"/>
+<text x="800" y="409" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="600" opacity="1">+1.565</text>
+<rect x="304.1" y="424" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="435" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">RD_Radio42_000</text>
+<line x1="339.7" y1="431" x2="599.3" y2="431" stroke="#a92218" stroke-width="2"/>
+<circle cx="339.7" cy="431" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="599.3" cy="431" r="5" fill="#a92218"/>
+<text x="800" y="435" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="600" opacity="1">+1.867</text>
+<rect x="355.5" y="450" width="71.2" height="14" fill="#dde2e9" rx="2"/>
+<text x="214" y="461" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#141920" text-anchor="end" font-weight="400" opacity="1">WDA_JoeNeguse_001</text>
+<line x1="391.1" y1="457" x2="713.4" y2="457" stroke="#a92218" stroke-width="2"/>
+<circle cx="391.1" cy="457" r="5" fill="#ffffff" stroke="#141920" stroke-width="1.6"/>
+<circle cx="713.4" cy="457" r="5" fill="#a92218"/>
+<text x="800" y="461" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="600" opacity="1">+2.319</text>
+<text x="800" y="148" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">gap</text>
+<text x="32" y="519" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">The ±0.256 LSE-D floor is not measured on this dataset: it is a single pair of regenerations of one production clip, n=1, carried here. It</text>
+<text x="32" y="534" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">bounds what a same-build re-run of the same input moves the metric by, so a gap inside it cannot be told apart from re-encode noise — but it</text>
+<text x="32" y="549" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">is one observation, not an interval, and it came from a different corpus. 8 clips clear it; the largest gap is +2.319 and the mean is +0.974.</text>
+<text x="32" y="564" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Ground truth is not a ceiling here: on 1 clip the generated video scores better than the real footage it came from, which is a fact about the</text>
+<text x="32" y="579" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">metric.</text>
+</svg>

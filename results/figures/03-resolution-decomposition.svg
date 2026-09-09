@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 631" width="920" height="631" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<rect width="920" height="631" fill="#ffffff"/>
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="#141920" text-anchor="start" font-weight="650" opacity="1">Only compositing pays for input resolution</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Measured per-frame stage cost against source frame size, n=12 HDTF clips spanning 4.9× in pixel count with frame count fixed at</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">751. One line per stage, 10 stages.</text>
+<line x1="92" y1="478" x2="696" y2="478" stroke="#dde2e9" stroke-width="1"/><text x="82" y="482" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="end" font-weight="400" opacity="1">0.00</text>
+<line x1="92" y1="393" x2="696" y2="393" stroke="#dde2e9" stroke-width="1"/><text x="82" y="397" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="end" font-weight="400" opacity="1">0.05</text>
+<line x1="92" y1="308" x2="696" y2="308" stroke="#dde2e9" stroke-width="1"/><text x="82" y="312" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="end" font-weight="400" opacity="1">0.10</text>
+<line x1="92" y1="223.00000000000003" x2="696" y2="223.00000000000003" stroke="#dde2e9" stroke-width="1"/><text x="82" y="227.00000000000003" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="end" font-weight="400" opacity="1">0.15</text>
+<line x1="92" y1="138" x2="696" y2="138" stroke="#dde2e9" stroke-width="1"/><text x="82" y="142" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="end" font-weight="400" opacity="1">0.20</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">seconds per frame</text>
+<rect x="283.1" y="99" width="11" height="11" fill="#1f4fd8" rx="2"/>
+<text x="300.1" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">source-only prefix</text>
+<rect x="412.1" y="99" width="11" height="11" fill="#5f6b79" rx="2"/>
+<text x="429.1" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">flat: fixed internal resolution</text>
+<rect x="590.0" y="99" width="11" height="11" fill="#a92218" rx="2"/>
+<text x="607.0" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">scales with input</text>
+<text x="120.8" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">0.2</text>
+<text x="235.8" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">0.4</text>
+<text x="350.9" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">0.6</text>
+<text x="465.9" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">0.8</text>
+<text x="581.0" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">1.0</text>
+<text x="394" y="520" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="middle" font-weight="400" opacity="1">source frame size (megapixels) — frame count held at 751</text>
+<path d="M128.5,437.5 L137.1,435.6 L155.3,436.4 L161.3,435.7 L228.3,433.1 L251.8,435.2 L292.4,435.5 L331.0,433.3 L353.9,432.5 L353.9,431.9 L403.9,433.6 L611.3,432.8" fill="none" stroke="#1f4fd8" stroke-width="1.4"/>
+<circle cx="128.5" cy="437.5" r="3" fill="#1f4fd8"/>
+<circle cx="137.1" cy="435.6" r="3" fill="#1f4fd8"/>
+<circle cx="155.3" cy="436.4" r="3" fill="#1f4fd8"/>
+<circle cx="161.3" cy="435.7" r="3" fill="#1f4fd8"/>
+<circle cx="228.3" cy="433.1" r="3" fill="#1f4fd8"/>
+<circle cx="251.8" cy="435.2" r="3" fill="#1f4fd8"/>
+<circle cx="292.4" cy="435.5" r="3" fill="#1f4fd8"/>
+<circle cx="331.0" cy="433.3" r="3" fill="#1f4fd8"/>
+<circle cx="353.9" cy="432.5" r="3" fill="#1f4fd8"/>
+<circle cx="353.9" cy="431.9" r="3" fill="#1f4fd8"/>
+<circle cx="403.9" cy="433.6" r="3" fill="#1f4fd8"/>
+<circle cx="611.3" cy="432.8" r="3" fill="#1f4fd8"/>
+<path d="M128.5,465.5 L137.1,466.0 L155.3,467.5 L161.3,466.2 L228.3,464.1 L251.8,465.1 L292.4,467.0 L331.0,465.7 L353.9,464.6 L353.9,465.7 L403.9,465.8 L611.3,465.7" fill="none" stroke="#1f4fd8" stroke-width="1.4"/>
+<circle cx="128.5" cy="465.5" r="3" fill="#1f4fd8"/>
+<circle cx="137.1" cy="466.0" r="3" fill="#1f4fd8"/>
+<circle cx="155.3" cy="467.5" r="3" fill="#1f4fd8"/>
+<circle cx="161.3" cy="466.2" r="3" fill="#1f4fd8"/>
+<circle cx="228.3" cy="464.1" r="3" fill="#1f4fd8"/>
+<circle cx="251.8" cy="465.1" r="3" fill="#1f4fd8"/>
+<circle cx="292.4" cy="467.0" r="3" fill="#1f4fd8"/>
+<circle cx="331.0" cy="465.7" r="3" fill="#1f4fd8"/>
+<circle cx="353.9" cy="464.6" r="3" fill="#1f4fd8"/>
+<circle cx="353.9" cy="465.7" r="3" fill="#1f4fd8"/>
+<circle cx="403.9" cy="465.8" r="3" fill="#1f4fd8"/>
+<circle cx="611.3" cy="465.7" r="3" fill="#1f4fd8"/>
+<path d="M128.5,414.9 L137.1,411.8 L155.3,415.8 L161.3,414.2 L228.3,415.6 L251.8,413.1 L292.4,415.5 L331.0,413.1 L353.9,412.7 L353.9,411.7 L403.9,413.7 L611.3,412.5" fill="none" stroke="#1f4fd8" stroke-width="1.4"/>
+<circle cx="128.5" cy="414.9" r="3" fill="#1f4fd8"/>
+<circle cx="137.1" cy="411.8" r="3" fill="#1f4fd8"/>
+<circle cx="155.3" cy="415.8" r="3" fill="#1f4fd8"/>
+<circle cx="161.3" cy="414.2" r="3" fill="#1f4fd8"/>
+<circle cx="228.3" cy="415.6" r="3" fill="#1f4fd8"/>
+<circle cx="251.8" cy="413.1" r="3" fill="#1f4fd8"/>
+<circle cx="292.4" cy="415.5" r="3" fill="#1f4fd8"/>
+<circle cx="331.0" cy="413.1" r="3" fill="#1f4fd8"/>
+<circle cx="353.9" cy="412.7" r="3" fill="#1f4fd8"/>
+<circle cx="353.9" cy="411.7" r="3" fill="#1f4fd8"/>
+<circle cx="403.9" cy="413.7" r="3" fill="#1f4fd8"/>
+<circle cx="611.3" cy="412.5" r="3" fill="#1f4fd8"/>
+<path d="M128.5,220.7 L137.1,223.0 L155.3,223.3 L161.3,220.7 L228.3,223.2 L251.8,223.9 L292.4,222.7 L331.0,221.4 L353.9,222.2 L353.9,222.1 L403.9,222.1 L611.3,223.0" fill="none" stroke="#1f4fd8" stroke-width="1.4"/>
+<circle cx="128.5" cy="220.7" r="3" fill="#1f4fd8"/>
+<circle cx="137.1" cy="223.0" r="3" fill="#1f4fd8"/>
+<circle cx="155.3" cy="223.3" r="3" fill="#1f4fd8"/>
+<circle cx="161.3" cy="220.7" r="3" fill="#1f4fd8"/>
+<circle cx="228.3" cy="223.2" r="3" fill="#1f4fd8"/>
+<circle cx="251.8" cy="223.9" r="3" fill="#1f4fd8"/>
+<circle cx="292.4" cy="222.7" r="3" fill="#1f4fd8"/>
+<circle cx="331.0" cy="221.4" r="3" fill="#1f4fd8"/>
+<circle cx="353.9" cy="222.2" r="3" fill="#1f4fd8"/>
+<circle cx="353.9" cy="222.1" r="3" fill="#1f4fd8"/>
+<circle cx="403.9" cy="222.1" r="3" fill="#1f4fd8"/>
+<circle cx="611.3" cy="223.0" r="3" fill="#1f4fd8"/>
+<path d="M128.5,468.0 L137.1,467.7 L155.3,471.6 L161.3,468.0 L228.3,468.1 L251.8,468.1 L292.4,471.6 L331.0,468.2 L353.9,468.1 L353.9,467.8 L403.9,467.9 L611.3,468.0" fill="none" stroke="#5f6b79" stroke-width="1.4"/>
+<circle cx="128.5" cy="468.0" r="3" fill="#5f6b79"/>
+<circle cx="137.1" cy="467.7" r="3" fill="#5f6b79"/>
+<circle cx="155.3" cy="471.6" r="3" fill="#5f6b79"/>
+<circle cx="161.3" cy="468.0" r="3" fill="#5f6b79"/>
+<circle cx="228.3" cy="468.1" r="3" fill="#5f6b79"/>
+<circle cx="251.8" cy="468.1" r="3" fill="#5f6b79"/>
+<circle cx="292.4" cy="471.6" r="3" fill="#5f6b79"/>
+<circle cx="331.0" cy="468.2" r="3" fill="#5f6b79"/>
+<circle cx="353.9" cy="468.1" r="3" fill="#5f6b79"/>
+<circle cx="353.9" cy="467.8" r="3" fill="#5f6b79"/>
+<circle cx="403.9" cy="467.9" r="3" fill="#5f6b79"/>
+<circle cx="611.3" cy="468.0" r="3" fill="#5f6b79"/>
+<path d="M128.5,445.5 L137.1,446.6 L155.3,446.2 L161.3,446.3 L228.3,446.2 L251.8,446.6 L292.4,446.4 L331.0,447.4 L353.9,446.3 L353.9,445.9 L403.9,446.4 L611.3,446.0" fill="none" stroke="#5f6b79" stroke-width="1.4"/>
+<circle cx="128.5" cy="445.5" r="3" fill="#5f6b79"/>
+<circle cx="137.1" cy="446.6" r="3" fill="#5f6b79"/>
+<circle cx="155.3" cy="446.2" r="3" fill="#5f6b79"/>
+<circle cx="161.3" cy="446.3" r="3" fill="#5f6b79"/>
+<circle cx="228.3" cy="446.2" r="3" fill="#5f6b79"/>
+<circle cx="251.8" cy="446.6" r="3" fill="#5f6b79"/>
+<circle cx="292.4" cy="446.4" r="3" fill="#5f6b79"/>
+<circle cx="331.0" cy="447.4" r="3" fill="#5f6b79"/>
+<circle cx="353.9" cy="446.3" r="3" fill="#5f6b79"/>
+<circle cx="353.9" cy="445.9" r="3" fill="#5f6b79"/>
+<circle cx="403.9" cy="446.4" r="3" fill="#5f6b79"/>
+<circle cx="611.3" cy="446.0" r="3" fill="#5f6b79"/>
+<path d="M128.5,375.1 L137.1,375.0 L155.3,387.4 L161.3,375.9 L228.3,374.8 L251.8,375.4 L292.4,389.4 L331.0,192.6 L353.9,372.4 L353.9,364.4 L403.9,375.6 L611.3,377.5" fill="none" stroke="#5f6b79" stroke-width="1.4"/>
+<circle cx="128.5" cy="375.1" r="3" fill="#5f6b79"/>
+<circle cx="137.1" cy="375.0" r="3" fill="#5f6b79"/>
+<circle cx="155.3" cy="387.4" r="3" fill="#5f6b79"/>
+<circle cx="161.3" cy="375.9" r="3" fill="#5f6b79"/>
+<circle cx="228.3" cy="374.8" r="3" fill="#5f6b79"/>
+<circle cx="251.8" cy="375.4" r="3" fill="#5f6b79"/>
+<circle cx="292.4" cy="389.4" r="3" fill="#5f6b79"/>
+<circle cx="331.0" cy="192.6" r="5" fill="#96450a"/>
+<circle cx="353.9" cy="372.4" r="3" fill="#5f6b79"/>
+<circle cx="353.9" cy="364.4" r="3" fill="#5f6b79"/>
+<circle cx="403.9" cy="375.6" r="3" fill="#5f6b79"/>
+<circle cx="611.3" cy="377.5" r="3" fill="#5f6b79"/>
+<path d="M128.5,458.1 L137.1,457.4 L155.3,456.5 L161.3,457.9 L228.3,457.5 L251.8,457.9 L292.4,457.8 L331.0,457.7 L353.9,457.0 L353.9,457.8 L403.9,457.9 L611.3,457.9" fill="none" stroke="#5f6b79" stroke-width="1.4"/>
+<circle cx="128.5" cy="458.1" r="3" fill="#5f6b79"/>
+<circle cx="137.1" cy="457.4" r="3" fill="#5f6b79"/>
+<circle cx="155.3" cy="456.5" r="3" fill="#5f6b79"/>
+<circle cx="161.3" cy="457.9" r="3" fill="#5f6b79"/>
+<circle cx="228.3" cy="457.5" r="3" fill="#5f6b79"/>
+<circle cx="251.8" cy="457.9" r="3" fill="#5f6b79"/>
+<circle cx="292.4" cy="457.8" r="3" fill="#5f6b79"/>
+<circle cx="331.0" cy="457.7" r="3" fill="#5f6b79"/>
+<circle cx="353.9" cy="457.0" r="3" fill="#5f6b79"/>
+<circle cx="353.9" cy="457.8" r="3" fill="#5f6b79"/>
+<circle cx="403.9" cy="457.9" r="3" fill="#5f6b79"/>
+<circle cx="611.3" cy="457.9" r="3" fill="#5f6b79"/>
+<path d="M128.5,279.6 L137.1,284.1 L155.3,274.8 L161.3,278.5 L228.3,265.9 L251.8,279.1 L292.4,277.9 L331.0,279.7 L353.9,270.1 L353.9,272.0 L403.9,283.0 L611.3,285.3" fill="none" stroke="#5f6b79" stroke-width="1.4"/>
+<circle cx="128.5" cy="279.6" r="3" fill="#5f6b79"/>
+<circle cx="137.1" cy="284.1" r="3" fill="#5f6b79"/>
+<circle cx="155.3" cy="274.8" r="3" fill="#5f6b79"/>
+<circle cx="161.3" cy="278.5" r="3" fill="#5f6b79"/>
+<circle cx="228.3" cy="265.9" r="3" fill="#5f6b79"/>
+<circle cx="251.8" cy="279.1" r="3" fill="#5f6b79"/>
+<circle cx="292.4" cy="277.9" r="3" fill="#5f6b79"/>
+<circle cx="331.0" cy="279.7" r="3" fill="#5f6b79"/>
+<circle cx="353.9" cy="270.1" r="3" fill="#5f6b79"/>
+<circle cx="353.9" cy="272.0" r="3" fill="#5f6b79"/>
+<circle cx="403.9" cy="283.0" r="3" fill="#5f6b79"/>
+<circle cx="611.3" cy="285.3" r="3" fill="#5f6b79"/>
+<path d="M128.5,450.7 L137.1,449.9 L155.3,449.3 L161.3,448.4 L228.3,442.2 L251.8,442.0 L292.4,438.0 L331.0,435.5 L353.9,431.1 L353.9,430.7 L403.9,426.0 L611.3,411.3" fill="none" stroke="#a92218" stroke-width="2.5"/>
+<circle cx="128.5" cy="450.7" r="3" fill="#a92218"/>
+<circle cx="137.1" cy="449.9" r="3" fill="#a92218"/>
+<circle cx="155.3" cy="449.3" r="3" fill="#a92218"/>
+<circle cx="161.3" cy="448.4" r="3" fill="#a92218"/>
+<circle cx="228.3" cy="442.2" r="3" fill="#a92218"/>
+<circle cx="251.8" cy="442.0" r="3" fill="#a92218"/>
+<circle cx="292.4" cy="438.0" r="3" fill="#a92218"/>
+<circle cx="331.0" cy="435.5" r="3" fill="#a92218"/>
+<circle cx="353.9" cy="431.1" r="3" fill="#a92218"/>
+<circle cx="353.9" cy="430.7" r="3" fill="#a92218"/>
+<circle cx="403.9" cy="426.0" r="3" fill="#a92218"/>
+<circle cx="611.3" cy="411.3" r="3" fill="#a92218"/>
+<polyline points="696,223.0 708,219.0 716,219.0" fill="none" stroke="#1f4fd8" stroke-width="1"/>
+<text x="722" y="223.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f4fd8" text-anchor="start" font-weight="400" opacity="1">3D face tracking</text>
+<polyline points="696,285.3 708,281.3 716,281.3" fill="none" stroke="#5f6b79" stroke-width="1"/>
+<text x="722" y="285.3" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Neural render + super-res</text>
+<polyline points="696,377.5 708,362.0 716,362.0" fill="none" stroke="#5f6b79" stroke-width="1"/>
+<text x="722" y="366.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">LivePortrait warp</text>
+<polyline points="696,411.3 708,378.0 716,378.0" fill="none" stroke="#a92218" stroke-width="1"/>
+<text x="722" y="382.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="650" opacity="1">Paste-back compositing</text>
+<polyline points="696,412.5 708,394.0 716,394.0" fill="none" stroke="#1f4fd8" stroke-width="1"/>
+<text x="722" y="398.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f4fd8" text-anchor="start" font-weight="400" opacity="1">Face parsing</text>
+<polyline points="696,432.8 708,410.0 716,410.0" fill="none" stroke="#1f4fd8" stroke-width="1"/>
+<text x="722" y="414.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f4fd8" text-anchor="start" font-weight="400" opacity="1">Face crop</text>
+<polyline points="696,446.0 708,426.0 716,426.0" fill="none" stroke="#5f6b79" stroke-width="1"/>
+<text x="722" y="430.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Driving geometry + mask</text>
+<polyline points="696,457.9 708,442.0 716,442.0" fill="none" stroke="#5f6b79" stroke-width="1"/>
+<text x="722" y="446.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Warp reshaping</text>
+<polyline points="696,465.7 708,458.0 716,458.0" fill="none" stroke="#1f4fd8" stroke-width="1"/>
+<text x="722" y="462.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f4fd8" text-anchor="start" font-weight="400" opacity="1">Landmark detection</text>
+<polyline points="696,468.0 708,474.0 716,474.0" fill="none" stroke="#5f6b79" stroke-width="1"/>
+<text x="722" y="478.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Audio to expression</text>
+<circle cx="178.3" cy="155.0" r="5" fill="#96450a"/>
+<text x="191.3" y="159.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#96450a" text-anchor="start" font-weight="400" opacity="1">GPU-contended sample — flagged where a stage exceeds 2× its own median</text>
+<text x="350.9" y="325.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a92218" text-anchor="start" font-weight="650" opacity="1">Paste-back compositing: R² = 0.992 against megapixels</text>
+<text x="350.9" y="342.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#a92218" text-anchor="start" font-weight="400" opacity="1">slope 0.02850 s/frame/MPix over a fixed 0.00978 s/frame</text>
+<text x="32" y="553" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">Every intermediate in this pipeline — the crop, the tracked geometry, the render itself — is written at 512² regardless of input size, so the</text>
+<text x="32" y="568" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">flat lines are structural: those stages never see the source resolution. Paste-back is the only stage that composites back onto the original</text>
+<text x="32" y="583" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">frame, and it is the only one that slopes. The next-best fit among the flat stages is Face crop at R² 0.533. That the flat stages come out flat</text>
+<text x="32" y="598" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">is therefore a property of the design, and not evidence that the instrument is trustworthy. Measured, one run per clip; the fits are ordinary</text>
+<text x="32" y="613" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="#5f6b79" text-anchor="start" font-weight="400" opacity="1">least squares through those points and the amber sample is inside them.</text>
+</svg>

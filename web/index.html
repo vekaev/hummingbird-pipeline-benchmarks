@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profiling a ten-stage lip-sync pipeline in production</title>
+<meta name="description" content="A per-stage profile of a production zero-shot lip-sync pipeline, an open-dataset run, and paired A/B measurements of two proposed optimizations.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;620&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f4f6f8; --surface:#ffffff; --sunk:#eef1f5;
+  --ink:#141920; --ink-soft:#3d4753; --muted:#5f6b79;
+  --rule:#dde2e9; --accent:#1f4fd8;
+  --before:#a92218; --after:#0a6146; --amber:#96450a;
+  --fig-ink:#141920; --fig-muted:#5f6b79; --fig-rule:#dde2e9;
+  --fig-before:#a92218; --fig-after:#0a6146; --fig-neutral:#1f4fd8;
+  --fig-amber:#96450a; --fig-knockout:#ffffff;
+  --serif:'IBM Plex Serif',Georgia,serif;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#0e1216; --surface:#161b21; --sunk:#1b2128;
+    --ink:#e8ecf1; --ink-soft:#b6bfca; --muted:#8b96a3;
+    --rule:#2a323b; --accent:#7ba2ff;
+    --before:#f08b80; --after:#5fc79f; --amber:#e0a970;
+    --fig-ink:#e8ecf1; --fig-muted:#8b96a3; --fig-rule:#2a323b;
+    --fig-before:#f08b80; --fig-after:#5fc79f; --fig-neutral:#7ba2ff;
+    --fig-amber:#e0a970; --fig-knockout:#161b21;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#0e1216; --surface:#161b21; --sunk:#1b2128;
+  --ink:#e8ecf1; --ink-soft:#b6bfca; --muted:#8b96a3;
+  --rule:#2a323b; --accent:#7ba2ff;
+  --before:#f08b80; --after:#5fc79f; --amber:#e0a970;
+  --fig-ink:#e8ecf1; --fig-muted:#8b96a3; --fig-rule:#2a323b;
+  --fig-before:#f08b80; --fig-after:#5fc79f; --fig-neutral:#7ba2ff;
+  --fig-amber:#e0a970; --fig-knockout:#161b21;
+  color-scheme:dark;
+}
+
+*,*::before,*::after { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.shell { max-width:1180px; margin:0 auto; padding:0 28px; }
+.cols { display:grid; grid-template-columns:242px minmax(0,1fr); gap:44px; align-items:start; }
+@media (max-width:940px) { .cols { grid-template-columns:1fr; gap:0; } .rail { position:static; padding-top:0; } }
+
+h1 { font-family:var(--serif); font-weight:600; font-size:40px; line-height:1.14; margin:0 0 18px; letter-spacing:-0.015em; text-wrap:balance; }
+h2 { font-family:var(--serif); font-weight:600; font-size:25px; line-height:1.24; margin:0 0 14px; text-wrap:balance; }
+h3 { font-family:var(--sans); font-weight:620; font-size:16.5px; margin:30px 0 10px; text-wrap:balance; }
+p, li { max-width:68ch; color:var(--ink-soft); margin:0 0 15px; }
+strong { color:var(--ink); font-weight:620; }
+a { color:var(--accent); text-decoration:none; border-bottom:1px solid color-mix(in srgb, var(--accent) 32%, transparent); }
+a:hover { border-bottom-color:var(--accent); }
+code { font-family:var(--mono); font-size:0.885em; background:var(--sunk); padding:1px 5px; border-radius:3px; color:var(--ink); }
+
+.masthead { padding:52px 0 34px; border-bottom:2px solid var(--ink); margin-bottom:0; }
+.eyebrow { font-family:var(--mono); font-size:11.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin:0 0 16px; }
+.standfirst { font-size:18.5px; line-height:1.56; color:var(--ink-soft); max-width:74ch; margin:0; }
+.standfirst strong { color:var(--ink); }
+
+.ledger { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); margin:34px 0 0; }
+@media (max-width:760px) { .ledger { grid-template-columns:repeat(2,1fr); } }
+.ledger div { background:var(--surface); padding:15px 17px; }
+.ledger dt { font-family:var(--mono); font-size:10.5px; letter-spacing:0.07em; text-transform:uppercase; color:var(--muted); margin:0 0 7px; }
+.ledger dd { margin:0; font-family:var(--mono); font-size:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
+.ledger dd small { display:block; font-family:var(--sans); font-size:11.5px; font-weight:400; color:var(--muted); letter-spacing:0; margin-top:5px; line-height:1.45; }
+
+.rail { position:sticky; top:26px; padding-top:56px; }
+.rail h2 { font-family:var(--mono); font-size:10.5px; letter-spacing:0.09em; text-transform:uppercase; color:var(--muted); font-weight:500; margin:0 0 11px; }
+.rail h2 + ul { margin-bottom:24px; }
+.rail ul { list-style:none; margin:0; padding:0; }
+.rail li { margin:0; max-width:none; }
+.rail a { display:block; padding:4px 0; font-size:13.2px; color:var(--ink-soft); border:0; line-height:1.4; }
+.rail a:hover { color:var(--accent); }
+.rail .tag { font-family:var(--mono); font-size:11px; color:var(--muted); margin-right:7px; }
+
+section { padding:44px 0 8px; }
+section + section { border-top:2px solid var(--ink); }
+.sec-no { font-family:var(--mono); font-size:11.5px; letter-spacing:0.09em; color:var(--muted); display:block; margin-bottom:9px; }
+
+.claim { border-left:3px solid var(--accent); background:var(--surface); padding:16px 20px; margin:0 0 24px; }
+.claim p { margin:0; max-width:70ch; color:var(--ink); font-size:16.5px; }
+.claim .stat { font-family:var(--mono); font-weight:600; font-variant-numeric:tabular-nums; }
+.claim .interval { display:block; font-family:var(--mono); font-size:12.5px; color:var(--muted); margin-top:8px; }
+
+.verdict { font-family:var(--mono); font-size:13px; padding:11px 15px; background:var(--sunk); border:1px solid var(--rule); margin:0 0 18px; color:var(--ink); }
+.verdict b { font-weight:600; }
+
+.caveat { border-left:3px solid var(--amber); background:var(--surface); padding:14px 18px; margin:0 0 24px; }
+.caveat .caveat-label { font-family:var(--mono); font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--amber); display:block; margin-bottom:6px; }
+.caveat p { margin:0; font-size:14.6px; max-width:72ch; }
+.caveat p + p { margin-top:9px; }
+
+.figure { margin:0 0 26px; }
+.figure-plate { background:var(--surface); border:1px solid var(--rule); padding:16px; overflow-x:auto; }
+.figure-plate svg { display:block; min-width:620px; }
+.figure figcaption { font-size:13.4px; color:var(--muted); margin-top:10px; max-width:74ch; }
+.figure figcaption b { font-family:var(--mono); font-size:11.5px; color:var(--ink); margin-right:7px; }
+
+.tw { overflow-x:auto; margin:0 0 24px; border:1px solid var(--rule); background:var(--surface); }
+table { border-collapse:collapse; width:100%; font-size:13.6px; }
+th, td { padding:8px 12px; text-align:left; border-bottom:1px solid var(--rule); vertical-align:top; }
+th { font-family:var(--mono); font-size:11px; letter-spacing:0.05em; text-transform:uppercase; color:var(--muted); font-weight:500; background:var(--sunk); white-space:nowrap; }
+td { color:var(--ink-soft); }
+td.n, th.n { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+tbody tr:last-child td { border-bottom:0; }
+table strong { color:var(--ink); }
+.tw.wide th:first-child, .tw.wide td:first-child { position:sticky; left:0; background:var(--surface); z-index:1; }
+.tw.wide th:first-child { background:var(--sunk); }
+
+.two { display:grid; grid-template-columns:1fr 1fr; gap:0 1px; background:var(--rule); border:1px solid var(--rule); margin:0 0 24px; }
+@media (max-width:760px) { .two { grid-template-columns:1fr; } }
+.two > div { background:var(--surface); padding:16px 19px; }
+.two h4 { font-family:var(--mono); font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 9px; color:var(--muted); font-weight:500; }
+.two p { font-size:14.4px; margin:0 0 9px; max-width:none; }
+.two p:last-child { margin-bottom:0; }
+
+footer { border-top:2px solid var(--ink); margin-top:52px; padding:26px 0 60px; }
+footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
+.pagelink { display:inline-block; font-family:var(--mono); font-size:12.5px; padding:9px 15px; border:1px solid var(--rule); background:var(--surface); color:var(--ink); border-bottom:1px solid var(--rule); }
+.pagelink:hover { border-color:var(--accent); color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header class="masthead">
+  <p class="eyebrow">Zero-shot lip-sync in production · ten-stage pipeline · A100 · measured 2026-07 to 2026-09</p>
+  <h1>What a per-stage profile changes about which optimizations are worth doing</h1>
+  <p class="standfirst">
+    A production video pipeline chains ten models, and nothing in it was instrumented, so
+    nobody knew where its time went. Recovering the profile showed that the
+    audio-to-expression model the system is named for is <strong>1.3%</strong> of
+    runtime — and that both of the roadmap optimizations tested produce
+    <strong>no measurable gain</strong>, because each targets arithmetic in a stage that is
+    waiting on video decode. A third change, found by reading the code rather than proposed,
+    made it measurably slower.
+  </p>
+  <dl class="ledger">
+  <div><dt>Buildable again</dt><dd>green<small>First build of the repository that runs, after roughly sixteen months in which none did.</small></dd></div>
+  <div><dt>Roadmap items tested</dt><dd>2 of 5<small>Plus 1 change not on the roadmap. All 3 measured arms rejected: none produced a gain the design could resolve.</small></dd></div>
+  <div><dt>Output quality</dt><dd>unchanged<small>No arm was kept, so nothing shipped that could move it. Verified on every generated clip.</small></dd></div>
+  <div><dt>Pipeline runs measured</dt><dd>57<small>Across 5 configurations, production and dedicated hardware.</small></dd></div>
+  <div><dt>Longest single run</dt><dd>674 s<small>One 1080p job end to end, excluding the container start it is billed for.</small></dd></div>
+  <div><dt>GPU time spent measuring</dt><dd>5.7 h<small>Sum of every run on this page. The A/B share of it cost about $8.</small></dd></div></dl>
+</header>
+
+<div class="cols">
+<aside class="rail">
+  <h2>Sections</h2>
+  <ul><li><a href="#what-was-done"><span class="tag">01</span>What was done</a></li>
+<li><a href="#reporting"><span class="tag">02</span>Per-stage timing, by configuration</a></li>
+<li><a href="#stage-profile"><span class="tag">03</span>Where the time actually goes</a></li>
+<li><a href="#arms"><span class="tag">04</span>Two roadmap changes, measured</a></li>
+<li><a href="#resolution"><span class="tag">05</span>What scales with resolution, and what does not</a></li>
+<li><a href="#quality"><span class="tag">06</span>Output quality against real footage</a></li>
+<li><a href="#cost"><span class="tag">07</span>The same profile, priced</a></li>
+<li><a href="#cache"><span class="tag">08</span>The largest change is architectural</a></li>
+<li><a href="#gpucpu"><span class="tag">09</span>Work on a GPU that needs no GPU</a></li>
+<li><a href="#how"><span class="tag">10</span>How the numbers were made</a></li>
+<li><a href="#limits"><span class="tag">11</span>What this does not establish</a></li></ul>
+  <h2>Evidence</h2>
+  <ul><li><a href="results-pack.html">Results pack &rarr;</a></li></ul>
+</aside>
+
+<main>
+
+
+<section id="what-was-done">
+  <span class="sec-no">01</span>
+  <h2>What was done</h2>
+
+<p>
+  Twelve changes, in the order they were made. 10 carry a measured effect;
+  the rest are implemented and instrumented with no number yet, and say so. Nothing here is
+  credited with an estimate.
+</p>
+<div class="tw"><table><thead><tr><th class="n">#</th><th>Change</th><th>What it does</th><th>Effect</th></tr></thead><tbody>
+<tr><td class="n">1</td><td>Recovered a per-stage profile from container logs</td><td>The pipeline's timing decorators printed to stdout and nothing persisted them. The platform retains container stdout, so the profile was pulled back over its API from real production runs with no instrumentation change.</td><td>Ten stages, n=5, reconciling to the independently printed job total within 0.03 s</td></tr>
+<tr><td class="n">2</td><td>Fixed the timing decorator so repeated stages accumulate</td><td>The decorator overwrote a stage's time on each call, so any job invoking a stage more than once reported only the last invocation. Every multi-segment word-replacement job was affected.</td><td>Every timing table on this site flows through the fixed code path</td></tr>
+<tr><td class="n">3</td><td>Pinned the dependency graph and made the image buildable</td><td>28 of 62 requirement lines carried no version, so every rebuild resolved a different environment and nothing had rebuilt cleanly in roughly sixteen months.</td><td>221 packages pinned; first green build of the repository since May 2025</td></tr>
+<tr><td class="n">4</td><td>Found and fixed a mixed-CUDA torch stack</td><td>A version pin does not identify a build variant. Pinning torch to a version installed a CUDA 12.4 wheel from the public index, while the build's own later step installed CUDA 12.1 builds of torchaudio and torchvision. torchaudio then refuses to import, and the pipeline imports it before serving its first request.</td><td>The container reached a running state; a full clip completed in 398 s</td></tr>
+<tr><td class="n">5</td><td>Made the sampler seedable per run</td><td>The audio-to-expression model seeded once at construction, so the first prediction in a warm process was reproducible and every later one was not. Two runs of one clip shared zero identical frames out of 1074.</td><td>Prerequisite for a paired A/B, and for the cache in the same section</td></tr>
+<tr><td class="n">6</td><td>Renderer batch size 4 to 16</td><td>Roadmap item, premised on the GPU being under-fed at batch 4. Exposed as one environment variable so a single build serves both sides of the comparison.</td><td>+0.32% slower, paired across three clips, all three the same direction: rejected</td></tr>
+<tr><td class="n">7</td><td>fp16 autocast in the neural renderer</td><td>Roadmap item. Also exposed as one environment variable, default off.</td><td>+0.51% with mixed per-clip signs, and 39.37 dB PSNR against the fp32 output: rejected</td></tr>
+<tr><td class="n">8</td><td>Asynchronous host-to-device transfers in the renderer</td><td>Roadmap item, partially implemented: non_blocking on six host-to-device copies. Pinned memory already existed; CUDA streams were not built.</td><td><strong>not measured</strong> — Always on, so it is inside every arm including the baseline and cannot be isolated by this design</td></tr>
+<tr><td class="n">9</td><td>cuDNN autotuning scoped to the render loop</td><td>Not a roadmap item. The animator's seeding helper disables cuDNN autotuning process-wide as a side effect, and the renderer inherits it: hundreds of convolutions at one fixed input shape, run without autotuned kernels.</td><td><strong>not measured</strong> — Arm was still running when this site was built</td></tr>
+<tr><td class="n">10</td><td>Paste-back composites only the mask bounding box</td><td>Where the warped mask is zero the composite writes the source back over itself. Restricting it to the mask's bounding box is bit-exact by construction rather than an approximation.</td><td>Bit-identical across 44 cases and 400 random transforms; 1.55x to 2.90x on the function, which is about 14% of the timed stage</td></tr>
+<tr><td class="n">11</td><td>Output sanity checks on every generated video</td><td>A timing harness cannot see a black frame, a frozen output, or a face whose mouth never moves. An arm that is faster because it produced garbage would otherwise read as a win.</td><td>16 of 16 open-dataset outputs pass, confirmed by automated checks and by frame inspection</td></tr>
+<tr><td class="n">12</td><td>Made result writes concurrency-safe</td><td>The quality harness loaded its whole result file at start, held it for minutes, then wrote it back whole. Two concurrent scorings destroyed one another's results.</td><td>A completed three-clip result set was lost this way before the fix; writes now merge and rename atomically</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Net effect on the shipping system:</b> the build works again, and no
+optimization was kept. Both measurable roadmap items were rejected on their own numbers.</div>
+
+</section>
+
+
+<section id="reporting">
+  <span class="sec-no">02</span>
+  <h2>Per-stage timing, by configuration</h2>
+
+<p>
+  The table the brief asked for: per-stage timing across several runs, with hardware and
+  video parameters, one row per configuration. Values are seconds, mean across that
+  configuration's runs.
+</p>
+<div class="tw wide"><table><thead><tr><th>Configuration</th><th class="n">n</th><th class="n">Crop</th><th class="n">Landmarks</th><th class="n">Parsing</th><th class="n">Tracking</th><th class="n">Animator</th><th class="n">Geometry</th><th class="n">Warp</th><th class="n">Reshape</th><th class="n">Render</th><th class="n">Paste-back</th><th class="n">Pipeline</th></tr></thead><tbody>
+<tr><td>Production lipsync</td><td class="n">5</td><td class="n">30.7</td><td class="n">7.8</td><td class="n">39.7</td><td class="n">146.6</td><td class="n">6.7</td><td class="n">19.7</td><td class="n">62.0</td><td class="n">13.0</td><td class="n">129.6</td><td class="n">73.1</td><td class="n">528.8</td></tr>
+<tr><td>Production word replacement</td><td class="n">6</td><td class="n">19.9</td><td class="n">1.4</td><td class="n">8.2</td><td class="n">61.4</td><td class="n">2.4</td><td class="n">4.8</td><td class="n">15.1</td><td class="n">2.3</td><td class="n">13.9</td><td class="n">16.4</td><td class="n">146.8</td></tr>
+<tr><td>HDTF self-driven</td><td class="n">12</td><td class="n">19.2</td><td class="n">5.4</td><td class="n">28.4</td><td class="n">112.9</td><td class="n">4.2</td><td class="n">14.0</td><td class="n">51.6</td><td class="n">9.0</td><td class="n">88.6</td><td class="n">17.7</td><td class="n">351.0</td></tr>
+<tr><td>HDTF cross-driven</td><td class="n">4</td><td class="n">19.6</td><td class="n">5.9</td><td class="n">28.6</td><td class="n">113.2</td><td class="n">4.4</td><td class="n">13.9</td><td class="n">47.3</td><td class="n">9.1</td><td class="n">87.9</td><td class="n">18.6</td><td class="n">348.4</td></tr>
+<tr><td>A/B arms</td><td class="n">13</td><td class="n">18.1</td><td class="n">6.0</td><td class="n">36.4</td><td class="n">140.9</td><td class="n">4.6</td><td class="n">20.9</td><td class="n">47.8</td><td class="n">7.9</td><td class="n">90.2</td><td class="n">12.5</td><td class="n">357.8</td></tr>
+</tbody></table></div>
+<div class="caveat">
+  <span class="caveat-label">Hardware is measured for one row only</span>
+  <p>
+    The A/B arms ran on a machine whose runner writes the GPU model, driver and torch build
+    into every log header, so that row is an observation. The production container never
+    prints its GPU, so those rows carry the deployment configuration instead. They are
+    labelled, and they are not measurements.
+  </p>
+</div>
+<div class="tw"><table><thead><tr><th>Configuration</th><th>Hardware</th><th>Video parameters</th><th>Deployment</th><th>Protocol</th></tr></thead><tbody>
+<tr><td>Production lipsync</td><td>A100, from deployment configuration (the container does not print its GPU) <em>(config, not measured)</em></td><td>1920x1080, 1074-1167 frames at 25 fps, 43.0-46.7 s</td><td>Deployed production build, serverless GPU, scale-to-zero</td><td>Driven predictions, one per log</td></tr>
+<tr><td>Production word replacement</td><td>A100, from deployment configuration <em>(config, not measured)</em></td><td>1920x1080, one changed segment, 198 frames extracted then time-warped to 210</td><td>Same deployed build, harvested from live traffic</td><td>Harvested, not driven; six replicas of one fixture</td></tr>
+<tr><td>HDTF self-driven</td><td>A100, from deployment configuration <em>(config, not measured)</em></td><td>462-1026 px square, 751 frames at 25 fps, 30.0 s</td><td>Same deployed build, version pinned</td><td>A clip's own audio drives it, so ground truth exists</td></tr>
+<tr><td>HDTF cross-driven</td><td>A100, from deployment configuration <em>(config, not measured)</em></td><td>462-1040 px square, 751 frames at 25 fps</td><td>Same deployed build, version pinned</td><td>One speaker's audio drives another's video; no ground truth by construction</td></tr>
+<tr><td>A/B arms</td><td><strong>NVIDIA A100-SXM4-40GB, driver 580.105.08, torch 2.5.1+cu121, cuDNN 90100 - read from the log header, measured</strong></td><td>Three HDTF clips, 478-654 px square, 751 frames</td><td>Dedicated machine, image built from the pinned lock</td><td>One warm process per arm, sampler seeded, sequential, paired per clip</td></tr>
+</tbody></table></div>
+<p>
+  Precision differs sharply between them, and it is why the A/B was not run on production
+  at all:
+</p>
+<div class="tw"><table><thead><tr><th>Configuration</th><th class="n">n</th><th class="n">mean pipeline (s)</th><th class="n">stdev (s)</th><th class="n">CV</th><th>can resolve a 1% effect</th></tr></thead><tbody>
+<tr><td>Production lipsync</td><td class="n">5</td><td class="n">528.77</td><td class="n">18.33</td><td class="n">0.035</td><td>no</td></tr>
+<tr><td>Production word replacement</td><td class="n">6</td><td class="n">146.78</td><td class="n">4.13</td><td class="n">0.028</td><td>no</td></tr>
+<tr><td>HDTF self-driven</td><td class="n">12</td><td class="n">350.99</td><td class="n">25.21</td><td class="n">0.072</td><td>no</td></tr>
+<tr><td>HDTF cross-driven</td><td class="n">4</td><td class="n">348.41</td><td class="n">12.73</td><td class="n">0.037</td><td>no</td></tr>
+<tr><td>A/B arms</td><td class="n">3</td><td class="n">389.21</td><td class="n">4.01</td><td class="n">0.010</td><td>yes, paired</td></tr>
+</tbody></table></div>
+
+</section>
+
+
+<section id="stage-profile">
+  <span class="sec-no">03</span>
+  <h2>Where the time actually goes</h2>
+
+<div class="claim">
+  <p>
+    Of 528.77 s of pipeline time, 3D face tracking takes
+    <span class="stat">27.7%</span> and neural rendering
+    <span class="stat">24.5%</span>. The audio-to-expression model — the generative
+    research the system is named for — takes <span class="stat">1.3%</span>.
+  </p>
+  <span class="interval">n=5 driven predictions, 1920&times;1080. Stages reconcile to the independently printed job total within 0.03 s.</span>
+</div>
+
+<figure class="figure">
+  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 547" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">Two stages are half the pipeline, and neither is the lipsync model</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Measured mean per-stage seconds, n=5 harvested production lipsync predictions at 1920×1080, 1074–1167 frames at 25 fps.</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Stages in pipeline execution order; shares are of the 528.77 s stage total.</text>
+<line x1="232" y1="140" x2="232" y2="450" stroke="var(--fig-rule)" stroke-width="1"/><text x="232" y="470" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0</text>
+<line x1="311.66666666666663" y1="140" x2="311.66666666666663" y2="450" stroke="var(--fig-rule)" stroke-width="1"/><text x="311.66666666666663" y="470" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">25</text>
+<line x1="391.3333333333333" y1="140" x2="391.3333333333333" y2="450" stroke="var(--fig-rule)" stroke-width="1"/><text x="391.3333333333333" y="470" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">50</text>
+<line x1="471" y1="140" x2="471" y2="450" stroke="var(--fig-rule)" stroke-width="1"/><text x="471" y="470" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">75</text>
+<line x1="550.6666666666666" y1="140" x2="550.6666666666666" y2="450" stroke="var(--fig-rule)" stroke-width="1"/><text x="550.6666666666666" y="470" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">100</text>
+<line x1="630.3333333333334" y1="140" x2="630.3333333333334" y2="450" stroke="var(--fig-rule)" stroke-width="1"/><text x="630.3333333333334" y="470" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">125</text>
+<line x1="710" y1="140" x2="710" y2="450" stroke="var(--fig-rule)" stroke-width="1"/><text x="710" y="470" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">150</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">mean seconds per stage, measured over n=5 production runs</text>
+<rect x="533.2" y="99" width="11" height="11" fill="var(--fig-neutral)" rx="2"/>
+<text x="550.2" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">source-only prefix (no audio input)</text>
+<rect x="744.0" y="99" width="11" height="11" fill="var(--fig-ink)" rx="2"/>
+<text x="761.0" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">audio-dependent</text>
+<text x="218" y="169" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="550" opacity="1">Face crop</text>
+<rect x="232" y="155.5" width="97.7" height="19" fill="var(--fig-neutral)" rx="2"/>
+<text x="339.7" y="169" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-neutral)" text-anchor="start" font-weight="600" opacity="1">30.67 s · 5.8%</text>
+<text x="218" y="199" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="550" opacity="1">Landmark detection</text>
+<rect x="232" y="185.5" width="24.7" height="19" fill="var(--fig-neutral)" rx="2"/>
+<text x="266.7" y="199" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-neutral)" text-anchor="start" font-weight="600" opacity="1">7.76 s · 1.5%</text>
+<text x="218" y="229" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="550" opacity="1">Face parsing</text>
+<rect x="232" y="215.5" width="126.4" height="19" fill="var(--fig-neutral)" rx="2"/>
+<text x="368.4" y="229" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-neutral)" text-anchor="start" font-weight="600" opacity="1">39.66 s · 7.5%</text>
+<text x="218" y="259" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="550" opacity="1">3D face tracking</text>
+<rect x="232" y="245.5" width="467.2" height="19" fill="var(--fig-neutral)" rx="2"/>
+<text x="709.2" y="259" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-neutral)" text-anchor="start" font-weight="600" opacity="1">146.61 s · 27.7%</text>
+<text x="218" y="289" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Audio to expression</text>
+<rect x="232" y="275.5" width="21.3" height="19" fill="var(--fig-ink)" rx="2"/>
+<text x="263.3" y="289" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">6.70 s · 1.3%</text>
+<text x="218" y="319" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Driving geometry + mask</text>
+<rect x="232" y="305.5" width="62.8" height="19" fill="var(--fig-ink)" rx="2"/>
+<text x="304.8" y="319" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">19.70 s · 3.7%</text>
+<text x="218" y="349" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">LivePortrait warp</text>
+<rect x="232" y="335.5" width="197.6" height="19" fill="var(--fig-ink)" rx="2"/>
+<text x="439.6" y="349" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">62.01 s · 11.7%</text>
+<text x="218" y="379" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Warp reshaping</text>
+<rect x="232" y="365.5" width="41.3" height="19" fill="var(--fig-ink)" rx="2"/>
+<text x="283.3" y="379" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">12.97 s · 2.5%</text>
+<text x="218" y="409" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Neural render + super-res</text>
+<rect x="232" y="395.5" width="413.1" height="19" fill="var(--fig-ink)" rx="2"/>
+<text x="655.1" y="409" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">129.63 s · 24.5%</text>
+<text x="218" y="439" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Paste-back compositing</text>
+<rect x="232" y="425.5" width="232.8" height="19" fill="var(--fig-ink)" rx="2"/>
+<text x="474.8" y="439" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">73.05 s · 13.8%</text>
+<text x="32" y="499" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">3D face tracking and Neural render + super-res are 52.2% of the pipeline between them. Audio to expression — the audio-to-motion model</text>
+<text x="32" y="514" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">itself, the part a reader assumes this pipeline is — is 1.3%. The four stages in the prefix colour run before the animator and take no</text>
+<text x="32" y="529" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">audio input at all: 224.70 s, 42.5% of the pipeline, recomputed identically for every job that reuses a source video.</text>
+</svg></div>
+  <figcaption><b>F1</b>Per-stage mean for production lipsync, in pipeline execution order. The four stages before the animator take no audio input.</figcaption>
+</figure>
+<div class="verdict"><b>Consequence:</b> optimizing the generative model could not have mattered.
+Nine tenths of the cost is the machinery around it.</div>
+<div class="caveat">
+  <span class="caveat-label">Say "the audio-to-expression model", not "the generative model"</span>
+  <p>
+    Neural rendering and the LivePortrait warp are also neural generators. Image generation
+    is roughly 36% of runtime. The 1.3% figure is true of one model and understates
+    neural cost by about 28 points if read as "the AI part".
+  </p>
+</div>
+
+</section>
+
+
+<section id="arms">
+  <span class="sec-no">04</span>
+  <h2>Two roadmap changes, measured</h2>
+
+<div class="claim">
+  <p>
+    Raising the renderer's batch size from 4 to 16 measured
+    <span class="stat">+0.32%</span>. Adding fp16 autocast measured
+    <span class="stat">+0.51%</span>. Re-enabling cuDNN autotuning measured
+    <span class="stat">+1.89%</span>. Negative would mean faster. All 3 were
+    rejected.
+  </p>
+  <span class="interval">Paired per clip, three clips, one warm process per arm, sampler seeded, sequential, on a dedicated A100. Baseline coefficient of variation 0.010.</span>
+</div>
+
+<figure class="figure">
+  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 657" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">All 3 renderer tuning arms landed inside the noise</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Measured on one dedicated A100 40GB: the same 3 clips in the same order, one warm process per arm, sampler seeded, arms run</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">sequentially. Paired per clip because clip-to-clip spread in this pipeline is larger than the effects being tested.</text>
+<line x1="380" y1="148" x2="380" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="380" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-4%</text>
+<line x1="433.5" y1="148" x2="433.5" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="433.5" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-3%</text>
+<line x1="487" y1="148" x2="487" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="487" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-2%</text>
+<line x1="540.5" y1="148" x2="540.5" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="540.5" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">-1%</text>
+<line x1="594" y1="148" x2="594" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="594" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0%</text>
+<line x1="647.5" y1="148" x2="647.5" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="647.5" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+1%</text>
+<line x1="701" y1="148" x2="701" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="701" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+2%</text>
+<line x1="754.5" y1="148" x2="754.5" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="754.5" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+3%</text>
+<line x1="808" y1="148" x2="808" y2="530" stroke="var(--fig-rule)" stroke-width="1"/><text x="808" y="550" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">+4%</text>
+<rect x="433.5" y="148" width="321.0" height="382" fill="var(--fig-rule)"/>
+<line x1="594" y1="148" x2="594" y2="530" stroke="var(--fig-muted)" stroke-width="1.5"/>
+<line x1="433.5" y1="148" x2="433.5" y2="530" stroke="var(--fig-after)" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="440.5" y="162" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-after)" text-anchor="start" font-weight="650" opacity="1">keep threshold −3%</text>
+<text x="747.5" y="162" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">±3% acceptance gate</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">per-clip paired wall-time delta against the baseline arm — negative is faster</text>
+
+<text x="868" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">measured, n=3 clips per arm</text>
+<text x="364" y="193" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio11_001</text>
+<line x1="594" y1="189" x2="616.0" y2="189" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="616.0" cy="189" r="5" fill="var(--fig-before)"/>
+<text x="627.0" y="193" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+0.41%</text>
+<text x="364" y="227" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio32_000</text>
+<line x1="594" y1="223" x2="600.0" y2="223" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="600.0" cy="223" r="5" fill="var(--fig-before)"/>
+<text x="611.0" y="227" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+0.11%</text>
+<text x="364" y="261" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio42_000</text>
+<line x1="594" y1="257" x2="617.7" y2="257" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="617.7" cy="257" r="5" fill="var(--fig-before)"/>
+<text x="628.7" y="261" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+0.44%</text>
+<text x="250.692" y="189" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Renderer batch 4 → 16</text>
+<text x="250.692" y="205" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">batch 16, fp32</text>
+<text x="250.692" y="221" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-before)" text-anchor="end" font-weight="650" opacity="1">mean +0.32%</text>
+<text x="820" y="227" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="650" opacity="1">rejected</text>
+<text x="364" y="321" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio11_001</text>
+<line x1="594" y1="317" x2="633.9" y2="317" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="633.9" cy="317" r="5" fill="var(--fig-before)"/>
+<text x="644.9" y="321" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+0.75%</text>
+<text x="364" y="355" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio32_000</text>
+<line x1="594" y1="351" x2="564.5" y2="351" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="564.5" cy="351" r="5" fill="var(--fig-before)"/>
+<text x="553.5" y="355" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="end" font-weight="600" opacity="1">-0.55%</text>
+<text x="364" y="389" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio42_000</text>
+<line x1="594" y1="385" x2="665.2" y2="385" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="665.2" cy="385" r="5" fill="var(--fig-before)"/>
+<text x="676.2" y="389" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.33%</text>
+<text x="250.692" y="317" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Batch 16 + fp16 autocast</text>
+<text x="250.692" y="333" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">batch 16, fp16</text>
+<text x="250.692" y="349" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-before)" text-anchor="end" font-weight="650" opacity="1">mean +0.51%</text>
+<text x="820" y="355" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="650" opacity="1">rejected</text>
+<text x="364" y="449" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio11_001</text>
+<line x1="594" y1="445" x2="694.5" y2="445" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="694.5" cy="445" r="5" fill="var(--fig-before)"/>
+<text x="705.5" y="449" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.88%</text>
+<text x="364" y="483" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio32_000</text>
+<line x1="594" y1="479" x2="673.8" y2="479" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="673.8" cy="479" r="5" fill="var(--fig-before)"/>
+<text x="684.8" y="483" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.49%</text>
+<text x="364" y="517" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">RD_Radio42_000</text>
+<line x1="594" y1="513" x2="717.3" y2="513" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="717.3" cy="513" r="5" fill="var(--fig-before)"/>
+<text x="728.3" y="517" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+2.30%</text>
+<text x="250.692" y="445" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">cuDNN autotuning in the render loop</text>
+<text x="250.692" y="461" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">batch 4, fp32, cuDNN autotune</text>
+<text x="250.692" y="477" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-before)" text-anchor="end" font-weight="650" opacity="1">mean +1.89%</text>
+<text x="820" y="483" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="650" opacity="1">rejected</text>
+<text x="32" y="579" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Sign convention: the delta is candidate minus baseline, so negative is faster and positive is slower. The gate keeps a change only at 3%</text>
+<text x="32" y="594" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">faster or better — the dashed green line — and no arm reached it, so nothing here is drawn in the keep colour. The largest mean effect of any</text>
+<text x="32" y="609" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">arm is 1.89%, against a baseline run-to-run CV of 0.010. Measured on one dedicated A100 40GB, so the null is a real null and not an artefact</text>
+<text x="32" y="624" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">of a noisy host: the renderer is decode-bound, and neither batch size nor autocast reaches the bottleneck. arm0b has a record but no</text>
+<text x="32" y="639" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">completed wall time, and is omitted rather than drawn.</text>
+</svg></div>
+  <figcaption><b>F2</b>Per-clip paired difference against the baseline arm. The band is the &plusmn;3% acceptance gate. Negative is faster.</figcaption>
+</figure>
+<div class="tw"><table><thead><tr><th>Arm</th><th>Configuration</th><th class="n">n</th><th class="n">mean wall (s)</th><th class="n">paired vs baseline</th><th>per-clip range</th><th>signs</th><th>verdict</th></tr></thead><tbody>
+<tr><td>arm0</td><td>Baseline: batch 4, fp32</td><td class="n">3</td><td class="n">389.21</td><td class="n">reference</td><td>reference</td><td></td><td>baseline</td></tr>
+<tr><td>arm1</td><td>Renderer batch 4 to 16</td><td class="n">3</td><td class="n">390.46</td><td class="n">+0.32%</td><td>+0.11% to +0.44%</td><td>consistent</td><td>rejected</td></tr>
+<tr><td>arm2</td><td>Batch 16 + fp16 autocast</td><td class="n">3</td><td class="n">391.16</td><td class="n">+0.51%</td><td>-0.55% to +1.33%</td><td>mixed</td><td>rejected</td></tr>
+<tr><td>arm3</td><td>cuDNN autotuning in the render loop</td><td class="n">3</td><td class="n">396.56</td><td class="n">+1.89%</td><td>+1.49% to +2.30%</td><td>consistent</td><td>rejected</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Why all three failed, and it is one reason:</b> the renderer is bound by video
+decode, not arithmetic. Its dataset asks for frames <code>[c-2 … c+2]</code>, finishes at
+<code>c+2</code>, then asks for <code>c-1</code> — missing the reader's only sequential fast
+path on every frame, inside a 250-frame GOP. Feeding the GPU four times more per step cannot
+help, and neither can halving precision.</div>
+<p>
+  The prediction was written down after the first arm and before the others ran. It held twice.
+  This is the study's central claim arriving as a measurement rather than an assertion: the two
+  roadmap items were proposed on architectural intuition, and the profile that would have
+  redirected them did not exist when they were written.
+</p>
+<p>
+  The third arm was not on the roadmap. It came from noticing that the animator's seeding
+  helper disables cuDNN autotuning <em>process-wide</em> as a side effect, so the renderer
+  inherits it — hundreds of convolutions at one fixed shape, run without autotuned kernels.
+  Re-enabling it is the clearest rejection of the three: consistently slower on every clip,
+  because the kernel search is paid for and the stage it would accelerate is not the
+  bottleneck.
+</p>
+<div class="tw"><table><thead><tr><th>Arm</th><th>Clip</th><th class="n">baseline (s)</th><th class="n">arm (s)</th><th class="n">delta (s)</th><th class="n">delta</th></tr></thead><tbody>
+<tr><td>arm1</td><td>RD_Radio11_001</td><td class="n">388.74</td><td class="n">390.34</td><td class="n">+1.60</td><td class="n">+0.41%</td></tr>
+<tr><td>arm1</td><td>RD_Radio32_000</td><td class="n">393.43</td><td class="n">393.87</td><td class="n">+0.44</td><td class="n">+0.11%</td></tr>
+<tr><td>arm1</td><td>RD_Radio42_000</td><td class="n">385.46</td><td class="n">387.17</td><td class="n">+1.71</td><td class="n">+0.44%</td></tr>
+<tr><td>arm2</td><td>RD_Radio11_001</td><td class="n">388.74</td><td class="n">391.64</td><td class="n">+2.90</td><td class="n">+0.75%</td></tr>
+<tr><td>arm2</td><td>RD_Radio32_000</td><td class="n">393.43</td><td class="n">391.26</td><td class="n">-2.17</td><td class="n">-0.55%</td></tr>
+<tr><td>arm2</td><td>RD_Radio42_000</td><td class="n">385.46</td><td class="n">390.59</td><td class="n">+5.13</td><td class="n">+1.33%</td></tr>
+<tr><td>arm3</td><td>RD_Radio11_001</td><td class="n">388.74</td><td class="n">396.04</td><td class="n">+7.30</td><td class="n">+1.88%</td></tr>
+<tr><td>arm3</td><td>RD_Radio32_000</td><td class="n">393.43</td><td class="n">399.30</td><td class="n">+5.87</td><td class="n">+1.49%</td></tr>
+<tr><td>arm3</td><td>RD_Radio42_000</td><td class="n">385.46</td><td class="n">394.34</td><td class="n">+8.88</td><td class="n">+2.30%</td></tr>
+</tbody></table></div>
+<div class="caveat">
+  <span class="caveat-label">fp16 is not free, and two variables moved together</span>
+  <p>
+    Against the baseline output, fp16 gave zero of 751 frames identical, 39.37 dB PSNR and a
+    worst pixel off by 62 of 255 levels — further from the baseline than simply re-running the
+    pipeline is. So it is measurable fidelity loss for no speed.
+  </p>
+  <p>
+    That arm changed batch size and precision together. Batch invariance was measured
+    separately at 1.2e-07 on the real model, so the fidelity loss is attributable to fp16, but
+    the clean test is a seeded repeat of the baseline, which had not completed when this page
+    was built. Do not quote the fidelity figure as fp16's alone until it does.
+  </p>
+</div>
+
+</section>
+
+
+<section id="resolution">
+  <span class="sec-no">05</span>
+  <h2>What scales with resolution, and what does not</h2>
+
+<div class="claim">
+  <p>
+    Across a set that holds frame count fixed while pixel count varies nearly fivefold,
+    exactly one stage tracks resolution: paste-back compositing, at
+    <span class="stat">R&sup2; 0.992</span>. Every other stage is flat.
+  </p>
+  <span class="interval">12 open-dataset clips, 751 frames each, 462 to 1026 px square, through the deployed production build.</span>
+</div>
+
+<figure class="figure">
+  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 631" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">Only compositing pays for input resolution</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Measured per-frame stage cost against source frame size, n=12 HDTF clips spanning 4.9× in pixel count with frame count fixed at</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">751. One line per stage, 10 stages.</text>
+<line x1="92" y1="478" x2="696" y2="478" stroke="var(--fig-rule)" stroke-width="1"/><text x="82" y="482" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">0.00</text>
+<line x1="92" y1="393" x2="696" y2="393" stroke="var(--fig-rule)" stroke-width="1"/><text x="82" y="397" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">0.05</text>
+<line x1="92" y1="308" x2="696" y2="308" stroke="var(--fig-rule)" stroke-width="1"/><text x="82" y="312" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">0.10</text>
+<line x1="92" y1="223.00000000000003" x2="696" y2="223.00000000000003" stroke="var(--fig-rule)" stroke-width="1"/><text x="82" y="227.00000000000003" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">0.15</text>
+<line x1="92" y1="138" x2="696" y2="138" stroke="var(--fig-rule)" stroke-width="1"/><text x="82" y="142" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">0.20</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">seconds per frame</text>
+<rect x="283.1" y="99" width="11" height="11" fill="var(--fig-neutral)" rx="2"/>
+<text x="300.1" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">source-only prefix</text>
+<rect x="412.1" y="99" width="11" height="11" fill="var(--fig-muted)" rx="2"/>
+<text x="429.1" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">flat: fixed internal resolution</text>
+<rect x="590.0" y="99" width="11" height="11" fill="var(--fig-before)" rx="2"/>
+<text x="607.0" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">scales with input</text>
+<text x="120.8" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0.2</text>
+<text x="235.8" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0.4</text>
+<text x="350.9" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0.6</text>
+<text x="465.9" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0.8</text>
+<text x="581.0" y="498" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">1.0</text>
+<text x="394" y="520" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">source frame size (megapixels) — frame count held at 751</text>
+<path d="M128.5,437.5 L137.1,435.6 L155.3,436.4 L161.3,435.7 L228.3,433.1 L251.8,435.2 L292.4,435.5 L331.0,433.3 L353.9,432.5 L353.9,431.9 L403.9,433.6 L611.3,432.8" fill="none" stroke="var(--fig-neutral)" stroke-width="1.4"/>
+<circle cx="128.5" cy="437.5" r="3" fill="var(--fig-neutral)"/>
+<circle cx="137.1" cy="435.6" r="3" fill="var(--fig-neutral)"/>
+<circle cx="155.3" cy="436.4" r="3" fill="var(--fig-neutral)"/>
+<circle cx="161.3" cy="435.7" r="3" fill="var(--fig-neutral)"/>
+<circle cx="228.3" cy="433.1" r="3" fill="var(--fig-neutral)"/>
+<circle cx="251.8" cy="435.2" r="3" fill="var(--fig-neutral)"/>
+<circle cx="292.4" cy="435.5" r="3" fill="var(--fig-neutral)"/>
+<circle cx="331.0" cy="433.3" r="3" fill="var(--fig-neutral)"/>
+<circle cx="353.9" cy="432.5" r="3" fill="var(--fig-neutral)"/>
+<circle cx="353.9" cy="431.9" r="3" fill="var(--fig-neutral)"/>
+<circle cx="403.9" cy="433.6" r="3" fill="var(--fig-neutral)"/>
+<circle cx="611.3" cy="432.8" r="3" fill="var(--fig-neutral)"/>
+<path d="M128.5,465.5 L137.1,466.0 L155.3,467.5 L161.3,466.2 L228.3,464.1 L251.8,465.1 L292.4,467.0 L331.0,465.7 L353.9,464.6 L353.9,465.7 L403.9,465.8 L611.3,465.7" fill="none" stroke="var(--fig-neutral)" stroke-width="1.4"/>
+<circle cx="128.5" cy="465.5" r="3" fill="var(--fig-neutral)"/>
+<circle cx="137.1" cy="466.0" r="3" fill="var(--fig-neutral)"/>
+<circle cx="155.3" cy="467.5" r="3" fill="var(--fig-neutral)"/>
+<circle cx="161.3" cy="466.2" r="3" fill="var(--fig-neutral)"/>
+<circle cx="228.3" cy="464.1" r="3" fill="var(--fig-neutral)"/>
+<circle cx="251.8" cy="465.1" r="3" fill="var(--fig-neutral)"/>
+<circle cx="292.4" cy="467.0" r="3" fill="var(--fig-neutral)"/>
+<circle cx="331.0" cy="465.7" r="3" fill="var(--fig-neutral)"/>
+<circle cx="353.9" cy="464.6" r="3" fill="var(--fig-neutral)"/>
+<circle cx="353.9" cy="465.7" r="3" fill="var(--fig-neutral)"/>
+<circle cx="403.9" cy="465.8" r="3" fill="var(--fig-neutral)"/>
+<circle cx="611.3" cy="465.7" r="3" fill="var(--fig-neutral)"/>
+<path d="M128.5,414.9 L137.1,411.8 L155.3,415.8 L161.3,414.2 L228.3,415.6 L251.8,413.1 L292.4,415.5 L331.0,413.1 L353.9,412.7 L353.9,411.7 L403.9,413.7 L611.3,412.5" fill="none" stroke="var(--fig-neutral)" stroke-width="1.4"/>
+<circle cx="128.5" cy="414.9" r="3" fill="var(--fig-neutral)"/>
+<circle cx="137.1" cy="411.8" r="3" fill="var(--fig-neutral)"/>
+<circle cx="155.3" cy="415.8" r="3" fill="var(--fig-neutral)"/>
+<circle cx="161.3" cy="414.2" r="3" fill="var(--fig-neutral)"/>
+<circle cx="228.3" cy="415.6" r="3" fill="var(--fig-neutral)"/>
+<circle cx="251.8" cy="413.1" r="3" fill="var(--fig-neutral)"/>
+<circle cx="292.4" cy="415.5" r="3" fill="var(--fig-neutral)"/>
+<circle cx="331.0" cy="413.1" r="3" fill="var(--fig-neutral)"/>
+<circle cx="353.9" cy="412.7" r="3" fill="var(--fig-neutral)"/>
+<circle cx="353.9" cy="411.7" r="3" fill="var(--fig-neutral)"/>
+<circle cx="403.9" cy="413.7" r="3" fill="var(--fig-neutral)"/>
+<circle cx="611.3" cy="412.5" r="3" fill="var(--fig-neutral)"/>
+<path d="M128.5,220.7 L137.1,223.0 L155.3,223.3 L161.3,220.7 L228.3,223.2 L251.8,223.9 L292.4,222.7 L331.0,221.4 L353.9,222.2 L353.9,222.1 L403.9,222.1 L611.3,223.0" fill="none" stroke="var(--fig-neutral)" stroke-width="1.4"/>
+<circle cx="128.5" cy="220.7" r="3" fill="var(--fig-neutral)"/>
+<circle cx="137.1" cy="223.0" r="3" fill="var(--fig-neutral)"/>
+<circle cx="155.3" cy="223.3" r="3" fill="var(--fig-neutral)"/>
+<circle cx="161.3" cy="220.7" r="3" fill="var(--fig-neutral)"/>
+<circle cx="228.3" cy="223.2" r="3" fill="var(--fig-neutral)"/>
+<circle cx="251.8" cy="223.9" r="3" fill="var(--fig-neutral)"/>
+<circle cx="292.4" cy="222.7" r="3" fill="var(--fig-neutral)"/>
+<circle cx="331.0" cy="221.4" r="3" fill="var(--fig-neutral)"/>
+<circle cx="353.9" cy="222.2" r="3" fill="var(--fig-neutral)"/>
+<circle cx="353.9" cy="222.1" r="3" fill="var(--fig-neutral)"/>
+<circle cx="403.9" cy="222.1" r="3" fill="var(--fig-neutral)"/>
+<circle cx="611.3" cy="223.0" r="3" fill="var(--fig-neutral)"/>
+<path d="M128.5,468.0 L137.1,467.7 L155.3,471.6 L161.3,468.0 L228.3,468.1 L251.8,468.1 L292.4,471.6 L331.0,468.2 L353.9,468.1 L353.9,467.8 L403.9,467.9 L611.3,468.0" fill="none" stroke="var(--fig-muted)" stroke-width="1.4"/>
+<circle cx="128.5" cy="468.0" r="3" fill="var(--fig-muted)"/>
+<circle cx="137.1" cy="467.7" r="3" fill="var(--fig-muted)"/>
+<circle cx="155.3" cy="471.6" r="3" fill="var(--fig-muted)"/>
+<circle cx="161.3" cy="468.0" r="3" fill="var(--fig-muted)"/>
+<circle cx="228.3" cy="468.1" r="3" fill="var(--fig-muted)"/>
+<circle cx="251.8" cy="468.1" r="3" fill="var(--fig-muted)"/>
+<circle cx="292.4" cy="471.6" r="3" fill="var(--fig-muted)"/>
+<circle cx="331.0" cy="468.2" r="3" fill="var(--fig-muted)"/>
+<circle cx="353.9" cy="468.1" r="3" fill="var(--fig-muted)"/>
+<circle cx="353.9" cy="467.8" r="3" fill="var(--fig-muted)"/>
+<circle cx="403.9" cy="467.9" r="3" fill="var(--fig-muted)"/>
+<circle cx="611.3" cy="468.0" r="3" fill="var(--fig-muted)"/>
+<path d="M128.5,445.5 L137.1,446.6 L155.3,446.2 L161.3,446.3 L228.3,446.2 L251.8,446.6 L292.4,446.4 L331.0,447.4 L353.9,446.3 L353.9,445.9 L403.9,446.4 L611.3,446.0" fill="none" stroke="var(--fig-muted)" stroke-width="1.4"/>
+<circle cx="128.5" cy="445.5" r="3" fill="var(--fig-muted)"/>
+<circle cx="137.1" cy="446.6" r="3" fill="var(--fig-muted)"/>
+<circle cx="155.3" cy="446.2" r="3" fill="var(--fig-muted)"/>
+<circle cx="161.3" cy="446.3" r="3" fill="var(--fig-muted)"/>
+<circle cx="228.3" cy="446.2" r="3" fill="var(--fig-muted)"/>
+<circle cx="251.8" cy="446.6" r="3" fill="var(--fig-muted)"/>
+<circle cx="292.4" cy="446.4" r="3" fill="var(--fig-muted)"/>
+<circle cx="331.0" cy="447.4" r="3" fill="var(--fig-muted)"/>
+<circle cx="353.9" cy="446.3" r="3" fill="var(--fig-muted)"/>
+<circle cx="353.9" cy="445.9" r="3" fill="var(--fig-muted)"/>
+<circle cx="403.9" cy="446.4" r="3" fill="var(--fig-muted)"/>
+<circle cx="611.3" cy="446.0" r="3" fill="var(--fig-muted)"/>
+<path d="M128.5,375.1 L137.1,375.0 L155.3,387.4 L161.3,375.9 L228.3,374.8 L251.8,375.4 L292.4,389.4 L331.0,192.6 L353.9,372.4 L353.9,364.4 L403.9,375.6 L611.3,377.5" fill="none" stroke="var(--fig-muted)" stroke-width="1.4"/>
+<circle cx="128.5" cy="375.1" r="3" fill="var(--fig-muted)"/>
+<circle cx="137.1" cy="375.0" r="3" fill="var(--fig-muted)"/>
+<circle cx="155.3" cy="387.4" r="3" fill="var(--fig-muted)"/>
+<circle cx="161.3" cy="375.9" r="3" fill="var(--fig-muted)"/>
+<circle cx="228.3" cy="374.8" r="3" fill="var(--fig-muted)"/>
+<circle cx="251.8" cy="375.4" r="3" fill="var(--fig-muted)"/>
+<circle cx="292.4" cy="389.4" r="3" fill="var(--fig-muted)"/>
+<circle cx="331.0" cy="192.6" r="5" fill="var(--fig-amber)"/>
+<circle cx="353.9" cy="372.4" r="3" fill="var(--fig-muted)"/>
+<circle cx="353.9" cy="364.4" r="3" fill="var(--fig-muted)"/>
+<circle cx="403.9" cy="375.6" r="3" fill="var(--fig-muted)"/>
+<circle cx="611.3" cy="377.5" r="3" fill="var(--fig-muted)"/>
+<path d="M128.5,458.1 L137.1,457.4 L155.3,456.5 L161.3,457.9 L228.3,457.5 L251.8,457.9 L292.4,457.8 L331.0,457.7 L353.9,457.0 L353.9,457.8 L403.9,457.9 L611.3,457.9" fill="none" stroke="var(--fig-muted)" stroke-width="1.4"/>
+<circle cx="128.5" cy="458.1" r="3" fill="var(--fig-muted)"/>
+<circle cx="137.1" cy="457.4" r="3" fill="var(--fig-muted)"/>
+<circle cx="155.3" cy="456.5" r="3" fill="var(--fig-muted)"/>
+<circle cx="161.3" cy="457.9" r="3" fill="var(--fig-muted)"/>
+<circle cx="228.3" cy="457.5" r="3" fill="var(--fig-muted)"/>
+<circle cx="251.8" cy="457.9" r="3" fill="var(--fig-muted)"/>
+<circle cx="292.4" cy="457.8" r="3" fill="var(--fig-muted)"/>
+<circle cx="331.0" cy="457.7" r="3" fill="var(--fig-muted)"/>
+<circle cx="353.9" cy="457.0" r="3" fill="var(--fig-muted)"/>
+<circle cx="353.9" cy="457.8" r="3" fill="var(--fig-muted)"/>
+<circle cx="403.9" cy="457.9" r="3" fill="var(--fig-muted)"/>
+<circle cx="611.3" cy="457.9" r="3" fill="var(--fig-muted)"/>
+<path d="M128.5,279.6 L137.1,284.1 L155.3,274.8 L161.3,278.5 L228.3,265.9 L251.8,279.1 L292.4,277.9 L331.0,279.7 L353.9,270.1 L353.9,272.0 L403.9,283.0 L611.3,285.3" fill="none" stroke="var(--fig-muted)" stroke-width="1.4"/>
+<circle cx="128.5" cy="279.6" r="3" fill="var(--fig-muted)"/>
+<circle cx="137.1" cy="284.1" r="3" fill="var(--fig-muted)"/>
+<circle cx="155.3" cy="274.8" r="3" fill="var(--fig-muted)"/>
+<circle cx="161.3" cy="278.5" r="3" fill="var(--fig-muted)"/>
+<circle cx="228.3" cy="265.9" r="3" fill="var(--fig-muted)"/>
+<circle cx="251.8" cy="279.1" r="3" fill="var(--fig-muted)"/>
+<circle cx="292.4" cy="277.9" r="3" fill="var(--fig-muted)"/>
+<circle cx="331.0" cy="279.7" r="3" fill="var(--fig-muted)"/>
+<circle cx="353.9" cy="270.1" r="3" fill="var(--fig-muted)"/>
+<circle cx="353.9" cy="272.0" r="3" fill="var(--fig-muted)"/>
+<circle cx="403.9" cy="283.0" r="3" fill="var(--fig-muted)"/>
+<circle cx="611.3" cy="285.3" r="3" fill="var(--fig-muted)"/>
+<path d="M128.5,450.7 L137.1,449.9 L155.3,449.3 L161.3,448.4 L228.3,442.2 L251.8,442.0 L292.4,438.0 L331.0,435.5 L353.9,431.1 L353.9,430.7 L403.9,426.0 L611.3,411.3" fill="none" stroke="var(--fig-before)" stroke-width="2.5"/>
+<circle cx="128.5" cy="450.7" r="3" fill="var(--fig-before)"/>
+<circle cx="137.1" cy="449.9" r="3" fill="var(--fig-before)"/>
+<circle cx="155.3" cy="449.3" r="3" fill="var(--fig-before)"/>
+<circle cx="161.3" cy="448.4" r="3" fill="var(--fig-before)"/>
+<circle cx="228.3" cy="442.2" r="3" fill="var(--fig-before)"/>
+<circle cx="251.8" cy="442.0" r="3" fill="var(--fig-before)"/>
+<circle cx="292.4" cy="438.0" r="3" fill="var(--fig-before)"/>
+<circle cx="331.0" cy="435.5" r="3" fill="var(--fig-before)"/>
+<circle cx="353.9" cy="431.1" r="3" fill="var(--fig-before)"/>
+<circle cx="353.9" cy="430.7" r="3" fill="var(--fig-before)"/>
+<circle cx="403.9" cy="426.0" r="3" fill="var(--fig-before)"/>
+<circle cx="611.3" cy="411.3" r="3" fill="var(--fig-before)"/>
+<polyline points="696,223.0 708,219.0 716,219.0" fill="none" stroke="var(--fig-neutral)" stroke-width="1"/>
+<text x="722" y="223.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-neutral)" text-anchor="start" font-weight="400" opacity="1">3D face tracking</text>
+<polyline points="696,285.3 708,281.3 716,281.3" fill="none" stroke="var(--fig-muted)" stroke-width="1"/>
+<text x="722" y="285.3" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Neural render + super-res</text>
+<polyline points="696,377.5 708,362.0 716,362.0" fill="none" stroke="var(--fig-muted)" stroke-width="1"/>
+<text x="722" y="366.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">LivePortrait warp</text>
+<polyline points="696,411.3 708,378.0 716,378.0" fill="none" stroke="var(--fig-before)" stroke-width="1"/>
+<text x="722" y="382.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="650" opacity="1">Paste-back compositing</text>
+<polyline points="696,412.5 708,394.0 716,394.0" fill="none" stroke="var(--fig-neutral)" stroke-width="1"/>
+<text x="722" y="398.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-neutral)" text-anchor="start" font-weight="400" opacity="1">Face parsing</text>
+<polyline points="696,432.8 708,410.0 716,410.0" fill="none" stroke="var(--fig-neutral)" stroke-width="1"/>
+<text x="722" y="414.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-neutral)" text-anchor="start" font-weight="400" opacity="1">Face crop</text>
+<polyline points="696,446.0 708,426.0 716,426.0" fill="none" stroke="var(--fig-muted)" stroke-width="1"/>
+<text x="722" y="430.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Driving geometry + mask</text>
+<polyline points="696,457.9 708,442.0 716,442.0" fill="none" stroke="var(--fig-muted)" stroke-width="1"/>
+<text x="722" y="446.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Warp reshaping</text>
+<polyline points="696,465.7 708,458.0 716,458.0" fill="none" stroke="var(--fig-neutral)" stroke-width="1"/>
+<text x="722" y="462.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-neutral)" text-anchor="start" font-weight="400" opacity="1">Landmark detection</text>
+<polyline points="696,468.0 708,474.0 716,474.0" fill="none" stroke="var(--fig-muted)" stroke-width="1"/>
+<text x="722" y="478.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Audio to expression</text>
+<circle cx="178.3" cy="155.0" r="5" fill="var(--fig-amber)"/>
+<text x="191.3" y="159.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-amber)" text-anchor="start" font-weight="400" opacity="1">GPU-contended sample — flagged where a stage exceeds 2× its own median</text>
+<text x="350.9" y="325.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-before)" text-anchor="start" font-weight="650" opacity="1">Paste-back compositing: R² = 0.992 against megapixels</text>
+<text x="350.9" y="342.0" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="400" opacity="1">slope 0.02850 s/frame/MPix over a fixed 0.00978 s/frame</text>
+<text x="32" y="553" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Every intermediate in this pipeline — the crop, the tracked geometry, the render itself — is written at 512² regardless of input size, so the</text>
+<text x="32" y="568" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">flat lines are structural: those stages never see the source resolution. Paste-back is the only stage that composites back onto the original</text>
+<text x="32" y="583" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">frame, and it is the only one that slopes. The next-best fit among the flat stages is Face crop at R² 0.533. That the flat stages come out flat</text>
+<text x="32" y="598" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">is therefore a property of the design, and not evidence that the instrument is trustworthy. Measured, one run per clip; the fits are ordinary</text>
+<text x="32" y="613" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">least squares through those points and the amber sample is inside them.</text>
+</svg></div>
+  <figcaption><b>F3</b>Per-frame stage cost against megapixels. Only paste-back slopes; the rest are level across the range.</figcaption>
+</figure>
+<div class="tw"><table><thead><tr><th>Stage</th><th class="n">R-squared vs pixel count</th><th class="n">s/frame/MPix</th><th class="n">fixed s/frame</th><th>verdict</th></tr></thead><tbody>
+<tr><td>Face crop</td><td class="n">0.533</td><td class="n">0.00314</td><td class="n">0.02411</td><td>flat</td></tr>
+<tr><td>Landmark detection</td><td class="n">0.025</td><td class="n">0.00035</td><td class="n">0.00704</td><td>flat</td></tr>
+<tr><td>Face parsing</td><td class="n">0.180</td><td class="n">0.00151</td><td class="n">0.03709</td><td>flat</td></tr>
+<tr><td>3D face tracking</td><td class="n">0.028</td><td class="n">-0.00042</td><td class="n">0.15059</td><td>flat</td></tr>
+<tr><td>Audio to expression</td><td class="n">0.037</td><td class="n">0.00065</td><td class="n">0.00521</td><td>flat</td></tr>
+<tr><td>Driving geometry + mask</td><td class="n">0.002</td><td class="n">-0.00005</td><td class="n">0.01867</td><td>flat</td></tr>
+<tr><td>LivePortrait warp</td><td class="n">0.015</td><td class="n">0.01603</td><td class="n">0.06089</td><td>flat</td></tr>
+<tr><td>Warp reshaping</td><td class="n">0.061</td><td class="n">-0.00027</td><td class="n">0.01212</td><td>flat</td></tr>
+<tr><td>Neural render + super-res</td><td class="n">0.047</td><td class="n">-0.00306</td><td class="n">0.11942</td><td>flat</td></tr>
+<tr><td>Paste-back compositing</td><td class="n">0.992</td><td class="n">0.02850</td><td class="n">0.00978</td><td>scales with resolution</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>The flatness is structural, not a validation:</b> every intermediate —
+crops, masks, geometry, the render itself — is written at a fixed 512 px regardless of input
+resolution. The flat stages are flat by construction. Only paste-back touches
+full-resolution pixels.</div>
+<div class="tw"><table><thead><tr><th>Stage</th><th class="n">predicted (s)</th><th class="n">measured (s)</th><th class="n">error</th></tr></thead><tbody>
+<tr><td>Face crop</td><td class="n">33.52</td><td class="n">30.67</td><td class="n">+9.3%</td></tr>
+<tr><td>Landmark detection</td><td class="n">8.51</td><td class="n">7.76</td><td class="n">+9.6%</td></tr>
+<tr><td>Face parsing</td><td class="n">44.03</td><td class="n">39.66</td><td class="n">+11.0%</td></tr>
+<tr><td>3D face tracking</td><td class="n">163.88</td><td class="n">146.61</td><td class="n">+11.8%</td></tr>
+<tr><td>Audio to expression</td><td class="n">7.18</td><td class="n">6.70</td><td class="n">+7.2%</td></tr>
+<tr><td>Driving geometry + mask</td><td class="n">20.32</td><td class="n">19.70</td><td class="n">+3.1%</td></tr>
+<tr><td>LivePortrait warp</td><td class="n">103.04</td><td class="n">62.01</td><td class="n">+66.1%</td></tr>
+<tr><td>Warp reshaping</td><td class="n">12.65</td><td class="n">12.97</td><td class="n">-2.5%</td></tr>
+<tr><td>Neural render + super-res</td><td class="n">123.77</td><td class="n">129.63</td><td class="n">-4.5%</td></tr>
+<tr><td>Paste-back compositing</td><td class="n">75.38</td><td class="n">73.05</td><td class="n">+3.2%</td></tr>
+</tbody></table></div>
+<div class="caveat">
+  <span class="caveat-label">One stage's prediction misses badly, and it is disclosed here</span>
+  <p>
+    The LivePortrait warp is predicted far above its measured value because one of the twelve
+    runs recorded that stage at nearly three times the median: the sixteen predictions were
+    submitted in two concurrent batches and shared GPU capacity. That sample inflates the
+    fitted slope. It is in the set, and the median absolute error over all stages is quoted
+    with it rather than around it.
+  </p>
+  <p>
+    For a flat stage the "prediction" is just the intercept, so most of these are the flatness
+    verdict restated. The genuinely predictive result is paste-back's.
+  </p>
+</div>
+
+</section>
+
+
+<section id="quality">
+  <span class="sec-no">06</span>
+  <h2>Output quality against real footage</h2>
+
+<div class="claim">
+  <p>
+    Each generated clip scored against <em>its own</em> source footage. Generated output is
+    behind real footage by a paired gap on lip-sync distance — but on
+    <span class="stat">4 of 12</span> clips the difference is inside the measurement noise
+    floor, so the metric cannot separate generated from real at all.
+  </p>
+  <span class="interval">SyncNet under the published evaluation protocol, computed on CPU. Within-clip pairing, 12 self-driven clips plus 4 cross-driven.</span>
+</div>
+
+<figure class="figure">
+  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 597" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">4 of 12 clips are indistinguishable from their own real footage</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Measured LSE-D under the published SyncNet protocol. Each generated clip is joined to the real footage it was made from, so the</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">comparison is within-clip. Rows sorted by gap; colour is whether the gap clears the noise floor.</text>
+<line x1="228" y1="146" x2="228" y2="470" stroke="var(--fig-rule)" stroke-width="1"/><text x="228" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">5.5</text>
+<line x1="297.5" y1="146" x2="297.5" y2="470" stroke="var(--fig-rule)" stroke-width="1"/><text x="297.5" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">6.0</text>
+<line x1="367" y1="146" x2="367" y2="470" stroke="var(--fig-rule)" stroke-width="1"/><text x="367" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">6.5</text>
+<line x1="436.5" y1="146" x2="436.5" y2="470" stroke="var(--fig-rule)" stroke-width="1"/><text x="436.5" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">7.0</text>
+<line x1="506" y1="146" x2="506" y2="470" stroke="var(--fig-rule)" stroke-width="1"/><text x="506" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">7.5</text>
+<line x1="575.5" y1="146" x2="575.5" y2="470" stroke="var(--fig-rule)" stroke-width="1"/><text x="575.5" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">8.0</text>
+<line x1="645" y1="146" x2="645" y2="470" stroke="var(--fig-rule)" stroke-width="1"/><text x="645" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">8.5</text>
+<line x1="714.5" y1="146" x2="714.5" y2="470" stroke="var(--fig-rule)" stroke-width="1"/><text x="714.5" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">9.0</text>
+<line x1="784" y1="146" x2="784" y2="470" stroke="var(--fig-rule)" stroke-width="1"/><text x="784" y="490" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">9.5</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">LSE-D, lower is better — measured with SyncNet on cpu, n=12 clips</text>
+
+<text x="868" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">each clip against its own real footage</text>
+<rect x="220.5433999999998" y="119" width="26" height="11" fill="var(--fig-rule)"/>
+<text x="252.5433999999998" y="128" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">±0.256 noise floor around the real clip</text>
+<circle cx="465.6297999999999" cy="124" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<text x="477.6297999999999" y="128" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">real footage</text>
+<circle cx="558.4323999999999" cy="124" r="5" fill="var(--fig-muted)"/>
+<text x="570.4323999999999" y="128" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">generated, inside the floor</text>
+<circle cx="723.7162" cy="124" r="5" fill="var(--fig-before)"/>
+<text x="735.7162" y="128" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-before)" text-anchor="start" font-weight="400" opacity="1">generated, clears the floor</text>
+<rect x="385.0" y="164" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="175" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">RD_Radio32_000</text>
+<line x1="420.6" y1="171" x2="402.6" y2="171" stroke="var(--fig-muted)" stroke-width="2"/>
+<circle cx="420.6" cy="171" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="402.6" cy="171" r="5" fill="var(--fig-muted)"/>
+<text x="800" y="175" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="600" opacity="1">-0.129</text>
+<rect x="340.2" y="190" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="201" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">RD_Radio4_000</text>
+<line x1="375.8" y1="197" x2="388.1" y2="197" stroke="var(--fig-muted)" stroke-width="2"/>
+<circle cx="375.8" cy="197" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="388.1" cy="197" r="5" fill="var(--fig-muted)"/>
+<text x="800" y="201" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="600" opacity="1">+0.089</text>
+<rect x="353.9" y="216" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="227" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">WRA_JoniErnst0_000</text>
+<line x1="389.5" y1="223" x2="403.7" y2="223" stroke="var(--fig-muted)" stroke-width="2"/>
+<circle cx="389.5" cy="223" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="403.7" cy="223" r="5" fill="var(--fig-muted)"/>
+<text x="800" y="227" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="600" opacity="1">+0.102</text>
+<rect x="403.4" y="242" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="253" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">WDA_JoeCrowley1_000</text>
+<line x1="439.0" y1="249" x2="465.6" y2="249" stroke="var(--fig-muted)" stroke-width="2"/>
+<circle cx="439.0" cy="249" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="465.6" cy="249" r="5" fill="var(--fig-muted)"/>
+<text x="800" y="253" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="600" opacity="1">+0.191</text>
+<rect x="401.6" y="268" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="279" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">WRA_PeterRoskam1_000</text>
+<line x1="437.2" y1="275" x2="560.6" y2="275" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="437.2" cy="275" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="560.6" cy="275" r="5" fill="var(--fig-before)"/>
+<text x="800" y="279" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+0.888</text>
+<rect x="400.6" y="294" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="305" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">WRA_JuddGregg_002</text>
+<line x1="436.2" y1="301" x2="568.0" y2="301" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="436.2" cy="301" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="568.0" cy="301" r="5" fill="var(--fig-before)"/>
+<text x="800" y="305" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+0.948</text>
+<rect x="376.6" y="320" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="331" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">RD_Radio11_001</text>
+<line x1="412.2" y1="327" x2="566.6" y2="327" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="412.2" cy="327" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="566.6" cy="327" r="5" fill="var(--fig-before)"/>
+<text x="800" y="331" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.111</text>
+<rect x="278.9" y="346" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="357" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">WDA_HenryWaxman_000</text>
+<line x1="314.5" y1="353" x2="501.5" y2="353" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="314.5" cy="353" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="501.5" cy="353" r="5" fill="var(--fig-before)"/>
+<text x="800" y="357" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.345</text>
+<rect x="537.5" y="372" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="383" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">WRA_ShelleyMooreCapito1_001</text>
+<line x1="573.1" y1="379" x2="766.4" y2="379" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="573.1" cy="379" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="766.4" cy="379" r="5" fill="var(--fig-before)"/>
+<text x="800" y="383" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.390</text>
+<rect x="356.8" y="398" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="409" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">WDA_XavierBecerra_002</text>
+<line x1="392.4" y1="405" x2="610.0" y2="405" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="392.4" cy="405" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="610.0" cy="405" r="5" fill="var(--fig-before)"/>
+<text x="800" y="409" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.565</text>
+<rect x="304.1" y="424" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="435" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">RD_Radio42_000</text>
+<line x1="339.7" y1="431" x2="599.3" y2="431" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="339.7" cy="431" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="599.3" cy="431" r="5" fill="var(--fig-before)"/>
+<text x="800" y="435" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+1.867</text>
+<rect x="355.5" y="450" width="71.2" height="14" fill="var(--fig-rule)" rx="2"/>
+<text x="214" y="461" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-ink)" text-anchor="end" font-weight="400" opacity="1">WDA_JoeNeguse_001</text>
+<line x1="391.1" y1="457" x2="713.4" y2="457" stroke="var(--fig-before)" stroke-width="2"/>
+<circle cx="391.1" cy="457" r="5" fill="var(--fig-knockout)" stroke="var(--fig-ink)" stroke-width="1.6"/>
+<circle cx="713.4" cy="457" r="5" fill="var(--fig-before)"/>
+<text x="800" y="461" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="var(--fig-before)" text-anchor="start" font-weight="600" opacity="1">+2.319</text>
+<text x="800" y="148" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">gap</text>
+<text x="32" y="519" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">The ±0.256 LSE-D floor is not measured on this dataset: it is a single pair of regenerations of one production clip, n=1, carried here. It</text>
+<text x="32" y="534" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">bounds what a same-build re-run of the same input moves the metric by, so a gap inside it cannot be told apart from re-encode noise — but it</text>
+<text x="32" y="549" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">is one observation, not an interval, and it came from a different corpus. 8 clips clear it; the largest gap is +2.319 and the mean is +0.974.</text>
+<text x="32" y="564" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Ground truth is not a ceiling here: on 1 clip the generated video scores better than the real footage it came from, which is a fact about the</text>
+<text x="32" y="579" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">metric.</text>
+</svg></div>
+  <figcaption><b>F4</b>Each clip&rsquo;s generated lip-sync distance joined to its own real footage, sorted by gap. Grey joins are gaps the instrument cannot resolve.</figcaption>
+</figure>
+<div class="tw"><table><thead><tr><th></th><th class="n">LSE-D</th><th class="n">LSE-C</th><th class="n">n</th></tr></thead><tbody>
+<tr><td>Generated</td><td class="n">7.784</td><td class="n">7.272</td><td class="n">12</td></tr>
+<tr><td>Its own real footage</td><td class="n">6.810</td><td class="n">8.922</td><td class="n">12</td></tr>
+<tr><td><strong>Paired gap</strong></td><td class="n"><strong>+0.974</strong></td><td class="n">-1.650</td><td class="n"></td></tr>
+<tr><td>Cross-driven generated</td><td class="n">7.997</td><td class="n">6.917</td><td class="n">4</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>No optimization has been shown to change quality either way.</b> No arm
+was kept, so nothing shipped that could. Every generated clip was checked for the failures a
+timing harness cannot see — black frames, frozen output, a face whose mouth never moves — and
+all 16 passed.</div>
+<div class="tw"><table><thead><tr><th>Clip</th><th class="n">generated LSE-D</th><th class="n">real LSE-D</th><th class="n">gap</th><th>within noise floor</th><th class="n">generated LSE-C</th><th class="n">real LSE-C</th></tr></thead><tbody>
+<tr><td>RD_Radio32_000</td><td class="n">6.756</td><td class="n">6.886</td><td class="n">-0.129</td><td>yes</td><td class="n">8.519</td><td class="n">8.924</td></tr>
+<tr><td>RD_Radio4_000</td><td class="n">6.652</td><td class="n">6.563</td><td class="n">+0.089</td><td>yes</td><td class="n">8.209</td><td class="n">8.789</td></tr>
+<tr><td>WRA_JoniErnst0_000</td><td class="n">6.764</td><td class="n">6.662</td><td class="n">+0.102</td><td>yes</td><td class="n">9.342</td><td class="n">9.710</td></tr>
+<tr><td>WDA_JoeCrowley1_000</td><td class="n">7.209</td><td class="n">7.018</td><td class="n">+0.191</td><td>yes</td><td class="n">7.468</td><td class="n">8.298</td></tr>
+<tr><td>WRA_PeterRoskam1_000</td><td class="n">7.893</td><td class="n">7.005</td><td class="n">+0.888</td><td>no</td><td class="n">7.580</td><td class="n">9.072</td></tr>
+<tr><td>WRA_JuddGregg_002</td><td class="n">7.946</td><td class="n">6.998</td><td class="n">+0.948</td><td>no</td><td class="n">5.928</td><td class="n">7.867</td></tr>
+<tr><td>RD_Radio11_001</td><td class="n">7.936</td><td class="n">6.825</td><td class="n">+1.111</td><td>no</td><td class="n">7.696</td><td class="n">9.131</td></tr>
+<tr><td>WDA_HenryWaxman_000</td><td class="n">7.467</td><td class="n">6.122</td><td class="n">+1.345</td><td>no</td><td class="n">7.458</td><td class="n">9.137</td></tr>
+<tr><td>WRA_ShelleyMooreCapito1_001</td><td class="n">9.373</td><td class="n">7.983</td><td class="n">+1.390</td><td>no</td><td class="n">5.189</td><td class="n">7.692</td></tr>
+<tr><td>WDA_XavierBecerra_002</td><td class="n">8.248</td><td class="n">6.683</td><td class="n">+1.565</td><td>no</td><td class="n">6.594</td><td class="n">9.484</td></tr>
+<tr><td>RD_Radio42_000</td><td class="n">8.171</td><td class="n">6.304</td><td class="n">+1.867</td><td>no</td><td class="n">7.082</td><td class="n">9.798</td></tr>
+<tr><td>WDA_JoeNeguse_001</td><td class="n">8.992</td><td class="n">6.674</td><td class="n">+2.319</td><td>no</td><td class="n">6.198</td><td class="n">9.163</td></tr>
+</tbody></table></div>
+<div class="caveat">
+  <span class="caveat-label">This metric is weak, and its floor is n=1</span>
+  <p>
+    Published work measuring these scores against human judgement puts their agreement
+    <em>below chance</em>. Treat them as a collapse detector, not a quality measure: they can
+    tell real footage from generated, and little finer.
+  </p>
+  <p>
+    The noise floor separating "resolvable" from "not" comes from a single pair of
+    regenerations of one production clip, carried across to clips a quarter the size. It is
+    indicative. Claims of the form "indistinguishable from real" should wait for a
+    regeneration pair measured on this dataset.
+  </p>
+</div>
+
+</section>
+
+
+<section id="cost">
+  <span class="sec-no">07</span>
+  <h2>The same profile, priced</h2>
+
+<div class="claim">
+  <p>
+    Priced per video, the largest single line is not a model stage at all: it is the container
+    starting up. Cold start is <span class="stat">30.6%</span> of billed time per job on a
+    deployment that scales to zero.
+  </p>
+  <span class="interval">Rate is an input, printed with every table below. The GPU model the production runs executed on is not recorded anywhere in the pipeline, so the rate is not reconciled against that hardware.</span>
+</div>
+
+<figure class="figure">
+  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 618" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">The largest single line on the bill is not a stage at all</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Cost per 1000 videos, sorted. Stage seconds are measured means over n=5 production runs; cold start and the remainder come from</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">the platform's own metering. Shares are of the 931.31 s billed total, not the 528.77 s of stages.</text>
+<line x1="244" y1="142" x2="244" y2="476" stroke="var(--fig-rule)" stroke-width="1"/><text x="244" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">$0</text>
+<line x1="364" y1="142" x2="364" y2="476" stroke="var(--fig-rule)" stroke-width="1"/><text x="364" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">$40</text>
+<line x1="484" y1="142" x2="484" y2="476" stroke="var(--fig-rule)" stroke-width="1"/><text x="484" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">$80</text>
+<line x1="604" y1="142" x2="604" y2="476" stroke="var(--fig-rule)" stroke-width="1"/><text x="604" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">$120</text>
+<line x1="724" y1="142" x2="724" y2="476" stroke="var(--fig-rule)" stroke-width="1"/><text x="724" y="496" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">$160</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">cost per 1000 videos at $1.99/GPU-hour</text>
+<rect x="458.6" y="99" width="11" height="11" fill="var(--fig-neutral)" rx="2"/>
+<text x="475.6" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">source-only prefix</text>
+<rect x="587.7" y="99" width="11" height="11" fill="var(--fig-ink)" rx="2"/>
+<text x="604.7" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">audio-dependent stage</text>
+<rect x="740.8" y="99" width="11" height="11" fill="var(--fig-amber)" rx="2"/>
+<text x="757.8" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">billed, but not a stage</text>
+<text x="230" y="169.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Container cold start</text>
+<rect x="244" y="157" width="473.3" height="17" fill="var(--fig-amber)" rx="2"/>
+<text x="727.3" y="169.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-amber)" text-anchor="start" font-weight="600" opacity="1">$157.77 · 30.6%</text>
+<text x="230" y="196.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">3D face tracking</text>
+<rect x="244" y="184" width="243.1" height="17" fill="var(--fig-neutral)" rx="2"/>
+<text x="497.1" y="196.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-neutral)" text-anchor="start" font-weight="600" opacity="1">$81.04 · 15.7%</text>
+<text x="230" y="223.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Neural render + super-res</text>
+<rect x="244" y="211" width="215.0" height="17" fill="var(--fig-ink)" rx="2"/>
+<text x="469.0" y="223.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">$71.66 · 13.9%</text>
+<text x="230" y="250.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Unattributed in-container</text>
+<rect x="244" y="238" width="194.2" height="17" fill="var(--fig-amber)" rx="2"/>
+<text x="448.2" y="250.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-amber)" text-anchor="start" font-weight="600" opacity="1">$64.75 · 12.6%</text>
+<text x="230" y="277.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Paste-back compositing</text>
+<rect x="244" y="265" width="121.1" height="17" fill="var(--fig-ink)" rx="2"/>
+<text x="375.1" y="277.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">$40.38 · 7.8%</text>
+<text x="230" y="304.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">LivePortrait warp</text>
+<rect x="244" y="292" width="102.8" height="17" fill="var(--fig-ink)" rx="2"/>
+<text x="356.8" y="304.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">$34.28 · 6.7%</text>
+<text x="230" y="331.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Face parsing</text>
+<rect x="244" y="319" width="65.8" height="17" fill="var(--fig-neutral)" rx="2"/>
+<text x="319.8" y="331.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-neutral)" text-anchor="start" font-weight="600" opacity="1">$21.92 · 4.3%</text>
+<text x="230" y="358.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Face crop</text>
+<rect x="244" y="346" width="50.9" height="17" fill="var(--fig-neutral)" rx="2"/>
+<text x="304.9" y="358.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-neutral)" text-anchor="start" font-weight="600" opacity="1">$16.96 · 3.3%</text>
+<text x="230" y="385.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Driving geometry + mask</text>
+<rect x="244" y="373" width="32.7" height="17" fill="var(--fig-ink)" rx="2"/>
+<text x="286.7" y="385.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">$10.89 · 2.1%</text>
+<text x="230" y="412.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Warp reshaping</text>
+<rect x="244" y="400" width="21.5" height="17" fill="var(--fig-ink)" rx="2"/>
+<text x="275.5" y="412.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">$7.17 · 1.4%</text>
+<text x="230" y="439.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Landmark detection</text>
+<rect x="244" y="427" width="12.9" height="17" fill="var(--fig-neutral)" rx="2"/>
+<text x="266.9" y="439.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-neutral)" text-anchor="start" font-weight="600" opacity="1">$4.29 · 0.8%</text>
+<text x="230" y="466.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="end" font-weight="500" opacity="1">Audio to expression</text>
+<rect x="244" y="454" width="11.1" height="17" fill="var(--fig-ink)" rx="2"/>
+<text x="265.1" y="466.5" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">$3.70 · 0.7%</text>
+<text x="32" y="525" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Cold start is 285.41 s, 30.6% of the billed total and 1.95× the largest stage — and the deployment's cooldown is set to 30 s against it, so</text>
+<text x="32" y="540" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">the machine is torn down long before the next job can reuse it. The unattributed 117.13 s is metered predict time the stage timers never</text>
+<text x="32" y="555" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">account for: downloads, length adjustment, uploads. A cost model built on the stage sum alone understates the GPU seconds actually bought by</text>
+<text x="32" y="570" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">22%. Seconds are measured; the money is modelled from one input, printed here: A100 40GB, on-demand at $1.99/GPU-hour. The GPU model behind</text>
+<text x="32" y="585" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">the production runs is recorded nowhere in the logs or the deployment config, so that rate cannot be reconciled against the hardware that</text>
+<text x="32" y="600" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">produced these timings.</text>
+</svg></div>
+  <figcaption><b>F5</b>Cost per 1000 videos by stage, with the two lines that are not stages: cold start, and in-container work the stage timers never attributed.</figcaption>
+</figure>
+<div class="tw"><table><thead><tr><th>Stage</th><th class="n">seconds</th><th class="n">$/video</th><th class="n">$/1000 videos</th></tr></thead><tbody>
+<tr><td>Face crop</td><td class="n">30.67</td><td class="n">$0.0170</td><td class="n">$16.96</td></tr>
+<tr><td>Landmark detection</td><td class="n">7.76</td><td class="n">$0.0043</td><td class="n">$4.29</td></tr>
+<tr><td>Face parsing</td><td class="n">39.66</td><td class="n">$0.0219</td><td class="n">$21.92</td></tr>
+<tr><td>3D face tracking</td><td class="n">146.61</td><td class="n">$0.0810</td><td class="n">$81.04</td></tr>
+<tr><td>Audio to expression</td><td class="n">6.70</td><td class="n">$0.0037</td><td class="n">$3.70</td></tr>
+<tr><td>Driving geometry + mask</td><td class="n">19.70</td><td class="n">$0.0109</td><td class="n">$10.89</td></tr>
+<tr><td>LivePortrait warp</td><td class="n">62.01</td><td class="n">$0.0343</td><td class="n">$34.28</td></tr>
+<tr><td>Warp reshaping</td><td class="n">12.97</td><td class="n">$0.0072</td><td class="n">$7.17</td></tr>
+<tr><td>Neural render + super-res</td><td class="n">129.63</td><td class="n">$0.0717</td><td class="n">$71.66</td></tr>
+<tr><td>Paste-back compositing</td><td class="n">73.05</td><td class="n">$0.0404</td><td class="n">$40.38</td></tr>
+<tr><td><strong>Pipeline total</strong></td><td class="n"><strong>528.77</strong></td><td class="n">$0.2923</td><td class="n"><strong>$292.29</strong></td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Two consequences.</b> Optimizing the pipeline to zero would remove
+about two thirds of the bill, not all of it. And above some traffic threshold, keeping an
+instance warm beats every item on the roadmap — a configuration decision, not an engineering
+one.</div>
+<div class="tw"><table><thead><tr><th>Rate</th><th class="n">$/GPU-hour</th><th class="n">lipsync $/1000</th><th class="n">word replacement $/1000</th></tr></thead><tbody>
+<tr><td>A100 40GB, on-demand</td><td class="n">$1.99</td><td class="n">$292.29</td><td class="n">$80.72</td></tr>
+<tr><td>Serverless A100 80GB, published</td><td class="n">$5.04</td><td class="n">$740.28</td><td class="n">$204.44</td></tr>
+<tr><td>Owned A100 40GB, all-in centre</td><td class="n">$0.8900</td><td class="n">$130.72</td><td class="n">$36.10</td></tr>
+</tbody></table></div>
+<div class="caveat">
+  <span class="caveat-label">Money here has three separate uncertainties</span>
+  <p>
+    The rate is an assumption, and the same measured seconds cost 2.9&times; more at the
+    published rate for the card class the production path actually runs on. The stage timers
+    also leave 117 s per job of billed in-container work unattributed, so a model built on the
+    stage sum alone understates the seconds bought by 22%. Both are carried in the tables
+    rather than smoothed away.
+  </p>
+</div>
+
+</section>
+
+
+<section id="cache">
+  <span class="sec-no">08</span>
+  <h2>The largest change is architectural</h2>
+
+<div class="claim">
+  <p>
+    The four stages that run before the animator take no audio input, so for any job reusing a
+    source video they recompute identical results. That is
+    <span class="stat">42.5%</span> of the lipsync pipeline and
+    <span class="stat">62.3%</span> of the word-replacement pipeline.
+  </p>
+  <span class="interval">Established from the pipeline's execution order and confirmed in the code: the four stages take no arguments and read only the source frames. Upper bound, not an achieved result.</span>
+</div>
+
+<figure class="figure">
+  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 503" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">Word replacement spends most of its pipeline re-analysing a video it has already seen</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Measured mean pipeline seconds, split at the animator: the four stages before it take no audio input, so for any job reusing a</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">source video they recompute identical results. n=5 lipsync and n=6 word-replacement production runs.</text>
+<line x1="262" y1="154" x2="262" y2="376" stroke="var(--fig-rule)" stroke-width="1"/><text x="262" y="396" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0</text>
+<line x1="346.3333333333333" y1="154" x2="346.3333333333333" y2="376" stroke="var(--fig-rule)" stroke-width="1"/><text x="346.3333333333333" y="396" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">100</text>
+<line x1="430.66666666666663" y1="154" x2="430.66666666666663" y2="376" stroke="var(--fig-rule)" stroke-width="1"/><text x="430.66666666666663" y="396" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">200</text>
+<line x1="515" y1="154" x2="515" y2="376" stroke="var(--fig-rule)" stroke-width="1"/><text x="515" y="396" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">300</text>
+<line x1="599.3333333333333" y1="154" x2="599.3333333333333" y2="376" stroke="var(--fig-rule)" stroke-width="1"/><text x="599.3333333333333" y="396" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">400</text>
+<line x1="683.6666666666667" y1="154" x2="683.6666666666667" y2="376" stroke="var(--fig-rule)" stroke-width="1"/><text x="683.6666666666667" y="396" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">500</text>
+<line x1="768" y1="154" x2="768" y2="376" stroke="var(--fig-rule)" stroke-width="1"/><text x="768" y="396" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">600</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">mean pipeline seconds per video</text>
+<rect x="565.7" y="99" width="11" height="11" fill="var(--fig-neutral)" rx="2"/>
+<text x="582.7" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">source-only prefix — cacheable</text>
+<rect x="764.0" y="99" width="11" height="11" fill="var(--fig-ink)" rx="2"/>
+<text x="781.0" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">audio-dependent</text>
+<text x="246" y="204" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Production lipsync</text>
+<text x="246" y="220" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">n=5 measured runs</text>
+<rect x="262" y="188" width="189.5" height="36" fill="var(--fig-neutral)" rx="2"/>
+<rect x="451.5" y="188" width="256.4" height="36" fill="var(--fig-ink)" rx="2"/>
+<text x="274" y="211" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="var(--fig-knockout)" text-anchor="start" font-weight="650" opacity="1">42.5% cacheable</text>
+<text x="717.9" y="211" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">528.77 s</text>
+<text x="262" y="246" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">source-only prefix 224.70 s (42.5%) · audio-dependent remainder 304.06 s (57.5%)</text>
+<text x="246" y="308" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Production word replacement</text>
+<text x="246" y="324" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">n=6 measured runs</text>
+<rect x="262" y="292" width="76.7" height="36" fill="var(--fig-neutral)" rx="2"/>
+<rect x="338.7" y="292" width="46.4" height="36" fill="var(--fig-ink)" rx="2"/>
+<line x1="300.4" y1="292" x2="300.4" y2="280" stroke="var(--fig-neutral)" stroke-width="1"/>
+<text x="300.4" y="275" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="var(--fig-neutral)" text-anchor="middle" font-weight="650" opacity="1">62.3% cacheable</text>
+<text x="395.1" y="315" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-ink)" text-anchor="start" font-weight="600" opacity="1">146.03 s</text>
+<text x="262" y="350" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">source-only prefix 90.98 s (62.3%) · audio-dependent remainder 55.05 s (37.7%)</text>
+<text x="32" y="425" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">The prefix share is 62.3% for word replacement against 42.5% for lipsync, because word replacement re-runs the entire source analysis to</text>
+<text x="32" y="440" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">change a few seconds of speech. Measured seconds, but the saving is modelled and is an upper bound, not a result: a cache cannot hit until</text>
+<text x="32" y="455" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">the frame time-warp RNG is seeded, and today nothing seeds it, so two runs on the same source do not produce reusable intermediates. The</text>
+<text x="32" y="470" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">word-replacement cohort is also six replicas of one fixture — same source, same transcript, one changed segment — so it measures one workload</text>
+<text x="32" y="485" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">six times rather than six workloads.</text>
+</svg></div>
+  <figcaption><b>F6</b>Each pipeline split into the source-only prefix and the audio-dependent remainder. Word replacement&rsquo;s prefix is the larger share because it already processes only changed segments.</figcaption>
+</figure>
+<div class="tw"><table><thead><tr><th>Workload</th><th class="n">pipeline (s)</th><th class="n">source-only (s)</th><th class="n">cacheable share</th><th class="n">$/1000 saved at full hit rate</th></tr></thead><tbody>
+<tr><td>Production lipsync</td><td class="n">528.77</td><td class="n">224.70</td><td class="n">42.5%</td><td class="n">$124.21</td></tr>
+<tr><td>Production word replacement</td><td class="n">146.03</td><td class="n">90.98</td><td class="n">62.3%</td><td class="n">$50.29</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Worth more than every measured optimization combined</b>, and unlike all
+of them it cannot change a pixel, because it returns stored bytes rather than approximating
+anything.</div>
+<div class="caveat">
+  <span class="caveat-label">Currently unreachable, for a specific reason</span>
+  <p>
+    The frame time-warp that prepares each segment chooses which frames to insert or drop
+    using the process-global random number generator, seeded once per job. The same segment
+    therefore produces different frames in different jobs, so a content-addressed cache can
+    never hit. The share above is a ceiling that a small change — making that warp a pure
+    function of its inputs — would unlock. Until then it is 0%.
+  </p>
+  <p>
+    The word-replacement figure also comes from six replicas of a single fixture: one source,
+    one transcript, one changed segment. It describes one workload measured six times.
+    Multi-segment requests are untested.
+  </p>
+</div>
+
+</section>
+
+
+<section id="gpucpu">
+  <span class="sec-no">09</span>
+  <h2>Work on a GPU that needs no GPU</h2>
+
+<div class="claim">
+  <p>
+    <span class="stat">17.7%</span> of a production lipsync job is video transcoding
+    and file transfer, billed at a GPU machine's rate while using no GPU.
+  </p>
+  <span class="interval">Job-level stages classified by whether they require a GPU at all, across three workloads.</span>
+</div>
+
+<figure class="figure">
+  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 549" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">A sixth of a production job holds a GPU without using one</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Measured job-level timings, n=5, 6 and 12 runs. CPU-only means ffmpeg length adjustment, segment splitting and stitching, audio</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">attachment, job setup and S3 transfers — every second of which is billed at the GPU machine rate.</text>
+<line x1="272" y1="144" x2="272" y2="422" stroke="var(--fig-rule)" stroke-width="1"/><text x="272" y="442" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0</text>
+<line x1="337.7142857142857" y1="144" x2="337.7142857142857" y2="422" stroke="var(--fig-rule)" stroke-width="1"/><text x="337.7142857142857" y="442" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">100</text>
+<line x1="403.42857142857144" y1="144" x2="403.42857142857144" y2="422" stroke="var(--fig-rule)" stroke-width="1"/><text x="403.42857142857144" y="442" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">200</text>
+<line x1="469.1428571428571" y1="144" x2="469.1428571428571" y2="422" stroke="var(--fig-rule)" stroke-width="1"/><text x="469.1428571428571" y="442" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">300</text>
+<line x1="534.8571428571429" y1="144" x2="534.8571428571429" y2="422" stroke="var(--fig-rule)" stroke-width="1"/><text x="534.8571428571429" y="442" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">400</text>
+<line x1="600.5714285714286" y1="144" x2="600.5714285714286" y2="422" stroke="var(--fig-rule)" stroke-width="1"/><text x="600.5714285714286" y="442" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">500</text>
+<line x1="666.2857142857142" y1="144" x2="666.2857142857142" y2="422" stroke="var(--fig-rule)" stroke-width="1"/><text x="666.2857142857142" y="442" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">600</text>
+<line x1="732" y1="144" x2="732" y2="422" stroke="var(--fig-rule)" stroke-width="1"/><text x="732" y="442" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">700</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">mean job seconds per video, all billed at the GPU machine rate</text>
+<rect x="595.1" y="99" width="11" height="11" fill="var(--fig-ink)" rx="2"/>
+<text x="612.1" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">needs the GPU</text>
+<rect x="706.5" y="99" width="11" height="11" fill="var(--fig-amber)" rx="2"/>
+<text x="723.5" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">CPU-only: ffmpeg, transfers</text>
+<text x="256" y="190" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Production lipsync</text>
+<text x="256" y="206" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">n=5 · 642.52 s job</text>
+<rect x="272" y="175" width="347.5" height="34" fill="var(--fig-ink)" rx="2"/>
+<rect x="619.5" y="175" width="74.7" height="34" fill="var(--fig-amber)" rx="2"/>
+<text x="284" y="196" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-knockout)" text-anchor="start" font-weight="600" opacity="1">GPU 528.80 s</text>
+<text x="627.5" y="196" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-knockout)" text-anchor="start" font-weight="600" opacity="1">113.71 s</text>
+<text x="704.2" y="196" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-amber)" text-anchor="start" font-weight="650" opacity="1">17.7% CPU-only</text>
+<text x="256" y="278" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Production word replacement</text>
+<text x="256" y="294" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">n=6 · 186.19 s job</text>
+<rect x="272" y="263" width="102.1" height="34" fill="var(--fig-ink)" rx="2"/>
+<rect x="374.1" y="263" width="20.3" height="34" fill="var(--fig-amber)" rx="2"/>
+<text x="284" y="284" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-knockout)" text-anchor="start" font-weight="600" opacity="1">GPU 155.30 s</text>
+<line x1="384.2" y1="297" x2="384.2" y2="309" stroke="var(--fig-amber)" stroke-width="1"/>
+<text x="384.2" y="323" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-amber)" text-anchor="middle" font-weight="600" opacity="1">30.89 s CPU-only</text>
+<text x="404.4" y="284" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-amber)" text-anchor="start" font-weight="650" opacity="1">16.6% CPU-only</text>
+<text x="256" y="366" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">HDTF self-driven</text>
+<text x="256" y="382" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">n=12 · 362.94 s job</text>
+<rect x="272" y="351" width="230.7" height="34" fill="var(--fig-ink)" rx="2"/>
+<rect x="502.7" y="351" width="7.8" height="34" fill="var(--fig-amber)" rx="2"/>
+<text x="284" y="372" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-knockout)" text-anchor="start" font-weight="600" opacity="1">GPU 351.01 s</text>
+<line x1="506.6" y1="385" x2="506.6" y2="397" stroke="var(--fig-amber)" stroke-width="1"/>
+<text x="506.6" y="411" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-amber)" text-anchor="middle" font-weight="600" opacity="1">11.93 s CPU-only</text>
+<text x="520.5" y="372" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="var(--fig-amber)" text-anchor="start" font-weight="650" opacity="1">3.3% CPU-only</text>
+<text x="32" y="471" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">The two production workloads spend 16.6–17.7% of their job on the CPU alone, dominated by downloading and re-encoding the source. The HDTF</text>
+<text x="32" y="486" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">cohort falls to 3.3% only because its inputs are local 30 s clips rather than full-length customer uploads — an open-dataset benchmark</text>
+<text x="32" y="501" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">understates this cost by construction. Measured job stages, classified by whether the stage needs a GPU at all; moving that work off the</text>
+<text x="32" y="516" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">accelerator is a rate difference rather than a time saving, and it adds a network hop for the largest artefact in the job, which has not been</text>
+<text x="32" y="531" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">measured.</text>
+</svg></div>
+  <figcaption><b>F7</b>Job time split into GPU work and CPU-only work for each workload.</figcaption>
+</figure>
+<div class="tw"><table><thead><tr><th>Workload</th><th class="n">job total (s)</th><th class="n">GPU work (s)</th><th class="n">CPU-only (s)</th><th class="n">CPU-only share</th></tr></thead><tbody>
+<tr><td>Production lipsync</td><td class="n">642.52</td><td class="n">528.80</td><td class="n">113.71</td><td class="n">17.7%</td></tr>
+<tr><td>Production word replacement</td><td class="n">186.19</td><td class="n">155.30</td><td class="n">30.89</td><td class="n">16.6%</td></tr>
+<tr><td>HDTF self-driven</td><td class="n">362.94</td><td class="n">351.01</td><td class="n">11.93</td><td class="n">3.3%</td></tr>
+</tbody></table></div>
+
+<figure class="figure">
+  <div class="figure-plate"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 462" width="100%" height="auto" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+<text x="32" y="38" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">Videos per GPU-hour, which is the unit a capacity plan is written in</text>
+<text x="32" y="60" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">Derived from measured pipeline seconds: n=5 lipsync and n=6 word-replacement production runs. Rate-independent, so it</text>
+<text x="32" y="77" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">survives the fact that the GPU model behind the production runs is recorded nowhere.</text>
+<line x1="292" y1="156" x2="292" y2="350" stroke="var(--fig-rule)" stroke-width="1"/><text x="292" y="370" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">0</text>
+<line x1="356.2857142857143" y1="156" x2="356.2857142857143" y2="350" stroke="var(--fig-rule)" stroke-width="1"/><text x="356.2857142857143" y="370" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">10</text>
+<line x1="420.57142857142856" y1="156" x2="420.57142857142856" y2="350" stroke="var(--fig-rule)" stroke-width="1"/><text x="420.57142857142856" y="370" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">20</text>
+<line x1="484.85714285714283" y1="156" x2="484.85714285714283" y2="350" stroke="var(--fig-rule)" stroke-width="1"/><text x="484.85714285714283" y="370" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">30</text>
+<line x1="549.1428571428571" y1="156" x2="549.1428571428571" y2="350" stroke="var(--fig-rule)" stroke-width="1"/><text x="549.1428571428571" y="370" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">40</text>
+<line x1="613.4285714285714" y1="156" x2="613.4285714285714" y2="350" stroke="var(--fig-rule)" stroke-width="1"/><text x="613.4285714285714" y="370" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">50</text>
+<line x1="677.7142857142857" y1="156" x2="677.7142857142857" y2="350" stroke="var(--fig-rule)" stroke-width="1"/><text x="677.7142857142857" y="370" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">60</text>
+<line x1="742" y1="156" x2="742" y2="350" stroke="var(--fig-rule)" stroke-width="1"/><text x="742" y="370" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="middle" font-weight="400" opacity="1">70</text>
+<text x="32" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">videos per GPU-hour — rate-independent</text>
+<rect x="570.9" y="99" width="11" height="11" fill="var(--fig-ink)" rx="2"/>
+<text x="587.9" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">measured, as deployed</text>
+<rect x="725.2" y="99" width="11" height="11" fill="var(--fig-after)" rx="2"/>
+<text x="742.2" y="108" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">modelled ceiling</text>
+<text x="276" y="198" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Lipsync</text>
+<text x="276" y="214" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">as deployed · 528.77 s/video</text>
+<rect x="292" y="187" width="43.8" height="26" fill="var(--fig-ink)" rx="2"/>
+<text x="345.8" y="205" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">6.8</text>
+<text x="276" y="258" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="var(--fig-ink)" text-anchor="end" font-weight="650" opacity="1">Word replacement</text>
+<text x="276" y="274" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">as deployed · 146.03 s/video</text>
+<rect x="292" y="247" width="158.5" height="26" fill="var(--fig-ink)" rx="2"/>
+<text x="460.5" y="265" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="var(--fig-ink)" text-anchor="start" font-weight="650" opacity="1">24.7</text>
+<text x="276" y="318" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="var(--fig-after)" text-anchor="end" font-weight="650" opacity="1">Word replacement</text>
+<text x="276" y="334" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" fill="var(--fig-muted)" text-anchor="end" font-weight="400" opacity="1">source prefix cached · 55.05 s/video</text>
+<rect x="292" y="307" width="420.4" height="26" fill="var(--fig-after)" rx="2"/>
+<text x="722.4" y="325" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="var(--fig-after)" text-anchor="start" font-weight="650" opacity="1">65.4</text>
+<text x="304" y="325" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-knockout)" text-anchor="start" font-weight="600" opacity="1">upper bound</text>
+<text x="32" y="399" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">This is the planning unit for hardware kept warm, and cold start is excluded by construction — amortised across a queue rather than</text>
+<text x="32" y="414" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">billed per job. A job that pays the 285.41 s boot achieves none of these figures, and at the deployed 30 s cooldown most jobs pay it.</text>
+<text x="32" y="429" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">The cached row is modelled rather than measured: it removes the source-only prefix outright, so it is the ceiling on a perfect cache —</text>
+<text x="32" y="444" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" fill="var(--fig-muted)" text-anchor="start" font-weight="400" opacity="1">2.65× the deployed word-replacement rate. Nothing seeds the frame time-warp RNG today, so that ceiling is not currently reachable.</text>
+</svg></div>
+  <figcaption><b>F8</b>Videos per GPU-hour: the planning unit on hardware kept warm, where start-up is amortised rather than billed per job.</figcaption>
+</figure>
+<div class="tw"><table><thead><tr><th>Scenario</th><th class="n">seconds per video</th><th class="n">videos per GPU-hour</th></tr></thead><tbody>
+<tr><td>Lipsync, as deployed</td><td class="n">528.77</td><td class="n">6.8</td></tr>
+<tr><td>Word replacement, as deployed</td><td class="n">146.03</td><td class="n">24.7</td></tr>
+<tr><td>Word replacement, source analysis cached</td><td class="n">55.05</td><td class="n">65.4</td></tr>
+</tbody></table></div>
+<div class="caveat">
+  <span class="caveat-label">The share depends on the input, and the saving is a rate difference</span>
+  <p>
+    On the open-dataset clips the CPU-only share is far smaller, because those inputs are
+    small and already at the target frame rate. The production figure is dominated by fetching
+    and transcoding large customer source video, so the share rises with input size — worst
+    exactly where the bill is biggest.
+  </p>
+  <p>
+    Moving that work does not reduce it. The gain is the difference between a GPU rate and a
+    CPU rate, against a new network hop for the job's largest artefact, which has not been
+    measured.
+  </p>
+</div>
+
+</section>
+
+
+<section id="how">
+  <span class="sec-no">10</span>
+  <h2>How the numbers were made</h2>
+
+<div class="two">
+  <div>
+    <h4>A typical published benchmark</h4>
+    <p>Reports a mean and a speedup, pooled across inputs.</p>
+    <p>Runs candidate and baseline at different times, often on different hosts.</p>
+    <p>Reports the wins.</p>
+    <p>Quotes a vendor rate as though it were a measurement.</p>
+    <p>Treats "the model is fast" as the result.</p>
+  </div>
+  <div>
+    <h4>Here</h4>
+    <p>Paired per clip, because clip-to-clip spread is larger than every effect tested. Pooling could not resolve them.</p>
+    <p>One machine, one warm process per arm, same clips in the same order, sampler seeded, run sequentially.</p>
+    <p>Reports two rejections, because that is what the measurements said.</p>
+    <p>Rate is an input, printed with every table, and priced three ways because it is the largest uncertainty in the money.</p>
+    <p>Treats output validity as a gate: every generated clip checked for black, frozen or static-mouth failure before any timing is believed.</p>
+  </div>
+</div>
+<h3>Definitions used throughout</h3>
+<p>
+  <strong>Pipeline time</strong> is the sum of the ten instrumented model stages.
+  <strong>Job time</strong> adds fetch, transcode, mux and upload. <strong>Billed time</strong>
+  adds container start-up, which a scale-to-zero deployment pays for. The three differ by
+  enough to change conclusions, so each table names which it uses.
+</p>
+<p>
+  <strong>Paired difference</strong> is per clip, as a percentage of that clip's baseline, and
+  negative means faster everywhere on this page. A change is kept only if it is at least 3%
+  faster, agrees numerically with the baseline output, and moves no clip's lip-sync distance by
+  more than the noise floor.
+</p>
+<h3>One widely repeated claim this corrects</h3>
+<p>
+  That raising batch size until the GPU is saturated is a reliable win for a per-frame video
+  pipeline. It is not, when the stage is decode-bound: measured here at
+  +0.32% for a fourfold batch increase, with the sign consistent across every clip.
+  The same reasoning predicts, correctly, that reduced precision also does nothing.
+</p>
+
+</section>
+
+
+<section id="limits">
+  <span class="sec-no">11</span>
+  <h2>What this does not establish</h2>
+
+<p>
+  <strong>That the rejected changes would fail elsewhere.</strong> Both were tested on one
+  workload at one resolution on one GPU. They fail here because this renderer waits on video
+  decode. Fix that, and both deserve retesting.
+</p>
+<p>
+  <strong>That any of the proposed changes works.</strong> The cache, the CPU/GPU split, the
+  dead-code removals and the sub-stage findings are mechanisms identified in code with their
+  sizes estimated from the measured profile. None has a measured before-and-after. They are
+  labelled that way in every table.
+</p>
+<p>
+  <strong>What the system costs.</strong> The GPU model behind the production timings is
+  recorded nowhere, so every money figure rests on an assumed rate that varies by 2.9&times;
+  across plausible choices. Closing that needs one line of an invoice, not more measurement.
+</p>
+<p>
+  <strong>That quality is unaffected by optimization.</strong> Nothing was kept, so nothing
+  was tested for it. The one arm that changed output measurably was rejected for other
+  reasons.
+</p>
+<p>
+  <strong>Anything about multi-segment word replacement.</strong> The word-replacement cohort
+  is six replicas of one fixture with a single changed segment.
+</p>
+<p>
+  <strong>That the arms are complete.</strong> Two candidate arms, a seeded baseline repeat
+  and a control built from the unmodified branch were still running when this page was built.
+  The control is what would separate the effect of the code changes from the effect of the
+  rebuilt environment.
+</p>
+
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div>
+    <p>
+      57 pipeline runs across production and dedicated hardware, 5.7 GPU-hours of
+      measurement. Raw per-stage samples, the analysis scripts that reduce them, and the figure
+      generators are published with this page; every number on it is produced by that chain at
+      build time rather than written by hand.
+    </p>
+    <p><a class="pagelink" href="results-pack.html">Results pack: every figure with its source table &rarr;</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
