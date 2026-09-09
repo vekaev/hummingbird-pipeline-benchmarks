@@ -90,6 +90,9 @@ const ledger = `<dl class="ledger">${LEDGER.map(([dt, dd, small]) => `
 
 // --- numbers quoted in prose come out of the generated tables ---------------
 // The repeat spread, read from the generated table so the prose cannot disagree with it.
+// Frame-cache headline figures, read from the generated tables.
+const fcDelta = mdCell('results/measured.md', 'Wall clock, paired per clip', '>mean<', 4);
+const fcRender = mdCell('results/measured.md', 'The saving is where the mechanism predicts', 'render_rgb', 4);
 const repeatCv = mdCell('results/measured.md', 'The repeat spread', 'all four', 5);
 const arm1Delta = mdCell('results/measured.md', 'Optimization arms', '>arm1<', 4);
 const arm2Delta = mdCell('results/measured.md', 'Optimization arms', '>arm2<', 4);
@@ -270,6 +273,25 @@ kernel search is paid for" is not supported: that slowdown is indistinguishable 
 drift.</div>
 </p>
 ${mdTable('results/measured.md', 'Per-clip arm detail')}
+<h3>The change that was not null</h3>
+<p>
+  Everything above returned null. The mechanism those nulls exposed &mdash; a renderer
+  waiting on frames rather than on arithmetic &mdash; then pointed at something specific.
+  The reader has one fast path, the next frame in sequence, and the renderer asks for five
+  frames around each position, so every item opens with a one-frame backward step. At a
+  250-frame keyframe interval, stepping back one frame re-decodes from the previous
+  keyframe. Four of those five frames were decoded moments earlier.
+</p>
+${mdTable('results/measured.md', 'Wall clock, paired per clip')}
+${mdTable('results/measured.md', 'The saving is where the mechanism predicts, and nowhere else')}
+<div class="verdict"><b>Keeping the last five decoded frames is worth ${fcDelta} of the job,
+and all of it lands in one stage.</b> The neural render falls ${fcRender}, and that saving
+alone accounts for the whole job. Nothing else moves by more than 3%. Both confounds favour
+the slower arm &mdash; it ran first, and into a fresher output directory &mdash; so this is
+a floor. The three failed arms all made the arithmetic cheaper; the arithmetic was never
+where the time was going.</div>
+${mdTable('results/measured.md', 'Does it change the output?')}
+
 <h3>How precisely can this rig measure anything?</h3>
 <p>
   Two passes tested no optimization at all. One repeated the baseline with the accumulated

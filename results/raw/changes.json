@@ -142,6 +142,26 @@
       "section": "arms",
       "arm": "arm0c",
       "roadmap": false
+    },
+    {
+      "n": 17,
+      "change": "Cache the last few decoded frames in the renderer\u2019s reader",
+      "what": "Not a roadmap item; it came out of the mechanism the three null arms exposed. The reader had one fast path, the next frame in sequence, while the renderer asks for five frames around each position \u2014 so every item opened with a one-frame backward step that re-decoded from the previous keyframe.",
+      "effect": "measured",
+      "detail": "-14.30% and -14.76% across two independent passes 0.53% apart, all clips same direction. The neural render falls 57.9% and accounts for the whole job saving. Output-neutral on every robust statistic; still default off pending a wider validation set",
+      "section": "arms",
+      "arm": "fcoff/fcon",
+      "roadmap": false
+    },
+    {
+      "n": 18,
+      "change": "Batch the focal-length search into one solve",
+      "what": "The camera calibration evaluates 46 focal candidates, each a fresh 300-iteration solve on 9 KB tensors, so 14,800 iterations run one after another and never occupy the device. The candidates are independent, so they now share one solve.",
+      "effect": "not measured",
+      "detail": "Implemented and verified exact \u2014 per-candidate losses bit-identical to the sequential function and the same focal selected \u2014 but its wall-clock effect has not been measured on the GPU. 14,800 iterations become 1,600",
+      "section": "arms",
+      "arm": "\u2014",
+      "roadmap": false
     }
   ],
   "configurations": [

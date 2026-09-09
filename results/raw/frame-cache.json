@@ -1,0 +1,177 @@
+{
+  "note": "Decoded-frame cache A/B on the dedicated A100. StreamingVideoReader.seek has one fast path, frame_index == current_index + 1; the renderer asks each reader for [c-2 .. c+2] per item, so the next item's first request is c-1, a one-frame backward step that re-decodes from the preceding keyframe at keyint 250. BOTH arms mounted the identical patched reader file, so the only difference between them is the RENDER_FRAME_CACHE environment variable. The cache-off arm ran FIRST and into a fresher output directory, and both of those confounds make the cache-on arm look worse, so the measured effect is a floor rather than a ceiling. Stage figures are means over the same three clips, deduplicated per log because each timing line is printed twice.",
+  "knob": "RENDER_FRAME_CACHE",
+  "cacheFrames": 5,
+  "clips": [
+    {
+      "clip": "hdtf01",
+      "off": 399.4,
+      "on": 344.31,
+      "onRepeat": 342.14
+    },
+    {
+      "clip": "hdtf02",
+      "off": 403.67,
+      "on": 343.12,
+      "onRepeat": 342.37
+    },
+    {
+      "clip": "hdtf03",
+      "off": 391.98,
+      "on": 336.71,
+      "onRepeat": 334.18
+    }
+  ],
+  "stages": [
+    {
+      "stage": "render_rgb",
+      "off": 96.41,
+      "on": 40.54
+    },
+    {
+      "stage": "track_face",
+      "off": 139.47,
+      "on": 138.39
+    },
+    {
+      "stage": "predict_liveportait",
+      "off": 48.27,
+      "on": 47.98
+    },
+    {
+      "stage": "parse_face",
+      "off": 37.34,
+      "on": 37.45
+    },
+    {
+      "stage": "create_driving_geo_and_mask",
+      "off": 21.1,
+      "on": 21.16
+    },
+    {
+      "stage": "crop_face",
+      "off": 18.02,
+      "on": 18.15
+    },
+    {
+      "stage": "paste_back_video",
+      "off": 12.42,
+      "on": 12.55
+    },
+    {
+      "stage": "reshape_liveportrait",
+      "off": 7.9,
+      "on": 8.11
+    },
+    {
+      "stage": "detect_landmarks",
+      "off": 5.97,
+      "on": 5.68
+    },
+    {
+      "stage": "run_animator",
+      "off": 4.77,
+      "on": 4.73
+    }
+  ],
+  "renderFrames": 751,
+  "fixture": {
+    "note": "Local CPU fixture: a real H.264 clip at keyint 250, replaying the dataset's own index pattern over 300 frames. Counts transfer, milliseconds do not.",
+    "frames": 300,
+    "decodesOff": 1500,
+    "decodesOn": 300,
+    "backwardSeeksOff": 305,
+    "backwardSeeksOn": 0,
+    "hitRatePct": 80.0
+  },
+  "lse": [
+    {
+      "clip": "hdtf01",
+      "lseDoff": 7.806,
+      "lseDon": 8.02,
+      "lseCoff": 7.609,
+      "lseCon": 7.263
+    },
+    {
+      "clip": "hdtf02",
+      "lseDoff": 6.855,
+      "lseDon": 6.794,
+      "lseCoff": 8.354,
+      "lseCon": 8.477
+    },
+    {
+      "clip": "hdtf03",
+      "lseDoff": 8.128,
+      "lseDon": 7.996,
+      "lseCoff": 7.104,
+      "lseCon": 7.132
+    }
+  ],
+  "lseFloor": 0.35,
+  "outputDiff": {
+    "note": "Pixel comparisons. The identicalConfig rows are every comparison of two runs of the SAME configuration measured in this work; they are the population the treatment has to be read against, not zero. Worst pixel is a maximum over 751 frames and every pixel -- an extreme-value statistic, heavy-tailed, and a poor discriminator at this sample size; meanAbs and psnr are the robust ones.",
+    "treatment": [
+      {
+        "pair": "cache off vs on, clip1",
+        "psnr": 39.23,
+        "worst": 116,
+        "meanAbs": 61.8
+      },
+      {
+        "pair": "cache off vs on, clip2",
+        "psnr": 40.63,
+        "worst": 121,
+        "meanAbs": 68.4
+      },
+      {
+        "pair": "cache off vs on, clip3",
+        "psnr": 40.09,
+        "worst": 109,
+        "meanAbs": 54.0
+      }
+    ],
+    "identicalConfig": [
+      {
+        "pair": "arm0 vs arm0b, 3 clips",
+        "psnr": 40.37,
+        "worst": 96,
+        "meanAbs": null
+      },
+      {
+        "pair": "det1 vs det2",
+        "psnr": 39.62,
+        "worst": 90,
+        "meanAbs": 46.0
+      },
+      {
+        "pair": "detA vs detB",
+        "psnr": 39.27,
+        "worst": 109,
+        "meanAbs": 55.1
+      },
+      {
+        "pair": "cache on vs on, clip1",
+        "psnr": 39.74,
+        "worst": 65,
+        "meanAbs": 36.2
+      },
+      {
+        "pair": "cache on vs on, clip2",
+        "psnr": 41.28,
+        "worst": 84,
+        "meanAbs": 49.1
+      },
+      {
+        "pair": "cache on vs on, clip3",
+        "psnr": 40.04,
+        "worst": 83,
+        "meanAbs": 48.2
+      }
+    ]
+  },
+  "seekExactness": {
+    "note": "Direct test of the hypothesis that the cached and uncached readers disagree about what frame i is, because OpenCV's frame-index seek is widely reported inexact on H.264. Each index was fetched twice from a real pipeline output: once by reading forward from the start, once by a backward seek. REFUTED -- seeking is frame-exact here, which is what generalises the cache's exactness to any access pattern.",
+    "indices": 65,
+    "identical": 65
+  }
+}

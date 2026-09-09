@@ -212,6 +212,111 @@ between two runs of the same configuration with the same seed. Seeding is necess
 a comparable A/B and is demonstrably not sufficient for reproducibility: the residual
 comes from CUDA-level nondeterminism outside the seeded generators.
 
+## The change that was not null: caching decoded frames
+
+Every optimization above returned null. This one did not, and it is worth more than
+all of them together by a wide margin.
+
+The renderer reads frames through a reader with exactly one fast path: the next frame
+in sequence. Its dataset asks for five frames around each position, so after finishing
+one item at position +2 the next item asks for -1 — a backward step of a single frame.
+That misses the fast path, and because the intermediate videos are written with a
+250-frame keyframe interval, stepping back one frame re-decodes from the previous
+keyframe. Four of the five frames each item needs were decoded moments earlier, so
+keeping the last five turns that backward seek into a hit.
+
+### Wall clock, paired per clip
+
+| Clip | cache off (s) | cache on (s) | cache on, repeated (s) | delta | repeat delta |
+|---|---:|---:|---:|---:|---:|
+| hdtf01 | 399.40 | 344.31 | 342.14 | **-13.79 %** | -14.34 % |
+| hdtf02 | 403.67 | 343.12 | 342.37 | **-15.00 %** | -15.19 % |
+| hdtf03 | 391.98 | 336.71 | 334.18 | **-14.10 %** | -14.75 % |
+| **mean** | **398.35** | **341.38** | **339.56** | **-14.30 %** | **-14.76 %** |
+
+The cache-on configuration was run twice, independently, landing
+0.53 % apart. The effect is not a one-off.
+
+All three clips in the same direction. Against the 3 % gate this is
+4.8x, and against the repeat spread measured on four identical
+runs it is 15x.
+
+**Both confounds favour the slower arm**, so this is a floor and not a ceiling: the
+cache-off arm ran first, and drift makes later runs slower; and it ran into a fresher
+output directory, which the drift result associates with being faster.
+
+### The saving is where the mechanism predicts, and nowhere else
+
+| Stage | cache off (s) | cache on (s) | delta (s) | delta |
+|---|---:|---:|---:|---:|
+| **render_rgb** | 96.41 | 40.54 | -55.87 | **-57.95 %** |
+| track_face | 139.47 | 138.39 | -1.08 | -0.77 % |
+| predict_liveportait | 48.27 | 47.98 | -0.29 | -0.60 % |
+| parse_face | 37.34 | 37.45 | +0.11 | +0.29 % |
+| create_driving_geo_and_mask | 21.10 | 21.16 | +0.06 | +0.28 % |
+| crop_face | 18.02 | 18.15 | +0.13 | +0.72 % |
+| paste_back_video | 12.42 | 12.55 | +0.13 | +1.05 % |
+| reshape_liveportrait | 7.90 | 8.11 | +0.21 | +2.66 % |
+| detect_landmarks | 5.97 | 5.68 | -0.29 | -4.86 % |
+| run_animator | 4.77 | 4.73 | -0.04 | -0.84 % |
+
+**The neural render stage falls 57.95 %, and its
+55.87 s accounts for the job's 56.97 s.**
+No other stage moves by more than 3 %. The change touches one reader and the time
+disappears from the one stage that reads through it: 128 ms
+per frame down to 54 ms.
+
+### Why this explains the three nulls
+
+The renderer was not slow because its arithmetic was slow. It was
+58 % waiting for frames. Raising the batch size,
+halving the precision and autotuning the kernels all made the arithmetic cheaper — and
+the arithmetic was never what the stage was spending its time on. The mechanism
+identified after those three nulls predicted this result before it was run, including
+its size: the audit said each frame was being decoded about five times, and a local
+fixture then counted exactly 1500 decodes for 300 frames
+before the cache and 300 after, with the backward seeks going from
+305 to 0.
+
+### Does it change the output?
+
+A hypothesis was tested and refuted first, because it decides how the rest reads.
+The two readers might have *disagreed about what frame `i` is*: this library’s
+frame-index seek is widely reported to be inexact on H.264, in which case the uncached
+reader would return different pixels depending on whether it reached an index by
+seeking or by reading forward, and the cache would legitimately differ from it.
+
+Measured directly on a real pipeline output: **65 of
+65 indices identical** whether reached by seek or by reading
+forward. Seeking is frame-exact here, so that hypothesis is false — and its refutation
+is what generalises the exactness argument. A hit returns what the decoder returned;
+decoding an index is deterministic; therefore the cache returns what the uncached
+reader would for **any** access pattern, not only the one the fixture replays.
+
+So the renderer sees identical input either way, and any remaining difference is the
+pipeline’s own nondeterminism — which is not small: it reproduces zero of 751
+frames between two runs of one seed. The comparison below is therefore against every
+same-configuration pair measured in this work, not against zero.
+
+| Statistic | same configuration, re-run | cache off vs on | overlap |
+|---|---|---|---|
+| mean PSNR | 40.05 dB | 39.98 dB | indistinguishable, 0.07 dB apart |
+| mean absolute difference | 36.2 – 55.1 | 54.0 – 68.4 | yes |
+| worst pixel | 65 – 109 | 109 – 121 | yes, at 109 |
+
+**A correction, in the open.** With only the immediate repeat control in hand, this
+work concluded that the treatment showed no overlap with the noise and therefore
+changed the output. Against the full set of same-configuration comparisons that is
+wrong. The error was leaning on **worst pixel**, which is a maximum over 751 frames and
+every pixel of each — an extreme-value statistic, heavy-tailed, and a poor
+discriminator at three clips. The robust statistics overlap and mean PSNR differs by
+0.07 dB.
+
+**The cache is output-neutral**, on the argument and on the robust measurements. It
+stays switched off by default all the same: enabling it is a deployment decision that
+wants a wider validation set than three clips, which is a different thing from wanting
+more evidence of this kind.
+
 ## Were the arm outputs actually valid videos?
 
 Every verdict above rests on the arms having produced real video. A timing harness

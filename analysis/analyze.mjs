@@ -280,6 +280,123 @@ if (diff) {
   }
 }
 
+// ---------------------------------------------------------------- frame cache
+{
+  const fc = raw('frame-cache');
+  const pct = (on, off) => 100 * (on - off) / off;
+  const clipD = fc.clips.map((c) => pct(c.on, c.off));
+  const meanOff = mean(fc.clips.map((c) => c.off));
+  const meanOn = mean(fc.clips.map((c) => c.on));
+  const meanD = mean(clipD);
+
+  P('## The change that was not null: caching decoded frames\n');
+  P('Every optimization above returned null. This one did not, and it is worth more than');
+  P('all of them together by a wide margin.\n');
+  P('The renderer reads frames through a reader with exactly one fast path: the next frame');
+  P('in sequence. Its dataset asks for five frames around each position, so after finishing');
+  P('one item at position +2 the next item asks for -1 — a backward step of a single frame.');
+  P('That misses the fast path, and because the intermediate videos are written with a');
+  P('250-frame keyframe interval, stepping back one frame re-decodes from the previous');
+  P('keyframe. Four of the five frames each item needs were decoded moments earlier, so');
+  P('keeping the last five turns that backward seek into a hit.\n');
+
+  P('### Wall clock, paired per clip\n');
+  const meanRep = mean(fc.clips.map((c) => c.onRepeat));
+  const repD = mean(fc.clips.map((c) => pct(c.onRepeat, c.off)));
+  P('| Clip | cache off (s) | cache on (s) | cache on, repeated (s) | delta | repeat delta |');
+  P('|---|---:|---:|---:|---:|---:|');
+  fc.clips.forEach((c, i) => {
+    P(`| ${c.clip} | ${fmt(c.off)} | ${fmt(c.on)} | ${fmt(c.onRepeat)} `
+      + `| **${signed(clipD[i])} %** | ${signed(pct(c.onRepeat, c.off))} % |`);
+  });
+  P(`| **mean** | **${fmt(meanOff)}** | **${fmt(meanOn)}** | **${fmt(meanRep)}** `
+    + `| **${signed(meanD)} %** | **${signed(repD)} %** |`);
+  P('');
+  P(`The cache-on configuration was run twice, independently, landing`);
+  P(`${fmt(Math.abs(100 * (meanRep - meanOn) / meanOn))} % apart. The effect is not a one-off.\n`);
+  P(`All three clips in the same direction. Against the 3 % gate this is`);
+  P(`${fmt(Math.abs(meanD) / 3, 1)}x, and against the repeat spread measured on four identical`);
+  P(`runs it is ${fmt(Math.abs(meanD) / 0.95, 0)}x.\n`);
+  P('**Both confounds favour the slower arm**, so this is a floor and not a ceiling: the');
+  P('cache-off arm ran first, and drift makes later runs slower; and it ran into a fresher');
+  P('output directory, which the drift result associates with being faster.\n');
+
+  P('### The saving is where the mechanism predicts, and nowhere else\n');
+  P('| Stage | cache off (s) | cache on (s) | delta (s) | delta |');
+  P('|---|---:|---:|---:|---:|');
+  for (const st of fc.stages) {
+    const d = pct(st.on, st.off);
+    const em = Math.abs(d) > 20;
+    const nm = em ? `**${st.stage}**` : st.stage;
+    P(`| ${nm} | ${fmt(st.off)} | ${fmt(st.on)} | ${signed(st.on - st.off)} `
+      + `| ${em ? '**' + signed(d) + ' %**' : signed(d) + ' %'} |`);
+  }
+  P('');
+  const r = fc.stages.find((x) => x.stage === 'render_rgb');
+  P(`**The neural render stage falls ${fmt(Math.abs(pct(r.on, r.off)))} %, and its`);
+  P(`${fmt(Math.abs(r.on - r.off))} s accounts for the job's ${fmt(Math.abs(meanOn - meanOff))} s.**`);
+  P('No other stage moves by more than 3 %. The change touches one reader and the time');
+  P(`disappears from the one stage that reads through it: ${fmt(1000 * r.off / fc.renderFrames, 0)} ms`);
+  P(`per frame down to ${fmt(1000 * r.on / fc.renderFrames, 0)} ms.\n`);
+
+  P('### Why this explains the three nulls\n');
+  P(`The renderer was not slow because its arithmetic was slow. It was`);
+  P(`${fmt(100 * (r.off - r.on) / r.off, 0)} % waiting for frames. Raising the batch size,`);
+  P('halving the precision and autotuning the kernels all made the arithmetic cheaper — and');
+  P('the arithmetic was never what the stage was spending its time on. The mechanism');
+  P('identified after those three nulls predicted this result before it was run, including');
+  P(`its size: the audit said each frame was being decoded about five times, and a local`);
+  P(`fixture then counted exactly ${fc.fixture.decodesOff} decodes for ${fc.fixture.frames} frames`);
+  P(`before the cache and ${fc.fixture.decodesOn} after, with the backward seeks going from`);
+  P(`${fc.fixture.backwardSeeksOff} to ${fc.fixture.backwardSeeksOn}.\n`);
+
+  P('### Does it change the output?\n');
+  const od = fc.outputDiff;
+  const rng = (rows, k) => {
+    const v = rows.map((r) => r[k]).filter((x) => x !== null && x !== undefined);
+    return [Math.min(...v), Math.max(...v)];
+  };
+  P('A hypothesis was tested and refuted first, because it decides how the rest reads.');
+  P('The two readers might have *disagreed about what frame `i` is*: this library\u2019s');
+  P('frame-index seek is widely reported to be inexact on H.264, in which case the uncached');
+  P('reader would return different pixels depending on whether it reached an index by');
+  P('seeking or by reading forward, and the cache would legitimately differ from it.\n');
+  P(`Measured directly on a real pipeline output: **${fc.seekExactness.identical} of`);
+  P(`${fc.seekExactness.indices} indices identical** whether reached by seek or by reading`);
+  P('forward. Seeking is frame-exact here, so that hypothesis is false — and its refutation');
+  P('is what generalises the exactness argument. A hit returns what the decoder returned;');
+  P('decoding an index is deterministic; therefore the cache returns what the uncached');
+  P('reader would for **any** access pattern, not only the one the fixture replays.\n');
+  P('So the renderer sees identical input either way, and any remaining difference is the');
+  P('pipeline\u2019s own nondeterminism — which is not small: it reproduces zero of 751');
+  P('frames between two runs of one seed. The comparison below is therefore against every');
+  P('same-configuration pair measured in this work, not against zero.\n');
+
+  const [tw0, tw1] = rng(od.treatment, 'worst');
+  const [iw0, iw1] = rng(od.identicalConfig, 'worst');
+  const [tm0, tm1] = rng(od.treatment, 'meanAbs');
+  const [im0, im1] = rng(od.identicalConfig, 'meanAbs');
+  const tp = mean(od.treatment.map((r) => r.psnr));
+  const ip = mean(od.identicalConfig.map((r) => r.psnr));
+  P('| Statistic | same configuration, re-run | cache off vs on | overlap |');
+  P('|---|---|---|---|');
+  P(`| mean PSNR | ${fmt(ip)} dB | ${fmt(tp)} dB | indistinguishable, ${fmt(Math.abs(tp - ip))} dB apart |`);
+  P(`| mean absolute difference | ${fmt(im0, 1)} \u2013 ${fmt(im1, 1)} | ${fmt(tm0, 1)} \u2013 ${fmt(tm1, 1)} | ${tm0 < im1 ? 'yes' : 'no'} |`);
+  P(`| worst pixel | ${iw0} \u2013 ${iw1} | ${tw0} \u2013 ${tw1} | ${tw0 <= iw1 ? 'yes, at ' + iw1 : 'no'} |`);
+  P('');
+  P('**A correction, in the open.** With only the immediate repeat control in hand, this');
+  P('work concluded that the treatment showed no overlap with the noise and therefore');
+  P('changed the output. Against the full set of same-configuration comparisons that is');
+  P('wrong. The error was leaning on **worst pixel**, which is a maximum over 751 frames and');
+  P('every pixel of each — an extreme-value statistic, heavy-tailed, and a poor');
+  P('discriminator at three clips. The robust statistics overlap and mean PSNR differs by');
+  P(`${fmt(Math.abs(tp - ip))} dB.\n`);
+  P('**The cache is output-neutral**, on the argument and on the robust measurements. It');
+  P('stays switched off by default all the same: enabling it is a deployment decision that');
+  P('wants a wider validation set than three clips, which is a different thing from wanting');
+  P('more evidence of this kind.\n');
+}
+
 // ---------------------------------------------------------------- output sanity
 {
   const san = raw('output-sanity');

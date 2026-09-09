@@ -204,6 +204,8 @@ const TILES = [
   ['Determinism, frames reproduced',
     `${mdCell('results/measured.md', 'Deterministic kernels', '>det1 vs det2<', 3)} of `
     + `${mdCell('results/measured.md', 'Deterministic kernels', '>det1 vs det2<', 2)}`, 'T8'],
+  ['Frame cache, paired', mdCell('results/measured.md', 'Wall clock, paired per clip', '>mean<', 4), 'T8'],
+  ['Neural render, frame cache', mdCell('results/measured.md', 'The saving is where the mechanism predicts', 'render_rgb', 4), 'T8'],
   ['Repeat spread, 4 identical runs',
     mdCell('results/measured.md', 'The repeat spread', 'all four', 3), 'T8'],
   ['Baseline arm CV', mdCell('results/reporting.md', 'Measurement precision', 'A/B arms', 4), 'T3'],

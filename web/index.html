@@ -182,7 +182,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
   <h2>What was done</h2>
 
 <p>
-  Twelve changes, in the order they were made. 15 carry a measured effect;
+  Twelve changes, in the order they were made. 16 carry a measured effect;
   the rest are implemented and instrumented with no number yet, and say so. Nothing here is
   credited with an estimate.
 </p>
@@ -203,6 +203,8 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
 <tr><td class="n">14</td><td>The whole branch measured against the unmodified upstream code</td><td>Checks the reverse risk: that the accumulated changes cost something incidental even where each was individually null.</td><td>-0.47% against the adjacent baseline with mixed per-clip signs, and every output inside the noise floor: the branch is performance-neutral</td></tr>
 <tr><td class="n">15</td><td>Deterministic kernels behind a second flag</td><td>Asks torch for deterministic algorithms and a fixed cuBLAS workspace on top of the reseed, to test whether the pipeline can reproduce its own output exactly. Run as two independent pairs.</td><td>0 of 751 frames identical in BOTH pairs, and an 11% to 13% wall clock cost: the floor does not move, so the flag stays off. The nondeterminism sits outside torch, which is what decides the cache design</td></tr>
 <tr><td class="n">16</td><td>A third baseline, with the accumulated output cleared first</td><td>Tests whether the session drift has an avoidable cause. The pipeline writes eighteen intermediate videos per job into one directory, which had reached 20 GB. Free space was ruled out first: the volume stayed 39 % full.</td><td>Recovered 0.91 of the 1.85 points of drift, consistent in sign across all three clips. About the size of the 0.95% repeat CV, so it is grounds for clearing the directory between arms, not a result</td></tr>
+<tr><td class="n">17</td><td>Cache the last few decoded frames in the renderer’s reader</td><td>Not a roadmap item; it came out of the mechanism the three null arms exposed. The reader had one fast path, the next frame in sequence, while the renderer asks for five frames around each position — so every item opened with a one-frame backward step that re-decoded from the previous keyframe.</td><td>-14.30% and -14.76% across two independent passes 0.53% apart, all clips same direction. The neural render falls 57.9% and accounts for the whole job saving. Output-neutral on every robust statistic; still default off pending a wider validation set</td></tr>
+<tr><td class="n">18</td><td>Batch the focal-length search into one solve</td><td>The camera calibration evaluates 46 focal candidates, each a fresh 300-iteration solve on 9 KB tensors, so 14,800 iterations run one after another and never occupy the device. The candidates are independent, so they now share one solve.</td><td><strong>not measured</strong> — Implemented and verified exact — per-candidate losses bit-identical to the sequential function and the same focal selected — but its wall-clock effect has not been measured on the GPU. 14,800 iterations become 1,600</td></tr>
 </tbody></table></div>
 <div class="verdict"><b>Net effect on the shipping system:</b> the build works again, and no
 optimization was kept. Both measurable roadmap items were rejected on their own numbers.</div>
@@ -552,6 +554,45 @@ drift.</div>
 <tr><td>control_main</td><td>RD_Radio32_000</td><td class="n">393.43</td><td class="n">396.15</td><td class="n">+2.72</td><td class="n">+0.69%</td></tr>
 <tr><td>control_main</td><td>RD_Radio42_000</td><td class="n">385.46</td><td class="n">389.61</td><td class="n">+4.15</td><td class="n">+1.08%</td></tr>
 </tbody></table></div>
+<h3>The change that was not null</h3>
+<p>
+  Everything above returned null. The mechanism those nulls exposed &mdash; a renderer
+  waiting on frames rather than on arithmetic &mdash; then pointed at something specific.
+  The reader has one fast path, the next frame in sequence, and the renderer asks for five
+  frames around each position, so every item opens with a one-frame backward step. At a
+  250-frame keyframe interval, stepping back one frame re-decodes from the previous
+  keyframe. Four of those five frames were decoded moments earlier.
+</p>
+<div class="tw"><table><thead><tr><th>Clip</th><th class="n">cache off (s)</th><th class="n">cache on (s)</th><th class="n">cache on, repeated (s)</th><th class="n">delta</th><th class="n">repeat delta</th></tr></thead><tbody>
+<tr><td>hdtf01</td><td class="n">399.40</td><td class="n">344.31</td><td class="n">342.14</td><td class="n"><strong>-13.79 %</strong></td><td class="n">-14.34 %</td></tr>
+<tr><td>hdtf02</td><td class="n">403.67</td><td class="n">343.12</td><td class="n">342.37</td><td class="n"><strong>-15.00 %</strong></td><td class="n">-15.19 %</td></tr>
+<tr><td>hdtf03</td><td class="n">391.98</td><td class="n">336.71</td><td class="n">334.18</td><td class="n"><strong>-14.10 %</strong></td><td class="n">-14.75 %</td></tr>
+<tr><td><strong>mean</strong></td><td class="n"><strong>398.35</strong></td><td class="n"><strong>341.38</strong></td><td class="n"><strong>339.56</strong></td><td class="n"><strong>-14.30 %</strong></td><td class="n"><strong>-14.76 %</strong></td></tr>
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th>Stage</th><th class="n">cache off (s)</th><th class="n">cache on (s)</th><th class="n">delta (s)</th><th class="n">delta</th></tr></thead><tbody>
+<tr><td><strong>render_rgb</strong></td><td class="n">96.41</td><td class="n">40.54</td><td class="n">-55.87</td><td class="n"><strong>-57.95 %</strong></td></tr>
+<tr><td>track_face</td><td class="n">139.47</td><td class="n">138.39</td><td class="n">-1.08</td><td class="n">-0.77 %</td></tr>
+<tr><td>predict_liveportait</td><td class="n">48.27</td><td class="n">47.98</td><td class="n">-0.29</td><td class="n">-0.60 %</td></tr>
+<tr><td>parse_face</td><td class="n">37.34</td><td class="n">37.45</td><td class="n">+0.11</td><td class="n">+0.29 %</td></tr>
+<tr><td>create_driving_geo_and_mask</td><td class="n">21.10</td><td class="n">21.16</td><td class="n">+0.06</td><td class="n">+0.28 %</td></tr>
+<tr><td>crop_face</td><td class="n">18.02</td><td class="n">18.15</td><td class="n">+0.13</td><td class="n">+0.72 %</td></tr>
+<tr><td>paste_back_video</td><td class="n">12.42</td><td class="n">12.55</td><td class="n">+0.13</td><td class="n">+1.05 %</td></tr>
+<tr><td>reshape_liveportrait</td><td class="n">7.90</td><td class="n">8.11</td><td class="n">+0.21</td><td class="n">+2.66 %</td></tr>
+<tr><td>detect_landmarks</td><td class="n">5.97</td><td class="n">5.68</td><td class="n">-0.29</td><td class="n">-4.86 %</td></tr>
+<tr><td>run_animator</td><td class="n">4.77</td><td class="n">4.73</td><td class="n">-0.04</td><td class="n">-0.84 %</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Keeping the last five decoded frames is worth -14.30 % of the job,
+and all of it lands in one stage.</b> The neural render falls -57.95 %, and that saving
+alone accounts for the whole job. Nothing else moves by more than 3%. Both confounds favour
+the slower arm &mdash; it ran first, and into a fresher output directory &mdash; so this is
+a floor. The three failed arms all made the arithmetic cheaper; the arithmetic was never
+where the time was going.</div>
+<div class="tw"><table><thead><tr><th>Statistic</th><th>same configuration, re-run</th><th>cache off vs on</th><th>overlap</th></tr></thead><tbody>
+<tr><td>mean PSNR</td><td>40.05 dB</td><td>39.98 dB</td><td>indistinguishable, 0.07 dB apart</td></tr>
+<tr><td>mean absolute difference</td><td>36.2 – 55.1</td><td>54.0 – 68.4</td><td>yes</td></tr>
+<tr><td>worst pixel</td><td>65 – 109</td><td>109 – 121</td><td>yes, at 109</td></tr>
+</tbody></table></div>
+
 <h3>How precisely can this rig measure anything?</h3>
 <p>
   Two passes tested no optimization at all. One repeated the baseline with the accumulated

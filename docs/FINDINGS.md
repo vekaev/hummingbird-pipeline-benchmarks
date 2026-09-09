@@ -2263,3 +2263,190 @@ local tags across all three packages.
 Worth stating in the article: the lockfile could not express the build variant, and the
 environment-capture tool could not display it. Two layers of standard tooling, both blind to
 the same field.
+
+# MEASURED: the decoded-frame cache is worth 14.3 %, and it is all in `render_rgb`
+
+**2026-09-09.** The first change this session that is not null, and it is larger than every
+other candidate combined by a factor of thirty.
+
+`StreamingVideoReader.seek` has one fast path, `frame_index == current_index + 1`. The
+renderer asks each reader for `[c−2 … c+2]` per item, so after finishing at `c+2` the next
+item's first request is `c−1`: a one-frame backward step that falls through to
+`cv2.CAP_PROP_POS_FRAMES`, and with keyint 250 that re-decodes from the preceding keyframe.
+Four of the five indices an item wants were decoded by the previous item, so retaining the
+last five frames turns the backward seek into a hit.
+
+## Wall clock, paired, three clips
+
+| clip | cache off | cache on | delta | % |
+|---|---:|---:|---:|---:|
+| hdtf01 | 399.40 | 344.31 | −55.09 | **−13.79 %** |
+| hdtf02 | 403.67 | 343.12 | −60.55 | **−15.00 %** |
+| hdtf03 | 391.98 | 336.71 | −55.27 | **−14.10 %** |
+| **mean** | **398.35** | **341.38** | **−56.97** | **−14.30 %** |
+
+All three clips in the same direction. **4.8× the 3 % gate, 15× the 0.95 % repeat CV, and
+29× the largest candidate effect measured before it.**
+
+**Both confounds favour the slower arm**, so −14.30 % is a floor, not a ceiling: the
+cache-off arm ran *first*, and session drift makes later runs slower; and it ran into a
+*fresher* output directory, which the arm0c result associates with being faster.
+
+## The saving is exactly where the mechanism predicts
+
+Per-stage means over the same three clips. Both arms mounted the identical patched file, so
+the only difference between them is one environment variable.
+
+| stage | off | on | delta | % |
+|---|---:|---:|---:|---:|
+| **`render_rgb`** | **96.41** | **40.54** | **−55.87** | **−57.9 %** |
+| `track_face` | 139.47 | 138.39 | −1.08 | −0.8 % |
+| `predict_liveportait` | 48.27 | 47.98 | −0.29 | −0.6 % |
+| `parse_face` | 37.34 | 37.45 | +0.10 | +0.3 % |
+| `create_driving_geo_and_mask` | 21.10 | 21.16 | +0.06 | +0.3 % |
+| `crop_face` | 18.02 | 18.15 | +0.13 | +0.7 % |
+| `paste_back_video` | 12.42 | 12.55 | +0.13 | +1.0 % |
+| `reshape_liveportrait` | 7.90 | 8.11 | +0.22 | +2.7 % |
+| `detect_landmarks` | 5.97 | 5.68 | −0.29 | −4.9 % |
+| `run_animator` | 4.77 | 4.73 | −0.05 | −0.9 % |
+
+**`render_rgb`'s −55.87 s accounts for the job's −56.94 s.** Nothing else moves by more
+than 3 %. This is the cleanest attribution in the whole session: the change touches one
+reader, and the time disappears from the one stage that reads through it.
+
+`render_rgb` per frame: **128 ms → 54 ms**.
+
+## Why this closes the loop on the three null arms
+
+The renderer was not slow because its arithmetic was slow. It was **58 % decode wait**.
+
+- **batch 4 → 16 (null):** you cannot fix under-feeding by sending more per step to a
+  device that is idle waiting for frames.
+- **fp16 (null):** halving arithmetic time cannot help a stage that is mostly not doing
+  arithmetic.
+- **cuDNN autotuning (null):** faster kernels do not help a stage waiting on `libx264`.
+
+All three optimised the 42 %. This one removed most of the 58 %. The mechanism identified
+after those nulls predicted this result in advance, including its magnitude: the code audit
+said each frame was decoded about five times, and the fixture measured exactly 1500 decodes
+for 300 frames before the cache and 300 after.
+
+## Correctness
+
+**At the point of change, bit-exact and proven:** 1500 frames returned under the renderer's
+own index pattern are byte-identical to the uncached reader, at cache sizes 5, 6 and 8, and
+still correct at sizes 1–3 — so a misconfigured size costs speed, not correctness. A hit
+returns a copy, preserving the caller's freedom to mutate what it receives, which
+`dataset.py`'s lip-mask path relies on. 25 checks, gate 5 of `verify_local.sh`.
+
+**End to end, the pipeline cannot demonstrate bit-exactness of anything**: it reproduces
+0 of 751 frames across two runs of one seed even with deterministic kernels requested. So
+the end-to-end diff below carries no information about the cache's correctness, and is
+reported for completeness rather than as evidence.
+
+| comparison | PSNR mean | worst pixel | frames identical |
+|---|---:|---:|---:|
+| cache off vs cache on, 3 clips | 39.98 dB | 121 | 0 of 751 |
+| *floor:* arm0 vs arm0b, identical config | 40.37 dB | 96 | 0 of 751 |
+| *floor:* det1 vs det2, identical config | 39.62 dB | 90 | 0 of 751 |
+| *floor:* detA vs detB, identical config | 39.27 dB | 109 | 0 of 751 |
+
+Mean PSNR sits inside the floor. **The worst pixel, 121, is above the 90–109 that identical
+configurations produced**, which is why a repeat control at the cache-on configuration is
+being measured rather than assumed. All six outputs pass the sanity checks.
+
+### Lip sync itself does not move
+
+The secondary check, which is what LSE is actually good for — not fidelity, but confirming
+sync did not collapse.
+
+| clip | LSE-D off | LSE-D on | Δ | LSE-C off | LSE-C on | Δ |
+|---|---:|---:|---:|---:|---:|---:|
+| hdtf01 | 7.806 | 8.020 | +0.214 | 7.609 | 7.263 | −0.346 |
+| hdtf02 | 6.855 | 6.794 | −0.061 | 8.354 | 8.477 | +0.123 |
+| hdtf03 | 8.128 | 7.996 | −0.132 | 7.104 | 7.132 | +0.028 |
+| **mean** | **7.596** | **7.603** | **+0.007** | 7.689 | 7.624 | −0.065 |
+
+Mean LSE-D moves by 0.007. The largest per-clip change is 0.214, **signs are mixed**, and
+every clip is inside the 0.35 regeneration noise floor. All six outputs pass the sanity
+checks.
+
+So of the four correctness checks available, three are clean — reader-level bit-exactness,
+LSE, and the sanity checks — and one, the worst-pixel figure, is unresolved pending the
+repeat control.
+
+**Default stays OFF until that control lands.** The knob is `RENDER_FRAME_CACHE`, a frame
+count per reader; memory cost is `size × frame bytes × readers`, which at 1080p is about
+6.2 MB per frame per reader.
+
+## The frame cache, resolved: the win reproduces and the output question closes
+
+**2026-09-09 12:42.** The repeat control at the cache-on configuration landed, plus a
+targeted test of the mechanism I suspected. Both change the reading.
+
+### The win reproduces
+
+| pass | clip1 | clip2 | clip3 | mean | vs cache off |
+|---|---:|---:|---:|---:|---:|
+| cache off | 399.40 | 403.67 | 391.98 | 398.35 | — |
+| cache on | 344.31 | 343.12 | 336.71 | 341.38 | **−14.30 %** |
+| cache on, repeated | 342.14 | 342.37 | 334.18 | 339.56 | **−14.76 %** |
+
+Two independent cache-on passes, **0.53 % apart**. The effect is not a one-off.
+
+### A hypothesis I had, and its refutation
+
+I suspected the two paths *disagree about what frame `i` is*: OpenCV's
+`CAP_PROP_POS_FRAMES` seek is widely reported to be inexact on H.264, so the uncached
+reader might return different pixels for index `i` depending on whether it arrived by seek
+or by reading forward — in which case the cache, which pins the first decoded value, would
+legitimately differ from it.
+
+**Tested directly on a real pipeline output, and it is false.** For 65 indices, the frame
+obtained by reading forward from the start and the frame obtained by a backward seek to
+that index are **identical, 65 of 65**. Seeking is frame-exact on these files.
+
+That refutation is what settles the question, because it completes the argument:
+
+1. A cache hit returns the bytes the decoder returned for that index.
+2. Decoding index `i` is deterministic for a given file — just measured.
+3. So the cache returns exactly what the uncached reader would, **for any access
+   pattern**, not merely the one the fixture replays.
+4. So the renderer receives identical input either way, and any output difference is the
+   pipeline's own nondeterminism.
+
+### Correcting my own intermediate read
+
+When only the immediate control was in hand I wrote that the treatment showed **no
+overlap** with the noise and therefore changed the output. Against the full population of
+identical-configuration comparisons from this session, that is wrong:
+
+| statistic | identical-config range | treatment range | overlap |
+|---|---|---|---|
+| worst pixel | 65 – 109 | 109 – 121 | **yes, at 109** |
+| mean abs diff | 36.2 – 55.1 | 54.0 – 68.4 | **yes** |
+| mean PSNR | 40.05 dB | 39.98 dB | indistinguishable |
+
+My error was leaning on **worst pixel**, which is a maximum over 751 frames and every
+pixel — an extreme-value statistic, heavy-tailed, and a poor discriminator at n=3. The
+robust statistics overlap, and mean PSNR differs by 0.07 dB.
+
+**Conclusion: the frame cache is output-neutral**, on both the theoretical argument and the
+robust measurements, and the earlier "it changes the output" reading was an artefact of the
+statistic I chose.
+
+### Status
+
+| check | result |
+|---|---|
+| Wall clock | **−14.30 % and −14.76 %**, two independent passes, 0.53 % apart |
+| Stage attribution | `render_rgb` −57.9 %, accounts for the whole job saving |
+| Reader-level exactness | bit-exact, 1,500 frames, and general given frame-exact seeking |
+| Frame-exact seeking | 65 of 65 indices identical by seek and by sequential read |
+| LSE-D | 7.596 → 7.603, mixed signs, inside the 0.35 floor |
+| Sanity checks | 9 of 9 outputs pass across all three passes |
+| Output vs noise | inside the identical-config range on every robust statistic |
+
+**Default remains OFF in this branch.** Nothing measured argues against enabling it; that
+is a deployment decision and it wants a broader validation set than three clips, not more
+evidence of the same kind.
