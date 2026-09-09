@@ -300,7 +300,7 @@ function figureStageProfile() {
   const animator = rows.find((r) => r.key === 'run_animator');
   const prefix = prefixOf(m);
   const note = `${top2[0].label} and ${top2[1].label} are ${fmt(top2[0].share + top2[1].share, 1)}% of the pipeline between them. ` +
-    `${animator.label} — the audio-to-motion model itself, the part a reader assumes this pipeline is — is ${fmt(animator.share, 1)}%. ` +
+    `${animator.label} — the audio-to-motion model itself, which is the part a reader assumes this pipeline mostly consists of — is ${fmt(animator.share, 1)}%. ` +
     `The four stages in the prefix colour run before the animator and take no audio input at all: ${fmt(prefix)} s, ` +
     `${fmt((100 * prefix) / tot, 1)}% of the pipeline, recomputed identically for every job that reuses a source video.`;
 

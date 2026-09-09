@@ -5,3 +5,4 @@ web/dist/
 .env
 .env.*
 *.log
+.vercel
