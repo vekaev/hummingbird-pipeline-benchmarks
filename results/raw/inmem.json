@@ -2,24 +2,56 @@
   "note": "Keeping stage boundaries in memory instead of round-tripping them through video files. Merged during this work and never measured until now. It is the right test to run after the packing result, which established that the pipeline is bound by CPU and software video encoding rather than by the accelerator: this change removes encodes, so it attacks the constraint that was measured rather than the one that was assumed. Three clips, seeded, both kept optimizations on in every arm, and the treatment bracketed by two runs of the control -- because a repeat of one arm earlier in this work drifted 1.85%, larger than every effect then being chased.",
   "gatePct": 3.0,
   "clips": [
-    { "id": "clip 1", "control": 308.57, "treated": 292.12, "controlRepeat": 308.58 },
-    { "id": "clip 2", "control": 309.22, "treated": 293.95, "controlRepeat": 311.37 },
-    { "id": "clip 3", "control": 302.30, "treated": 287.67, "controlRepeat": 299.70 }
+    {
+      "id": "clip 1",
+      "control": 308.57,
+      "treated": 292.12,
+      "controlRepeat": 308.58
+    },
+    {
+      "id": "clip 2",
+      "control": 309.22,
+      "treated": 293.95,
+      "controlRepeat": 311.37
+    },
+    {
+      "id": "clip 3",
+      "control": 302.3,
+      "treated": 287.67,
+      "controlRepeat": 299.7
+    }
   ],
   "stages": [
-    { "name": "run_lipsync", "control": 300.10, "treated": 282.53 },
-    { "name": "materialize_lipsync_output", "control": 0.00, "treated": 1.94 }
+    {
+      "name": "run_lipsync",
+      "control": 300.1,
+      "treated": 282.53
+    },
+    {
+      "name": "materialize_lipsync_output",
+      "control": 0.0,
+      "treated": 1.94
+    }
   ],
   "stageNote": "The saving is entirely inside one stage, and the change pays a new cost it did not have before: writing the final video once, from memory, at the end. No other stage moved by more than 0.2 s.",
   "writes": {
     "diskPathPerClip": 19,
     "memoryPathPerClip": 14,
     "predictedMemoryPathPerClip": 13,
-    "eliminated": ["crop", "crop_lp", "liveportrait", "liveportrait_reshaped", "rgb"],
+    "eliminated": [
+      "crop",
+      "crop_lp",
+      "liveportrait",
+      "liveportrait_reshaped",
+      "rgb"
+    ],
     "note": "Counted, not assumed. The prediction of 13 was recorded before the run and was wrong by one file: the documentation says six writes are gated, but the full-resolution paste-back video is still written in both arms, so five disappear rather than six."
   },
   "memory": {
-    "samples": [474, 451],
+    "samples": [
+      474,
+      451
+    ],
     "intervalSeconds": 2,
     "diskMeanMiB": 7849,
     "memoryMeanMiB": 10025,
@@ -31,17 +63,37 @@
   "outputAgreement": {
     "floorNote": "Two runs of the SAME disk configuration. Whatever they differ by is the floor, and the treated comparison only means anything against it.",
     "clips": [
-      { "id": "clip 1", "sameConfig": 39.54, "diskVsMemory": 34.49 },
-      { "id": "clip 2", "sameConfig": 41.27, "diskVsMemory": 35.43 },
-      { "id": "clip 3", "sameConfig": 39.86, "diskVsMemory": 35.42 }
+      {
+        "id": "clip 1",
+        "sameConfig": 39.54,
+        "diskVsMemory": 34.49
+      },
+      {
+        "id": "clip 2",
+        "sameConfig": 41.27,
+        "diskVsMemory": 35.43
+      },
+      {
+        "id": "clip 3",
+        "sameConfig": 39.86,
+        "diskVsMemory": 35.42
+      }
     ],
     "priorFloorDb": 39.38,
     "videosChecked": 9,
     "videosPassed": 9
   },
   "writerDefect": {
-    "trueSizes": [478, 654, 510],
-    "deliveredSizes": [480, 656, 512],
+    "trueSizes": [
+      478,
+      654,
+      510
+    ],
+    "deliveredSizes": [
+      480,
+      656,
+      512
+    ],
     "alignment": 16,
     "siblingAlignment": 2,
     "diskBitrate": 410754,
@@ -49,5 +101,32 @@
     "siblingCrf": 17,
     "warningsInLogs": 0,
     "note": "The output difference is not a flaw in the in-memory path. The file that writes video contains two writers, and they disagree about two separate things. One passes an explicit block alignment of 2 and an explicit quality setting; the class the pipeline actually uses passes neither, so the encoder applies its own defaults -- block alignment 16, and its own rate control. Every true frame size measured is congruent to 14 modulo 16, so every delivered video is scaled up by exactly two pixels in each dimension and re-encoded at roughly half the bitrate the sibling would have used. The encoder library does warn about the rescale, through its own logging channel, which this application never configures for output: zero occurrences across every run log."
+  },
+  "writerParity": {
+    "note": "The follow-up the section above named and did not run. Both writer parameters were made configurable, defaulting to today's behaviour, and the DISK arm was re-run with them set. It then writes at the in-memory arm's native size and quality, so the two paths can finally be compared like for like.",
+    "diskWithKnobsWidth": 478,
+    "diskWithKnobsBitrate": 765917,
+    "agreementDb": 40.19,
+    "floorDb": 40.22,
+    "verdict": "The two paths meet at the noise floor. So the entire earlier gap was the writer's two omitted parameters and none of it was the in-memory path, which had been compared against a reference that was quietly damaging its own output. The change IS output-neutral.",
+    "timing": {
+      "note": "A confirmation, on the one clip this follow-up ran. With both writers made identical the existing path no longer rescales the final video, so the speed comparison cannot be an artefact of the reference doing extra work. Single pair, so it confirms direction and magnitude rather than refining the figure.",
+      "controlWall": 307.69,
+      "treatedWall": 290.77,
+      "clips": 1
+    }
+  },
+  "groundTruth": {
+    "note": "These clips are self-driven -- each was driven by its own audio -- so the source video is the reference, and the final composite is written into the full source frame. The source is 478 square: exactly what the in-memory path delivers, and two pixels short of what ships. Most of each frame is pass-through content, so loss there is pipeline damage rather than generation error. This is a fidelity measure, NOT a perceptual score.",
+    "shippingDb": 31.73,
+    "bothKnobsDb": 33.89,
+    "inMemoryDb": 34.96,
+    "perClipAdvantageDb": [
+      3.23,
+      2.72,
+      2.32
+    ],
+    "diskRepeatSpreadDb": 0.04,
+    "caveat": "Not claimed: that any of this is visible to a viewer. This work's own primary source puts image-registration metrics at or below chance for agreement with human judgement on generated faces. The right instrument for a resample-and-recompress question, the wrong one for whether it looks better."
   }
 }

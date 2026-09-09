@@ -122,6 +122,14 @@ const imBitrateShare = `${(100 * imRaw.writerDefect.diskBitrate / imRaw.writerDe
 const imWritesFrom = imRaw.writes.diskPathPerClip;
 const imWritesTo = imRaw.writes.memoryPathPerClip;
 const imWritesGone = imRaw.writes.eliminated.length;
+const imParity = mdCell('results/measured.md', 'That test was run, and it reverses the verdict', '>the two paths, compared directly<', 1);
+const imParityFloor = mdCell('results/measured.md', 'That test was run, and it reverses the verdict', '>the same-configuration floor<', 1);
+const imGtShip = mdCell('results/measured.md', 'Against the source, which is the comparison that was missing', '>as it ships<', 1);
+const imGtKnobs = mdCell('results/measured.md', 'Against the source, which is the comparison that was missing', '>both writer parameters set<', 1);
+const imGtMem = mdCell('results/measured.md', 'Against the source, which is the comparison that was missing', '>stage boundaries in memory<', 1);
+const imGtWriterGain = mdCell('results/measured.md', 'Against the source, which is the comparison that was missing', '>both writer parameters set<', 2);
+const imGtSpread = `${imRaw.groundTruth.diskRepeatSpreadDb.toFixed(2)} dB`;
+const imGtMean = `${(imRaw.groundTruth.perClipAdvantageDb.reduce((a, b) => a + b, 0) / imRaw.groundTruth.perClipAdvantageDb.length).toFixed(2)} dB`;
 const coFc = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3fc5<', 4);
 const coBoth = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3both<', 4);
 const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
@@ -489,12 +497,50 @@ ${mdTable('results/measured.md', 'The change is NOT output-neutral, and that is 
     never configures for output: zero such warnings across every run log.
   </p>
   <p>
-    So this does not get counted with the two changes that shipped. Those were bit-exact by
-    construction and output-neutral; this is a measured win that also changes the output. The
-    alignment is now configurable with <b>the default left unchanged</b>, because lowering it
-    changes the dimensions of delivered video, and that is not a decision to make as a side
-    effect of a performance change. Before this ships, both writers have to agree &mdash;
-    then the two outputs should meet at the floor and the speed can be judged on its own.
+    Both writer parameters are now configurable with <b>their defaults left unchanged</b>,
+    because changing them changes the dimensions and bitrate of delivered video, and that is
+    not a decision to make as a side effect of a performance change. The obvious next step
+    was to set them and compare again.
+  </p>
+</div>
+<div class="verdict"><b>That test was run, and it reverses the verdict above.</b> With both
+parameters set, the existing path stops rescaling and writes at the same quality, and the
+two paths then agree at ${imParity} against a same-configuration floor of
+${imParityFloor}. The whole gap was the writer&rsquo;s two omissions; none of it was the
+in-memory path, which had been measured against a reference that was damaging its own
+output. <b>It is output-neutral, and it does belong with the two changes that
+shipped.</b></div>
+${mdTable('results/measured.md', 'Against the source, which is the comparison that was missing')}
+<p>
+  These clips were driven by their own audio, so the source video is the reference &mdash; and
+  the source is the same size the in-memory path delivers, two pixels short of what ships. Most
+  of each frame is content the pipeline only had to carry, so loss there is damage rather than
+  generation error. Against the source the in-memory path is ${imGtMean} closer than the
+  shipping path, the same sign on every clip, against a run-to-run spread on this measure of
+  ${imGtSpread}.
+</p>
+<div class="caveat">
+  <span class="caveat-label">The cheapest quality change in this work is the one nobody was
+  looking for</span>
+  <p>
+    The recovery decomposes. Going from ${imGtShip} to ${imGtKnobs} is <b>${imGtWriterGain}
+    from the two writer parameters alone</b>, on the path that ships today, at no performance
+    cost whatsoever &mdash; passing two arguments that the sibling function in the same file
+    already passes. The remaining step to ${imGtMem} comes from not writing the intermediates
+    at all.
+  </p>
+  <p>
+    Which means the defect found while checking an optimization is worth more than the
+    optimization. It is still not a change to make unilaterally: switching the default alters
+    the dimensions of every delivered video. What has changed is that the cost of leaving it
+    alone is now a measured number rather than an unknown.
+  </p>
+  <p>
+    Not claimed: that any of this is visible to a viewer. Image-registration metrics agree
+    poorly with human judgement on generated faces &mdash; this work&rsquo;s own primary
+    source puts them at or below chance for that purpose. What is measured here is fidelity to
+    the source on pass-through content, which is the right instrument for a rescale question
+    and the wrong one for whether it looks better.
   </p>
 </div>
 <div class="caveat">

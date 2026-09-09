@@ -349,6 +349,11 @@ second. The effect is about 94 times the bracket, so this one
 is not drift, and at 5.04 % it clears the pre-registered
 3.0 % job-level gate without the gate being reinterpreted.
 
+The figure above is measured against the first control. Against the mean of **both**
+bracketing controls it is -5.01 %. The choice of baseline moves the
+result by 0.03 points, which is why it is worth saying
+out loud rather than leaving two records of this work quoting different numbers.
+
 ### The attribution names its own cost
 
 | stage | control (s) | treated (s) | delta (s) |
@@ -418,13 +423,56 @@ two pixels in each dimension first. The library warns about the rescale; there a
 such warnings in the run logs, because the warning goes to a channel this application
 never configures for output.
 
-**This does not get counted with the two changes that shipped.** Those were bit-exact by
-construction and output-neutral. This is a measured win that also changes the output, with
-the change traced to the path it replaces rather than to itself. Before it ships, both
-writers have to agree — then the two outputs should meet at the floor and the speed can be
-judged on its own. The alignment is now configurable with **the default left unchanged**,
-because lowering it changes the dimensions of delivered video and that is not a decision to
-make as a side effect of a performance change.
+So the obvious next step was to make both writers agree and compare again.
+
+### That test was run, and it reverses the verdict
+
+The follow-up the section above named and did not run. Both writer parameters were made configurable, defaulting to today's behaviour, and the DISK arm was re-run with them set. It then writes at the in-memory arm's native size and quality, so the two paths can finally be compared like for like.
+
+| | |
+|---|---:|
+| the two paths, compared directly | **40.19 dB** |
+| the same-configuration floor | **40.22 dB** |
+
+**0.03 dB apart.** The two paths meet at the noise floor. So the entire earlier gap was the writer's two omitted parameters and none of it was the in-memory path, which had been compared against a reference that was quietly damaging its own output. The change IS output-neutral.
+
+**And the speed holds.** A confirmation, on the one clip this follow-up ran. With both writers made identical the existing path no longer rescales the final video, so the speed comparison cannot be an artefact of the reference doing extra work. Single pair, so it confirms direction and magnitude rather than refining the figure. With both writers identical the same clip goes
+307.69 s to 290.77 s, **-5.50 %** — consistent with
+the -5.04 % measured over three clips before the writers were touched, so the
+saving is not an artefact of the reference path rescaling every frame.
+
+So it does belong with the two changes that shipped, with one honest asterisk: it is
+output-neutral against a *correctly configured* reference, and against the path as it
+ships today it changes the output — for the better, which the next table measures.
+
+### Against the source, which is the comparison that was missing
+
+These clips are self-driven -- each was driven by its own audio -- so the source video is the reference, and the final composite is written into the full source frame. The source is 478 square: exactly what the in-memory path delivers, and two pixels short of what ships. Most of each frame is pass-through content, so loss there is pipeline damage rather than generation error. This is a fidelity measure, NOT a perceptual score.
+
+| path | vs the source | attributable to |
+|---|---:|---|
+| as it ships | 31.73 dB | — |
+| both writer parameters set | 33.89 dB | **+2.16 dB** the writer settings |
+| stage boundaries in memory | 34.96 dB | **+1.07 dB** more, skipping the round-trips |
+
+Total +3.23 dB, and it decomposes: two thirds of the
+recovery is the final writer’s two parameters, and the remaining third is not writing the
+intermediates at all. Across all three clips the advantage over the shipping path is
++3.23, +2.72, +2.32 dB, mean **+2.76 dB**,
+the same sign every time — against a run-to-run spread on this measure of just
+**0.04 dB**, so the effect is about
+69 times the noise.
+
+**The writer fix is worth more than the change it was found by, and costs nothing.**
++2.16 dB on the *shipping* path, from passing two
+parameters that the sibling function in the same file already passes, at no performance
+cost. It is the cheapest quality change in this work.
+
+Both parameters nevertheless **default to what they were**, because changing them changes
+the dimensions and bitrate of delivered video and that decision belongs to whoever owns the
+deployment. What has changed is that the cost of leaving it alone is now a number.
+
+Not claimed: that any of this is visible to a viewer. This work's own primary source puts image-registration metrics at or below chance for agreement with human judgement on generated faces. The right instrument for a resample-and-recompress question, the wrong one for whether it looks better.
 
 ## A change that works and is rejected anyway
 

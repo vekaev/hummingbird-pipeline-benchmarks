@@ -451,6 +451,16 @@ if (diff) {
   P(`second. The effect is about ${fmt(Math.abs(eff / drift), 0)} times the bracket, so this one`);
   P(`is not drift, and at ${fmt(Math.abs(eff))} % it clears the pre-registered`);
   P(`${fmt(im.gatePct, 1)} % job-level gate without the gate being reinterpreted.\n`);
+  // Two defensible baselines: the first control, or the mean of both bracketing
+  // controls. Stating both, because two records of this work quote different figures
+  // and the difference is the baseline choice rather than a disagreement.
+  const effVsBoth = mean(im.clips.map(
+    (c) => pct(c.treated, (c.control + c.controlRepeat) / 2),
+  ));
+  P(`The figure above is measured against the first control. Against the mean of **both**`);
+  P(`bracketing controls it is ${signed(effVsBoth)} %. The choice of baseline moves the`);
+  P(`result by ${fmt(Math.abs(eff - effVsBoth), 2)} points, which is why it is worth saying`);
+  P('out loud rather than leaving two records of this work quoting different numbers.\n');
 
   P('### The attribution names its own cost\n');
   P('| stage | control (s) | treated (s) | delta (s) |');
@@ -526,13 +536,55 @@ if (diff) {
   P(`**${d.warningsInLogs}**`);
   P('such warnings in the run logs, because the warning goes to a channel this application');
   P('never configures for output.\n');
-  P('**This does not get counted with the two changes that shipped.** Those were bit-exact by');
-  P('construction and output-neutral. This is a measured win that also changes the output, with');
-  P('the change traced to the path it replaces rather than to itself. Before it ships, both');
-  P('writers have to agree — then the two outputs should meet at the floor and the speed can be');
-  P('judged on its own. The alignment is now configurable with **the default left unchanged**,');
-  P('because lowering it changes the dimensions of delivered video and that is not a decision to');
-  P('make as a side effect of a performance change.\n');
+  P('So the obvious next step was to make both writers agree and compare again.\n');
+
+  // The follow-up, which reverses the verdict above. Kept adjacent to it on purpose.
+  const wp = im.writerParity;
+  const gt = im.groundTruth;
+  P('### That test was run, and it reverses the verdict\n');
+  P(`${wp.note}\n`);
+  P('| | |');
+  P('|---|---:|');
+  P(`| the two paths, compared directly | **${fmt(wp.agreementDb)} dB** |`);
+  P(`| the same-configuration floor | **${fmt(wp.floorDb)} dB** |`);
+  P('');
+  P(`**${fmt(Math.abs(wp.floorDb - wp.agreementDb), 2)} dB apart.** ${wp.verdict}\n`);
+  const wt = wp.timing;
+  P(`**And the speed holds.** ${wt.note} With both writers identical the same clip goes`);
+  P(`${fmt(wt.controlWall)} s to ${fmt(wt.treatedWall)} s, `
+    + `**${signed(100 * (wt.treatedWall - wt.controlWall) / wt.controlWall)} %** — consistent with`);
+  P(`the ${signed(eff)} % measured over three clips before the writers were touched, so the`);
+  P('saving is not an artefact of the reference path rescaling every frame.\n');
+  P('So it does belong with the two changes that shipped, with one honest asterisk: it is');
+  P('output-neutral against a *correctly configured* reference, and against the path as it');
+  P('ships today it changes the output — for the better, which the next table measures.\n');
+
+  P('### Against the source, which is the comparison that was missing\n');
+  P(`${gt.note}\n`);
+  P('| path | vs the source | attributable to |');
+  P('|---|---:|---|');
+  P(`| as it ships | ${fmt(gt.shippingDb)} dB | — |`);
+  P(`| both writer parameters set | ${fmt(gt.bothKnobsDb)} dB | `
+    + `**${signed(gt.bothKnobsDb - gt.shippingDb)} dB** the writer settings |`);
+  P(`| stage boundaries in memory | ${fmt(gt.inMemoryDb)} dB | `
+    + `**${signed(gt.inMemoryDb - gt.bothKnobsDb)} dB** more, skipping the round-trips |`);
+  P('');
+  const gtMean = mean(gt.perClipAdvantageDb);
+  P(`Total ${signed(gt.inMemoryDb - gt.shippingDb)} dB, and it decomposes: two thirds of the`);
+  P('recovery is the final writer\u2019s two parameters, and the remaining third is not writing the');
+  P('intermediates at all. Across all three clips the advantage over the shipping path is');
+  P(`${gt.perClipAdvantageDb.map((v) => signed(v)).join(', ')} dB, mean **${signed(gtMean)} dB**,`);
+  P(`the same sign every time — against a run-to-run spread on this measure of just`);
+  P(`**${fmt(gt.diskRepeatSpreadDb, 2)} dB**, so the effect is about`);
+  P(`${fmt(gtMean / gt.diskRepeatSpreadDb, 0)} times the noise.\n`);
+  P('**The writer fix is worth more than the change it was found by, and costs nothing.**');
+  P(`${signed(gt.bothKnobsDb - gt.shippingDb)} dB on the *shipping* path, from passing two`);
+  P('parameters that the sibling function in the same file already passes, at no performance');
+  P('cost. It is the cheapest quality change in this work.\n');
+  P('Both parameters nevertheless **default to what they were**, because changing them changes');
+  P('the dimensions and bitrate of delivered video and that decision belongs to whoever owns the');
+  P('deployment. What has changed is that the cost of leaving it alone is now a number.\n');
+  P(`${gt.caveat}\n`);
 }
 
 // ---------------------------------------------------------------- parse argmax

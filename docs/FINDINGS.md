@@ -3653,3 +3653,87 @@ so both paths write identically. Then re-run this arm: with the encode differenc
 the two outputs should agree at the floor and the -5.04 % can be judged on speed alone.
 Until then the honest statement is **a measured 5 % win that also changes the output, with
 the change traced to a defect in the path it is replacing.**
+
+---
+
+# CORRECTION, and the result this session was actually looking for
+
+**2026-09-09, later.** Two sections above conclude that `LIPSYNC_INMEM` "cannot be
+presented the way the two shipped changes were" because it "changes the delivered pixels".
+**That conclusion was premature.** It is now measured, and it is wrong in the way that
+matters.
+
+## Once the two writers agree, the in-memory arm IS output-neutral
+
+The writer defect was made configurable (`VIDEO_MACRO_BLOCK_SIZE=2`,
+`VIDEO_WRITER_CRF=17`, both defaulting to today's behaviour). With both set, the **disk**
+path stops resampling and writes at its sibling's quality: measured 478 x 478 at
+765,917 bps, against the in-memory arm's native 478 x 478 at 745,881 bps. Then:
+
+| | |
+|---|---:|
+| disk-with-knobs vs in-memory, directly | **40.19 dB** |
+| the same-configuration floor measured earlier | **40.22 dB** |
+
+**A difference of 0.03 dB.** The two paths meet at the noise floor. So the entire 5.11 dB
+output gap reported above was the writer's two omitted parameters, and **none of it was the
+in-memory path**. `LIPSYNC_INMEM` is output-neutral; it was being compared against a
+reference that was quietly damaging its own output.
+
+The earlier section's own escape clause was right -- "before this ships, both writers have
+to agree, then the two outputs should meet at the floor" -- but it hedged the verdict
+instead of running the test. The test took twelve minutes.
+
+## Against ground truth, which is the measurement both records said was missing
+
+These clips are self-driven: each was driven by its own audio, so the source video is the
+reference, and `paste_back` composites into the full source frame. The source is
+**478 x 478** -- exactly what the in-memory arm delivers and two pixels short of what the
+shipping path delivers. Most of each frame is pass-through content, so loss there is
+pipeline damage rather than generation error.
+
+| path | vs ground truth | attributable to |
+|---|---:|---|
+| disk path, as it ships (480², default rate) | 31.73 dB | — |
+| disk path, both writer knobs set (478², crf 17) | 33.89 dB | **+2.16 dB** the writer settings |
+| in-memory arm (478², crf 17) | 34.96 dB | **+1.07 dB** more, skipping the round-trips |
+
+**Total +3.23 dB, and it decomposes cleanly.** Two thirds of the recovery is the final
+writer's two parameters. The remaining third is not writing the five intermediates at all:
+`w1off` still writes all 19 files, just correctly, so each intermediate is still encoded
+once -- the in-memory arm skips them outright.
+
+Across all three clips, in-memory against the shipping disk path: **+3.23, +2.72,
++2.32 dB**, mean **+2.76 dB**. The control that makes this airtight: the disk path run a
+second time scores 31.77 dB against its first run's 31.73 dB, so its **own run-to-run
+spread on this measure is 0.04 dB**. The effect is roughly seventy times the noise, and the
+sign is the same on every clip.
+
+## What this changes
+
+1. **`LIPSYNC_INMEM` is a keep.** -5.04 % paired at the job level against a -0.05 % drift
+   bracket, output-neutral against a correctly configured reference, and +1.07 dB closer to
+   ground truth. It belongs with the frame cache and the focal batching after all, with one
+   honest asterisk: it is output-neutral *relative to a fixed disk path*, and against the
+   path as it ships today it changes the output -- for the better.
+
+2. **The writer fix is worth more than the arm, and costs nothing.** +2.16 dB against
+   ground truth on the **shipping** path, from passing two parameters that the sibling
+   function in the same file already passes. No performance cost. This is the single
+   cheapest quality change found in this entire workstream.
+
+3. **It is still not mine to switch on.** Changing the default changes the dimensions and
+   bitrate of delivered production video. Both knobs default to today's behaviour, and the
+   decision belongs to whoever owns the deployment. What has changed is that the cost of
+   *not* switching it on is now a number: 2.16 dB of avoidable fidelity loss on every
+   video, plus every frame silently scaled up two pixels.
+
+## What is still not claimed
+
+That any of this is perceptible to a viewer. PSNR against a generated face is a poor
+perceptual measure and this work's own primary source (ICIP 2024) puts it at or below
+chance for that purpose. What is measured is **fidelity to the source on content the
+pipeline was only supposed to carry**, which is the right instrument for a
+resample-and-recompress question and the wrong one for "does it look better". A perceptual
+claim would need the reference-free metrics that beat chance, on more than three clips.
+[UNMEASURED]
