@@ -3861,10 +3861,13 @@ sign is the same on every clip.
    honest asterisk: it is output-neutral *relative to a fixed disk path*, and against the
    path as it ships today it changes the output -- for the better.
 
-2. **The writer fix is worth more than the arm, and costs nothing.** +2.16 dB against
-   ground truth on the **shipping** path, from passing two parameters that the sibling
-   function in the same file already passes. No performance cost. This is the single
-   cheapest quality change found in this entire workstream.
+2. **The writer fix is worth more than the arm, and costs nothing.** Roughly **+2 dB**
+   against ground truth on the **shipping** path, from passing two parameters that the
+   sibling function in the same file already passes. No performance cost. This is the
+   single cheapest quality change found in this entire workstream. *Quoted loosely on
+   purpose: the table above measured +2.16 dB and an independent re-measurement landed
+   20–25 % lower while confirming the ordering and the decomposition — see the
+   magnitude section below.*
 
 3. **It is still not mine to switch on.** Changing the default changes the dimensions and
    bitrate of delivered production video. Both knobs default to today's behaviour, and the

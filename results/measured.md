@@ -464,7 +464,9 @@ the same sign every time — against a run-to-run spread on this measure of just
 69 times the noise.
 
 **The writer fix is worth more than the change it was found by, and costs nothing.**
-+2.16 dB on the *shipping* path, from passing two
+Roughly **2 dB** on the *shipping* path
+(measured +2.16 dB, quoted loosely — see the
+replication note), from passing two
 parameters that the sibling function in the same file already passes, at no performance
 cost. It is the cheapest quality change in this work.
 

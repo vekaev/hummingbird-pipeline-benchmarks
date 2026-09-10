@@ -145,6 +145,13 @@ const imGtKnobs = mdCell('results/measured.md', 'Against the source, which is th
 const imGtMem = mdCell('results/measured.md', 'Against the source, which is the comparison that was missing', '>stage boundaries in memory<', 1);
 const imGtWriterGain = mdCell('results/measured.md', 'Against the source, which is the comparison that was missing', '>both writer parameters set<', 2);
 const imGtSpread = `${imRaw.groundTruth.diskRepeatSpreadDb.toFixed(2)} dB`;
+// The mdCell for the writer gain pulled the table's third column too, so the prose
+// rendered as "+2.16 dB the writer settings from the two writer parameters alone".
+// Derive the number on its own, and round it: an independent re-measurement of the
+// same comparison landed 20-25% lower, so the magnitude is only known loosely and two
+// decimals in a sentence would overstate it. The exact value stays in the table, where
+// it is a measurement rather than a claim.
+const imGtWriterRounded = `${(imRaw.groundTruth.bothKnobsDb - imRaw.groundTruth.shippingDb).toFixed(0)} dB`;
 const imRep = imRaw.groundTruth.replication;
 const imRepGap = (() => {
   const a = imRaw.groundTruth.inMemoryDb - imRaw.groundTruth.shippingDb;
@@ -567,10 +574,13 @@ ${mdTable('results/measured.md', 'Against the source, which is the comparison th
   <span class="caveat-label">The cheapest quality change in this work is the one nobody was
   looking for</span>
   <p>
-    The recovery decomposes. Going from ${imGtShip} to ${imGtKnobs} is <b>${imGtWriterGain}
-    from the two writer parameters alone</b>, on the path that ships today, at no performance
-    cost whatsoever &mdash; passing two arguments that the sibling function in the same file
-    already passes. The remaining step to ${imGtMem} comes from not writing the intermediates
+    The recovery decomposes. Going from ${imGtShip} to ${imGtKnobs} is <b>roughly
+    ${imGtWriterRounded} from the two writer parameters alone</b>, on the path that ships
+    today, at no performance cost whatsoever &mdash; passing two arguments that the sibling
+    function in the same file already passes. Quoted to the nearest decibel deliberately: an
+    independent re-measurement confirmed the ordering and the decomposition but landed
+    20&ndash;25% lower on magnitude, so the exact figure belongs in the table above rather
+    than in a sentence. The remaining step to ${imGtMem} comes from not writing the intermediates
     at all.
   </p>
   <p>

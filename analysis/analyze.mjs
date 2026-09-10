@@ -578,7 +578,13 @@ if (diff) {
   P(`**${fmt(gt.diskRepeatSpreadDb, 2)} dB**, so the effect is about`);
   P(`${fmt(gtMean / gt.diskRepeatSpreadDb, 0)} times the noise.\n`);
   P('**The writer fix is worth more than the change it was found by, and costs nothing.**');
-  P(`${signed(gt.bothKnobsDb - gt.shippingDb)} dB on the *shipping* path, from passing two`);
+  // Quoted to the nearest dB on purpose: an independent re-measurement of the same
+  // comparison confirmed the ordering and the decomposition but landed 20-25% lower on
+  // magnitude, so two decimals here would overstate what is known. The exact measured
+  // value stays in the table above, where it is a measurement rather than a claim.
+  P(`Roughly **${(gt.bothKnobsDb - gt.shippingDb).toFixed(0)} dB** on the *shipping* path`);
+  P(`(measured ${signed(gt.bothKnobsDb - gt.shippingDb)} dB, quoted loosely — see the`);
+  P(`replication note), from passing two`);
   P('parameters that the sibling function in the same file already passes, at no performance');
   P('cost. It is the cheapest quality change in this work.\n');
 
