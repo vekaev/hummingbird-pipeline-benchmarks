@@ -164,7 +164,9 @@ const TABLES = [
     note: 'Bit-exact by construction: the files removed have no reachable reader, established by parsing the source rather than searching it. Read it together with T32, which is why it is REJECTED on latency despite the stage numbers here. The recommendation rests on output volume, not speed.' },
   { id: 'T32', file: 'results/measured.md', heading: 'And it still fails the gate', title: 'Why that change fails the gate',
     note: 'The control runs span nearly 3% among themselves and the treated run sits under 1% below the fastest of them, so a single pair cannot resolve a roughly 1% job effect. Comparing against the slowest control alone would read as clearing the 3% gate; that comparison is chosen after the fact and is not quoted. Included because a rejected change with a clean stage-level effect is the case where the gate does real work.' },
-  { id: 'T33', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
+  { id: 'T33', file: 'results/measured.md', heading: 'The output claim, verified rather than asserted', title: 'Output neutrality of that change',
+    note: 'The bottom two rows are pairs that differ in NO code at all, so they set the floor this pipeline can reach -- it is nondeterministic at a fixed seed. The treated pair has to land at that floor, not below it; below would mean something downstream saw a difference and the reachability argument was wrong. It lands above it. Included because the phrase \'bit-exact by construction\' had been written down and published before any output was ever compared.' },
+  { id: 'T34', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
     note: 'What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.' },
 ];
 

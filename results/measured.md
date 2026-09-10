@@ -639,7 +639,21 @@ REJECTED on latency. The gate is 3% paired at the JOB level, and at the job leve
 
 **Why it is recommended anyway.** It is recommended on a different claim, kept deliberately separate from the latency one: it removes 97% of the job's output volume, about 1.07 GB and 1,502 files, with bit-exact output and no measurable speed cost. That is a storage, disk-wear and contention argument, and it matters most in the case the density test exposed -- when several jobs share a machine, an unnecessary gigabyte of writes per job competes for bandwidth that was already the binding resource. The honest one-line form is: frees a gigabyte per job, bit-exact, no measurable speed change.
 
-**Not claimed:** That it speeds anything up. The three seconds the phase gives back are real and measurable at the stage level, but they are about 1% of the job and disappear into run-to-run variance there. Quoting this as a speedup means quoting the stage in place of the job.
+### The output claim, verified rather than asserted
+
+"Bit-exact by construction" is a claim about the call graph: the removed files have no reachable reader, so no later stage can see a different input. It is not a claim of bit-identical output, and could not be -- this pipeline is nondeterministic at a fixed seed, with no frame reproducing and a floor near 40 dB. So the test is whether the treated run agrees with an untreated one AT that floor. Landing below it would mean something downstream did see a difference.
+
+| pair | agreement | worst pixel |
+|---|---:|---:|
+| **treated vs untreated, only the skip differs** | **43.67 dB** | 43 / 255 |
+| a control against its own repeat, no code difference | 39.54 dB | 95 / 255 |
+| two paths already shown to agree at the floor | 40.19 dB | 150 / 255 |
+
+It agrees above the floor, with a smaller worst-pixel error than either no-difference pair. Both videos pass the sanity check and are visually indistinguishable. So no downstream difference is detectable and the reachability argument holds empirically, not only from the call graph.
+
+**Not claimed:** That the change improves determinism. A single pair landing above the floor's mean is variance in the floor itself, not a property of the change. Worth recording how this came up: the reachability argument was sound, but the phrase had been written down and published before any output was ever compared.
+
+**Not claimed about speed:** That it speeds anything up. The three seconds the phase gives back are real and measurable at the stage level, but they are about 1% of the job and disappear into run-to-run variance there. Quoting this as a speedup means quoting the stage in place of the job.
 
 ## A change that works and is rejected anyway
 

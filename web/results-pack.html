@@ -166,7 +166,7 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <div class="shell pack">
 
 <header class="masthead">
-  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T33</p>
+  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T34</p>
   <h1>Results pack: every number, with the table it came from</h1>
   <p class="standfirst">
     The companion to the <a href="index.html">article page</a>. Each figure is followed by the
@@ -225,7 +225,8 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <li><a href="#t30"><span class="tag">T30</span>Inside the largest stage</a></li>
 <li><a href="#t31"><span class="tag">T31</span>Removing writes nobody reads</a></li>
 <li><a href="#t32"><span class="tag">T32</span>Why that change fails the gate</a></li>
-<li><a href="#t33"><span class="tag">T33</span>Configuration key</a></li></ul>
+<li><a href="#t33"><span class="tag">T33</span>Output neutrality of that change</a></li>
+<li><a href="#t34"><span class="tag">T34</span>Configuration key</a></li></ul>
   <h2>Carry with the numbers</h2>
   <ul>
     <li><a href="#measured">What was measured</a></li>
@@ -1618,6 +1619,17 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 
 <div class="item" id="t33">
   <span class="id">T33</span>
+  <h3>Output neutrality of that change</h3>
+  <p class="meta">The bottom two rows are pairs that differ in NO code at all, so they set the floor this pipeline can reach -- it is nondeterministic at a fixed seed. The treated pair has to land at that floor, not below it; below would mean something downstream saw a difference and the reachability argument was wrong. It lands above it. Included because the phrase 'bit-exact by construction' had been written down and published before any output was ever compared.</p>
+  <div class="tw"><table><thead><tr><th>pair</th><th class="n">agreement</th><th class="n">worst pixel</th></tr></thead><tbody>
+<tr><td><strong>treated vs untreated, only the skip differs</strong></td><td class="n"><strong>43.67 dB</strong></td><td class="n">43 / 255</td></tr>
+<tr><td>a control against its own repeat, no code difference</td><td class="n">39.54 dB</td><td class="n">95 / 255</td></tr>
+<tr><td>two paths already shown to agree at the floor</td><td class="n">40.19 dB</td><td class="n">150 / 255</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t34">
+  <span class="id">T34</span>
   <h3>Configuration key</h3>
   <p class="meta">What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.</p>
   <div class="tw"><table><thead><tr><th>Configuration</th><th>Hardware</th><th>Video parameters</th><th>Deployment</th><th>Protocol</th></tr></thead><tbody>

@@ -794,7 +794,23 @@ if (diff) {
   P(`${fmt(Math.abs(pct(trt, mean(ctl))))} % below their mean.\n`);
   P(`${dw.verdict}\n`);
   P(`**Why it is recommended anyway.** ${dw.keepAnyway}\n`);
-  P(`**Not claimed:** ${dw.notClaimed}\n`);
+  const oc = dw.outputCheck;
+  if (oc) {
+    P('### The output claim, verified rather than asserted\n');
+    P(`${oc.note}\n`);
+    P('| pair | agreement | worst pixel |');
+    P('|---|---:|---:|');
+    for (const pr of oc.pairs) {
+      P(`| ${pr.treated ? '**' + pr.pair + '**' : pr.pair} `
+        + `| ${pr.treated ? '**' + fmt(pr.db) + ' dB**' : fmt(pr.db) + ' dB'} `
+        + `| ${pr.maxErr} / 255 |`);
+    }
+    P('');
+    P(`${oc.verdict}\n`);
+    P(`**Not claimed:** ${oc.notClaimed} ${oc.gapNote}\n`);
+  }
+
+  P(`**Not claimed about speed:** ${dw.notClaimed}\n`);
 }
 
 // ---------------------------------------------------------------- parse argmax

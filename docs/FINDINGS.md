@@ -4042,9 +4042,96 @@ per job competes for the same bandwidth that was already the binding resource.
 two separate claims that should not be merged into one.** The honest one-line form: *frees a
 gigabyte per job, bit-exact, no measurable speed change.*
 
+## The output claim, verified rather than asserted
+
+"Bit-exact by construction" was a claim about the **call graph**: the removed files have no
+reachable reader, so no downstream stage can see a different input. It was NOT a claim that
+the output is bit-identical, and it could not be -- this pipeline is nondeterministic at a
+fixed seed, measured at 0 of 751 frames reproducing with a floor near 40 dB.
+
+So the correct test is whether the treated run agrees with an untreated one **at** that
+floor. Landing *below* it would mean something downstream did see a difference and the
+reachability argument is wrong somewhere. Measured:
+
+| pair | PSNR | max pixel error |
+|---|---:|---:|
+| **treated vs untreated** (only the skip differs) | **43.67 dB** | **43 / 255** |
+| a control against its own repeat, no code difference | 39.54 dB | 95 / 255 |
+| writer-parity vs in-memory, agreed at the floor | 40.19 dB | 150 / 255 |
+
+**The treated pair agrees at 43.67 dB, above the floor**, with a *smaller* worst-pixel error
+than either no-difference pair. Both videos pass the sanity check at 478², 751 frames, and
+are visually indistinguishable on a contact sheet.
+
+What that licenses: **no downstream difference is detectable**, so the reachability argument
+holds empirically and not only from the call graph. What it does *not* license: claiming the
+change makes the pipeline more deterministic. A single pair landing above the floor mean is
+variance in the floor itself, not a property of the change.
+
+This was a gap worth closing. The reachability argument was sound, but "bit-exact by
+construction" had been recorded and published without any output ever being compared.
+
 ## What is NOT claimed
 
 That it speeds anything up. The ~3.1 s the function itself gives back is real and
 measurable at the stage level, but it is about 1.1 % of the job and disappears into
 run-to-run variance there. Anyone quoting this as a speedup is quoting the stage in place of
 the job. [MEASURED, and rejected against the gate]
+
+# MEASURED: the biggest step is a RENDER, not a write — and that kills the next optimization
+
+**2026-09-09 23:41.** The decomposition above left one question open and flagged it
+`[UNMEASURED]`: `visualize_tracking` is 20.86 s and does three kinds of work per frame —
+renders two meshes on the device, transfers both to the host, encodes three streams — and
+extending the in-memory path to its three writes can only recover the **encode** share.
+Nobody knew what that share was. Now:
+
+    [vis_split] frames=751 accounted=18.85s render=13.57s(72.0%) encode=3.40s(18.0%)
+                warp=1.40s(7.5%) transfer=0.47s(2.5%)
+
+| bucket | seconds | of the step | of the job | what it is |
+|---|---:|---:|---:|---|
+| **render** | **13.57** | **72.0 %** | **4.63 %** | two `forward_test` calls per frame |
+| encode | 3.40 | 18.0 % | 1.16 % | three `append_data` streams |
+| warp | 1.40 | 7.4 % | 0.48 % | one CPU `_transform_img` per frame |
+| transfer | 0.47 | 2.5 % | 0.16 % | two device-to-host copies |
+| accounted | 18.85 | — | — | of the decorator's 20.86 s; the rest is pre-loop setup |
+
+## The optimization that looked obvious is worth about a percent
+
+Extending `LIPSYNC_INMEM` to these three writes recovers **the encode bucket and nothing
+else: 3.40 s, 1.16 % of the job.** Not the 7.1 % the whole step represents. The same change
+returned −5.04 % for five other writes, which is exactly why it looked worth doing here —
+and the reason it is not is that those five writes were not sitting behind a render four
+times their size.
+
+**This is the fourth time in this workstream that a plausible optimization has been
+measured before being built and come back small.** The difference is that this one cost six
+minutes and one timer rather than an implementation and an A/B.
+
+## Where the time actually is, and it is a real target
+
+`render` at 13.57 s is **4.0× the encode share**. The loop calls `forward_test` **twice per
+frame** — once on `renderer`, once on `lower_half_renderer` — passing the *same* `rott_geo`,
+the same faces, the same uv coords and the same `vertex_normals` both times. The second call
+keeps only `masks` and discards its `lower_geo` entirely.
+
+So the second render exists to produce a mask, and it rasterises a full mesh to get one.
+Whether that can be obtained from the first call's output, or from a cheaper rasterisation,
+is not something this measurement answers — but it is where the 4.63 % is, and it is a
+question about the renderer rather than about video files. [UNMEASURED]
+
+## And host transfer is not the problem here
+
+`transfer` is **0.47 s, 2.5 %**. Worth stating because the parsing stage's defect looked
+similar from the outside and was the opposite: there, host transfer was the entire problem
+at 76× the necessary bytes. Two stages, same shape of suspicion, opposite answers. The
+suspicion is not evidence either time.
+
+## On the instrument
+
+The device is synchronised before each clock read. Without that the render bucket would
+have timed kernel launches rather than kernel work and read as near zero, while `transfer`
+absorbed everything it was waiting for — pointing squarely at the wrong optimization. The
+uninstrumented function is recovered by AST comparison in `test_vis_split.py`, so the
+measurement provably did not perturb what it measured.
