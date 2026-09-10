@@ -4057,6 +4057,12 @@ between rendering and encoding inside those 20.86 s is not measured** -- so the 
 part is some unknown fraction of 7.2 % of the job, not all of it. Measuring that needs one
 more timer inside the function, not a GPU session. [UNMEASURED]
 
+> **SUPERSEDED — measured: render 72 %, encode 18 %.** See "MEASURED: the biggest step is a
+> RENDER, not a write" below. The recoverable part is **1.16 % of the job, not 7.2 %**, and
+> the sentence immediately below this one is wrong as a result: inside this step the biggest
+> sub-item is the render, not the I/O. Left in place because the reasoning that produced it
+> was sound and the correction is the point.
+
 So inside the biggest compute stage in the pipeline, the biggest sub-item is still I/O. That
 is the **fourth** independent line of evidence for the same conclusion, after the
 utilization sampling, the three null arithmetic arms, and the packing test.
@@ -4310,7 +4316,12 @@ is not reported.
 
 What can be said without a measurement is that the work is **provably redundant** — the same
 inputs to a pure function — and that this is the fourth thing in this stage found by reading
-the code rather than by timing it. [UNMEASURED]
+the code rather than by timing it.
+
+> **SUPERSEDED — measured later the same day: 0.35 s**, 0.12 % of the job. See "MEASURED:
+> the topology cache is worth 0.35 s" below. The redundancy is real; the cost is not. The
+> hedge above — "it could be most of the 13.57 s or a small part of it" — resolved to the
+> small part, because the rasterisation these calls wrap dominates them.
 
 ---
 
