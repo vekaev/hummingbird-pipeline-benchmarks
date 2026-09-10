@@ -76,10 +76,20 @@ const armVerdicts = candidateArms
 const rejected = armVerdicts.filter((a) => a.verdict === 'rejected').length;
 const kept = armVerdicts.filter((a) => a.verdict === 'KEEP').length;
 
+// The count here was typed as 20 and matches no source: the comparison covers
+// 5 arms x 3 clips. Derived from the file the table itself reads. The scope is also
+// stated now, because a later arm's output was NOT inside the floor until a defect in
+// the path it was compared against was fixed -- that belongs in its own section, not
+// inside a one-line ledger claim.
+const outputDiffRaw = JSON.parse(readFileSync(join(root, 'results/raw/output-diff.json'), 'utf8'));
+const outputDiffRows = Array.isArray(outputDiffRaw)
+  ? outputDiffRaw
+  : (outputDiffRaw.rows ?? Object.values(outputDiffRaw)[0]);
+
 const LEDGER = [
   ['Buildable again', 'green', `<small>First build of the repository that runs, after roughly sixteen months in which none did.</small>`],
   ['Roadmap items tested', `${roadmapArms.length} of ${changes.roadmapItemCount}`, `<small>Plus ${ownArms.length} change not on the roadmap. All ${rejected} measured arms rejected: none produced a gain the design could resolve.</small>`],
-  ['Output quality', 'unchanged', `<small>Every arm sits inside the noise floor of re-running the baseline. Verified on all 20 generated clips.</small>`],
+  ['Output quality', 'unchanged', `<small>Every arm in this set sits inside the noise floor of re-running the baseline, verified on all ${outputDiffRows.length} generated clips. One change measured later did move the output, and is reported with its own section rather than folded in here.</small>`],
   ['Pipeline runs measured', `${allRuns.length}`, `<small>Across ${[lipsync, wr, hdtfSelf, hdtfCross, arms].filter((s) => s.length).length} configurations, production and dedicated hardware.</small>`],
   ['Longest single run', `${longest.toFixed(0)} s`, `<small>One 1080p job end to end, excluding the container start it is billed for.</small>`],
   ['GPU time spent measuring', `${(gpuSeconds / 3600).toFixed(1)} h`, `<small>Sum of every run on this page. The A/B share of it cost about $8.</small>`],

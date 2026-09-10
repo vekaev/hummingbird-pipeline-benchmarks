@@ -193,6 +193,20 @@ const CAVEATS = [
     'A seeded repeat of the baseline and a control built from the unmodified branch were still running when this page was built. The control is what separates the effect of the code changes from the effect of the rebuilt environment; without it, the arms are internally paired but not isolated from the rebuild.'],
 ];
 
+// These four counts were typed by hand, against the one rule, and two of them had also
+// gone stale: the sanity-check tally predated two more arms, and the instrumented-stage
+// count predated the sub-phase timers. Derived from the same raw files everything else
+// reads, so they cannot drift again.
+const _selfClips = JSON.parse(readFileSync(join(root, 'results/raw/hdtf-self.json'), 'utf8')).length;
+const _crossClips = JSON.parse(readFileSync(join(root, 'results/raw/hdtf-cross.json'), 'utf8')).length;
+const _sanity = JSON.parse(readFileSync(join(root, 'results/raw/output-sanity.json'), 'utf8')).rows;
+const _sanityPassed = _sanity.filter((r) => String(r.verdict).toUpperCase() === 'OK').length;
+const _armsRaw = JSON.parse(readFileSync(join(root, 'results/raw/arms.json'), 'utf8'));
+const _armRows = Array.isArray(_armsRaw) ? _armsRaw : (_armsRaw.arms ?? Object.values(_armsRaw)[0]);
+const _pipelineStages = Object.keys(_armRows[0].stages).length;
+const _split = JSON.parse(readFileSync(join(root, 'results/raw/stage-split.json'), 'utf8'));
+const _subPhases = _split.phases.length + _split.innerPhases.steps.length;
+
 const SOURCES = readFileSync(join(root, 'docs/SOURCES.md'), 'utf8')
   .split('\n').filter((l) => l.startsWith('|') && /^\|\s*\d+\s*\|/.test(l))
   .map((l) => {
@@ -366,11 +380,11 @@ const html = `${HEAD('Results pack — lip-sync pipeline profiling', 'Every figu
     <div><dt>Pipeline runs</dt><dd>${allRuns.length}<small>production and dedicated</small></dd></div>
     <div><dt>Configurations</dt><dd>5<small>T2, T20</small></dd></div>
     <div><dt>A/B arms</dt><dd>${[...new Set(arms.map((a) => a.arm))].length}<small>incl. baseline</small></dd></div>
-    <div><dt>Open-dataset clips</dt><dd>16<small>12 self, 4 cross</small></dd></div>
-    <div><dt>Clips scored for quality</dt><dd>16<small>paired to source</small></dd></div>
-    <div><dt>Output checks passed</dt><dd>16 / 16<small>black, frozen, static mouth</small></dd></div>
+    <div><dt>Open-dataset clips</dt><dd>${_selfClips + _crossClips}<small>${_selfClips} self, ${_crossClips} cross</small></dd></div>
+    <div><dt>Clips scored for quality</dt><dd>${_selfClips + _crossClips}<small>paired to source</small></dd></div>
+    <div><dt>Output checks passed</dt><dd>${_sanityPassed} / ${_sanity.length}<small>black, frozen, static mouth</small></dd></div>
     <div><dt>GPU time measuring</dt><dd>${(allRuns.reduce((a, r) => a + (r.total ?? 0), 0) / 3600).toFixed(1)} h<small>sum of all runs</small></dd></div>
-    <div><dt>Instrumented stages</dt><dd>10<small>plus job level</small></dd></div>
+    <div><dt>Instrumented stages</dt><dd>${_pipelineStages}<small>plus job level and ${_subPhases} sub-phases</small></dd></div>
   </dl>
   <p>
     <strong>Definitions.</strong> <em>Pipeline time</em> is the sum of the ten instrumented model

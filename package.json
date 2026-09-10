@@ -16,6 +16,7 @@
     "web": "npm run analyze && npm run figures && node web/build.mjs && node web/pack.mjs",
     "build": "npm run web",
     "sanitize": "node analysis/sanitize-findings.mjs",
-    "refresh": "npm run sanitize && npm run build"
+    "refresh": "npm run sanitize && npm run build && npm run audit",
+    "audit": "node analysis/audit_hardcoded.mjs"
   }
 }
