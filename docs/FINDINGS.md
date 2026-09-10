@@ -4135,3 +4135,33 @@ have timed kernel launches rather than kernel work and read as near zero, while 
 absorbed everything it was waiting for — pointing squarely at the wrong optimization. The
 uninstrumented function is recovered by AST comparison in `test_vis_split.py`, so the
 measurement provably did not perturb what it measured.
+
+## Stage-level attribution for the dead-write removal, agreeing with the section above
+
+The section above rejects the −3.05 % on the right grounds — four controls span 2.97 % on
+their own, so `split4` was the slowest of them and picking it was a choice made after the
+fact. This adds the other half of the argument, from the stage timings rather than the
+control spread, because the two are independent and reach the same place.
+
+| stage | split4 | dead1 | delta | can this change touch it? |
+|---|---:|---:|---:|---|
+| `preload_batched_data` | 3.12 | 0.04 | **−3.08** | **yes — this is the change** |
+| `render_rgb` | 36.48 | 33.76 | **−2.73** | **no** |
+| `parse_face` | 37.81 | 36.97 | −0.84 | no |
+| `face_recon` | 29.75 | 29.21 | −0.54 | no |
+| `crop_face` | 14.42 | 14.33 | −0.08 | no |
+| **job wall** | **298.16** | **289.06** | **−9.10** | |
+
+**Only 3.08 s of the 9.10 s is attributable — 1.03 % of the job.** The rest sits in stages
+with no mechanism connecting them to a removed tensor write inside the tracker;
+`render_rgb` alone moved 2.73 s. Everything drifted the same way, which is what a 0.95 %
+repeat CV (±2.83 s here) looks like at n=1.
+
+So the control-spread argument and the stage-attribution argument agree: the change is worth
+about a percent, it fails the gate, and it is worth having for the operational reasons given
+above rather than the latency one.
+
+**This makes four times a stage-level attribution has contradicted a job-level number** —
+batch 16, the drift-adjusted arms, the parsing reduce, and this. Every time, the job clock
+was the more flattering figure. A job-level delta at n=1 is not evidence for a change
+confined to one stage; the stage timing is, and it is free to read.
