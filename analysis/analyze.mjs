@@ -752,6 +752,51 @@ if (diff) {
   P(`${ss.nextTarget.note}\n`);
 }
 
+// ------------------------------------------------- inside the largest step
+{
+  const vs = raw('vis-split');
+  const tot = vs.accounted;
+  const b = Object.fromEntries(vs.buckets.map((x) => [x.bucket, x.seconds]));
+  const rec = b[vs.recoverableByInMemory];
+  const mx = Math.max(...vs.buckets.map((y) => y.seconds));
+
+  P('## The largest step is a render, not a write\n');
+  P('The decomposition above left one step unexplained and one optimization looking obvious.');
+  P('That step renders geometry and writes three video files per frame, and the change that');
+  P('returned a real gain elsewhere here — keeping stage boundaries in memory rather than');
+  P('round-tripping them through video files — would remove exactly those writes. What was');
+  P('never measured is what fraction of the step the writes actually are.\n');
+
+  P('| what it is doing | seconds | of the step | of the job |');
+  P('|---|---:|---:|---:|');
+  for (const x of vs.buckets) {
+    const em = x.seconds === mx;
+    P(`| ${em ? '**' + x.what + '**' : x.what} | ${em ? '**' + fmt(x.seconds) + '**' : fmt(x.seconds)} `
+      + `| ${fmt(100 * x.seconds / tot, 1)} % | ${fmt(100 * x.seconds / vs.jobWall, 2)} % |`);
+  }
+  P('');
+  P(`Over ${vs.frames} frames, accounting for ${fmt(tot)} s of the step's ${fmt(vs.decoratedStep)} s;`);
+  P('the remainder is setup before the loop, which is not bucketed.\n');
+
+  P('### Which kills the optimization it was meant to justify\n');
+  P('Moving those writes into memory recovers **the encode row and nothing else:');
+  P(`${fmt(rec)} s, ${fmt(100 * rec / vs.jobWall, 2)} % of the job** — not the`);
+  P(`${fmt(100 * vs.decoratedStep / vs.jobWall, 1)} % the whole step represents. The same change`);
+  P('was worth several percent elsewhere, which is precisely why it looked worth building');
+  P('here. The reason it is not is that those other writes were not sitting behind a render');
+  P('four times their size.\n');
+  P('**This is the fourth plausible optimization in this work measured before being built and');
+  P('found small.** The difference is that this one cost six minutes and one timer rather than');
+  P('an implementation and a comparison.\n');
+
+  P('### Host transfer is not the problem here\n');
+  P(`Transfer is ${fmt(b.transfer)} s, ${fmt(100 * b.transfer / tot, 1)} % of the step. Worth`);
+  P('saying because another stage in this work looked identical from the outside and was the');
+  P('opposite: there the host transfer *was* the whole problem, at seventy-six times the bytes');
+  P('it needed. Same shape of suspicion, opposite answers — and the suspicion was not evidence');
+  P('either time.\n');
+}
+
 // ------------------------------------------------- writes nobody reads
 {
   const dw = raw('dead-writes');

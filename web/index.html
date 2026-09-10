@@ -182,7 +182,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
   <h2>What was done</h2>
 
 <p>
-  Twelve changes, in the order they were made. 25 carry a measured effect;
+  Twelve changes, in the order they were made. 26 carry a measured effect;
   the rest are implemented and instrumented with no number yet, and say so. Nothing here is
   credited with an estimate.
 </p>
@@ -214,6 +214,7 @@ footer p { font-size:13.4px; color:var(--muted); max-width:80ch; }
 <tr><td class="n">25</td><td>Made the video writer's frame alignment and rate control explicit, and audible</td><td>Found by asking why the in-memory arm's output files are LARGER than the disk path's despite being smaller in both dimensions. The file that writes video contains two writers that disagree about two separate things: one passes an explicit block alignment of 2 and an explicit quality setting, and the class the pipeline actually uses passes neither, so the encoder applies its own defaults. Every frame size the pipeline computes is two pixels short of the default alignment, so every delivered video is scaled up by two pixels in each dimension and re-encoded at 55% of the bitrate the sibling writer would have used. The library does warn about the rescale, through a logging channel this application never configures for output -- zero such warnings across every run log, on a path that was rescaling every frame.</td><td><strong>not measured</strong> — The default is deliberately LEFT UNCHANGED, because lowering the alignment changes the dimensions of delivered video and that is not a decision to make as a side effect of a performance change. The alignment is now configurable, and the writer announces once per file when it is about to rescale, on the same stream as the rest of the pipeline. 16 checks pin it, including the three real frame sizes observed and the requirement that the default stay as it was; one of those checks caught a defect in the announcement itself, where a bracketed prefix was being silently eaten by the terminal formatter</td></tr>
 <tr><td class="n">26</td><td>Made both writers agree, and it reversed the previous row's verdict</td><td>Row 24 concluded that keeping stage boundaries in memory could not be counted with the two bit-exact changes because it altered delivered pixels. That row also named the test that would settle it -- make the two writers agree and compare again -- and hedged instead of running it. The test took twelve minutes. Source was bind-mounted rather than rebuilt, and both knobs were verified live inside the image before launching, because an earlier arm in this work was void from passing flags to an image built before the code existed.</td><td>REVERSES row 24 on output. With both writer parameters set the existing path stops rescaling and writes at the same quality, and the two paths then agree at 40.19 dB against a same-configuration floor of 40.22 dB -- 0.03 dB apart. The entire earlier 5.11 dB gap was the writer's two omissions and none of it was the in-memory path, which had been measured against a reference that was damaging its own output. Speed holds: 307.69s to 290.77s, -5.50% on the one clip, consistent with the -5.04% over three clips. Against the source clip, which is the comparison both records called missing: 31.73 dB as it ships, 33.89 dB with the two writer parameters set, 34.96 dB in memory -- so the WRITER PARAMETERS ALONE are worth +2.16 dB on the shipping path at zero performance cost, and the rest of the pipeline's own run-to-run spread on this measure is 0.04 dB. The defect found while checking an optimization is worth more than the optimization</td></tr>
 <tr><td class="n">27</td><td>Stopped writing per-frame tensor files that have no reachable reader</td><td>One phase of the face-tracking stage writes two tensor files per frame into a directory named "debug". Their only reader has exactly two call sites, and neither of those functions is called from anywhere in the repository -- established by parsing the source rather than searching it, after a first attempt with a text search flagged its own documentation as a call site. The phase's consumed outputs are computed before the loop that writes the files, so skipping it cannot be observed downstream: bit-exact by construction rather than by tolerance. Default off, and the reader now raises if it is ever reached with the flag set, so reviving one of those dead functions fails loudly instead of reading files that were never written.</td><td>REJECTED on latency, and kept anyway on a separate claim. The writing phase drops from 3.125s to 0.041s and the enclosing stage from 104.49s to 99.65s, which is unambiguous -- that phase spanned 0.4s across three runs without the change and lands four seconds outside the band with it. But the gate is 3% at the JOB level and the job level cannot resolve this: four comparable runs without the change span 2.97% among themselves, and the treated run sits 0.59% below the fastest of them. Comparing it against the slowest control alone gives -3.05% and would read as clearing the gate; that comparison is chosen after the fact and is not quoted. What the change does deliver is 1,502 fewer files and 1,065 MB less output per job for the same 14 delivered videos -- a storage and I/O-contention argument rather than a speed one, which matters most in the case the density test exposed. Honest one-line form: frees a gigabyte per job, bit-exact, no measurable speed change</td></tr>
+<tr><td class="n">28</td><td>Timed the three kinds of work inside the largest step</td><td>It renders two meshes, copies both to the host and encodes three video streams per frame, and the split had never been measured — so the value of moving those writes into memory was unknown. Accumulators behind a flag, with a device synchronise before each clock read, and the uninstrumented function recovered by AST comparison so the measurement provably did not perturb what it measured.</td><td>Render 72%, encode 18%, warp 7.4%, transfer 2.5%. The obvious optimization would recover the encode share only: 1.16% of the job, not the 7.1% the step represents. Killed before it was built, for six minutes and one timer</td></tr>
 </tbody></table></div>
 <div class="verdict"><b>Net effect on the shipping system:</b> the build works again, and no
 optimization was kept. Both measurable roadmap items were rejected on their own numbers.</div>
@@ -912,6 +913,27 @@ produced, so the decorators cost nothing measurable.</div>
     all of this was three earlier runs of the same clip, kept for exactly this purpose.
   </p>
 </div>
+
+<h3>The largest step is a render, not a write</h3>
+<p>
+  The decomposition left one step unexplained and one optimization looking obvious: it
+  renders geometry and writes three video files per frame, and keeping stage boundaries in
+  memory &mdash; worth several percent elsewhere in this work &mdash; would remove exactly
+  those writes. What nobody had measured is what fraction of the step the writes are.
+</p>
+<div class="tw"><table><thead><tr><th>what it is doing</th><th class="n">seconds</th><th class="n">of the step</th><th class="n">of the job</th></tr></thead><tbody>
+<tr><td><strong>two rasterisations per frame</strong></td><td class="n"><strong>13.57</strong></td><td class="n">72.0 %</td><td class="n">4.63 %</td></tr>
+<tr><td>three video streams</td><td class="n">3.40</td><td class="n">18.0 %</td><td class="n">1.16 %</td></tr>
+<tr><td>one CPU affine warp per frame</td><td class="n">1.40</td><td class="n">7.4 %</td><td class="n">0.48 %</td></tr>
+<tr><td>two device-to-host copies</td><td class="n">0.47</td><td class="n">2.5 %</td><td class="n">0.16 %</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>The writes are 18% of the step.</b> Moving them into memory
+recovers 1.16% of the job, not the 7.1% the whole step represents &mdash; because the
+writes sit behind a render four times their size. That is the fourth plausible optimization
+here measured before being built and found small, and the first to cost only six minutes and
+one timer rather than an implementation and a comparison. Host transfer, incidentally, is
+2.5% of the step: another stage looked identical from outside and was the opposite, where
+transfer was the whole problem at seventy-six times the bytes it needed.</div>
 
 <h3>Writes that nobody reads</h3>
 <p>

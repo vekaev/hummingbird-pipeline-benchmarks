@@ -1171,6 +1171,18 @@ immediately re-encodes at medium/CRF 23. So the largest CPU-only item is *also* 
 most of its effort on quality that is then discarded. Two independent fixes apply to the
 same 95 s: move it off the GPU node, and stop over-encoding a transient.
 
+**Confirmed in the code, 2026-09-09.** `convert_to_25fps` passes
+`-c:v libx264 -preset slow -crf 18` (`shared_utils/utils.py:220-232`). `trim_video`
+(`shared_utils/utils.py:411-421`) passes **no codec flags at all** — no `-c:v`, no preset,
+no CRF — so ffmpeg applies its defaults, libx264 at preset medium and CRF 23. The slow,
+high-quality encode is therefore re-encoded at lower quality immediately, and nothing
+downstream ever sees the difference the slow preset bought.
+
+**And there is a better fix than making the first encode cheaper: removing it.** The fps
+conversion and the trim are two full encodes of the same content in sequence, and ffmpeg
+can do both in one pass (`-t <duration> -vf fps=25`). That eliminates an encode rather than
+discounting it.
+
 ## The architectural shape this suggests
 
 Split the job: a CPU worker pool does fetch, transcode, cut, stitch, mux and upload; the GPU
@@ -4165,3 +4177,45 @@ above rather than the latency one.
 batch 16, the drift-adjusted arms, the parsing reduce, and this. Every time, the job clock
 was the more flattering figure. A job-level delta at n=1 is not evidence for a change
 confined to one stage; the stage timing is, and it is free to read.
+
+## An identical answer computed 1,502 times a job
+
+**2026-09-10.** Following the render/encode split above — render is 72 % of
+`visualize_tracking` and 4.63 % of the job — into what the render actually does per frame.
+
+`QuickMeshRenderer.forward_test` opens, whenever a vertex mask is set, with:
+
+```python
+faces_uvs = keep_vertices_and_update_faces(faces_uvs[0].cpu(), self.final_mask)...
+tri       = keep_vertices_and_update_faces(tri[0].cpu(),       self.final_mask)...
+```
+
+`keep_vertices_and_update_faces` is a **pure function** of `(faces, mask)`. `final_mask` is
+fixed in `__init__`. And the caller passes the **same face tensors every frame** —
+`visualize_tracking` hands in `self.tri_faces` and `self.uv_faces`, expanded, once per
+frame.
+
+So this computes an identical answer **once per frame per renderer: 751 × 2 = 1,502 times a
+job**, and each one is a device-to-host copy, an O(F) remap on the CPU, and a copy back to
+the device. Inside a loop whose whole point is that it runs on the accelerator.
+
+**Cached, behind `RENDER_TOPO_CACHE`, default off.** 18 checks. The interesting ones are
+not the hits but the misses: a different face tensor, a different shape, and a second
+renderer with a different mask all recompute. A cache that never misses is
+indistinguishable from one that is silently wrong.
+
+The key carries identity, shape, dtype and device, and the entry keeps references to the
+input tensors — so their storage cannot be freed and a later tensor handed the same address,
+which is the one way a pointer-keyed cache goes bad.
+
+### What is NOT claimed
+
+**The speedup is unmeasured.** The two `forward_test` calls total 13.57 s; this removes the
+remap and its round-trips from them, not the rasterisation, and the split between those two
+has not been measured either. It could be most of the 13.57 s or a small part of it. On a
+machine without a GPU the round-trips are free, so timing it locally would understate it and
+is not reported.
+
+What can be said without a measurement is that the work is **provably redundant** — the same
+inputs to a pure function — and that this is the fourth thing in this stage found by reading
+the code rather than by timing it. [UNMEASURED]

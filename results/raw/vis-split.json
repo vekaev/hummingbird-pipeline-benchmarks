@@ -1,0 +1,14 @@
+{
+  "note": "Where the seconds go inside visualize_tracking, the largest single step of the largest stage. It does three kinds of work per frame -- renders two meshes on the device, transfers both to the host, encodes three video streams -- and the split had never been measured. It decides the value of the obvious next optimization: extending the in-memory path to these three writes can only recover the ENCODE share. Instrumented with accumulators behind a flag, default off, with a device synchronise before each clock read; without that the render bucket would time kernel launches rather than kernel work and read as near zero. The uninstrumented function is recovered by AST comparison in the test, so the measurement provably did not perturb what it measured.",
+  "frames": 751,
+  "jobWall": 293.2,
+  "decoratedStep": 20.86,
+  "accounted": 18.85,
+  "buckets": [
+    { "bucket": "render", "seconds": 13.57, "what": "two rasterisations per frame" },
+    { "bucket": "encode", "seconds": 3.40, "what": "three video streams" },
+    { "bucket": "warp", "seconds": 1.40, "what": "one CPU affine warp per frame" },
+    { "bucket": "transfer", "seconds": 0.47, "what": "two device-to-host copies" }
+  ],
+  "recoverableByInMemory": "encode"
+}

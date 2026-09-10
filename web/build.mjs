@@ -104,6 +104,12 @@ const ledger = `<dl class="ledger">${LEDGER.map(([dt, dd, small]) => `
 const fsRaw0 = JSON.parse(readFileSync(join(root, 'results/raw/focal-search.json'), 'utf8'));
 const focalIterUnconf = fsRaw0.timing.iterationReductionUnconfirmed;
 const focalIterConf = fsRaw0.timing.iterationReductionConfirmed;
+const vsRaw = JSON.parse(readFileSync(join(root, 'results/raw/vis-split.json'), 'utf8'));
+const vsB = Object.fromEntries(vsRaw.buckets.map((x) => [x.bucket, x.seconds]));
+const visEnc = `${(100 * vsB.encode / vsRaw.jobWall).toFixed(2)}%`;
+const visEncShare = `${(100 * vsB.encode / vsRaw.accounted).toFixed(0)}%`;
+const visStep = `${(100 * vsRaw.decoratedStep / vsRaw.jobWall).toFixed(1)}%`;
+const visXfer = `${(100 * vsB.transfer / vsRaw.accounted).toFixed(1)}%`;
 const coRaw = JSON.parse(readFileSync(join(root, 'results/raw/composition.json'), 'utf8'));
 // Read the headline figures OUT OF the generated table rather than recomputing them here.
 // Recomputing produced a page that disagreed with its own table -- the table pairs per clip
@@ -648,6 +654,22 @@ produced, so the decorators cost nothing measurable.</div>
     all of this was three earlier runs of the same clip, kept for exactly this purpose.
   </p>
 </div>
+
+<h3>The largest step is a render, not a write</h3>
+<p>
+  The decomposition left one step unexplained and one optimization looking obvious: it
+  renders geometry and writes three video files per frame, and keeping stage boundaries in
+  memory &mdash; worth several percent elsewhere in this work &mdash; would remove exactly
+  those writes. What nobody had measured is what fraction of the step the writes are.
+</p>
+${mdTable('results/measured.md', 'The largest step is a render, not a write')}
+<div class="verdict"><b>The writes are ${visEncShare} of the step.</b> Moving them into memory
+recovers ${visEnc} of the job, not the ${visStep} the whole step represents &mdash; because the
+writes sit behind a render four times their size. That is the fourth plausible optimization
+here measured before being built and found small, and the first to cost only six minutes and
+one timer rather than an implementation and a comparison. Host transfer, incidentally, is
+${visXfer} of the step: another stage looked identical from outside and was the opposite, where
+transfer was the whole problem at seventy-six times the bytes it needed.</div>
 
 <h3>Writes that nobody reads</h3>
 <p>

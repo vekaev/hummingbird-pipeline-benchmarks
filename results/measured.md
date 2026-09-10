@@ -606,6 +606,45 @@ changes rather than a single lever, which is a different piece of work to plan.
 
 Now measured rather than guessed. The two untouched optimization loops are the compute target, at about 18 seconds each, and the leftover I/O is larger than either of them. The one prior success in this stage came from restructuring a loop of exactly this kind, for a 9 % job-level saving, so the pattern is proven -- but it would have to be done twice here for a comparable return, and what is NOT established is that the same lever applies: batched data loading already exists in this phase, so these loops may already run batched, in which case the question is whether their iteration counts are needed at all. That is a convergence question, not a batching one, and it is answerable without a GPU by logging the loss curves.
 
+## The largest step is a render, not a write
+
+The decomposition above left one step unexplained and one optimization looking obvious.
+That step renders geometry and writes three video files per frame, and the change that
+returned a real gain elsewhere here — keeping stage boundaries in memory rather than
+round-tripping them through video files — would remove exactly those writes. What was
+never measured is what fraction of the step the writes actually are.
+
+| what it is doing | seconds | of the step | of the job |
+|---|---:|---:|---:|
+| **two rasterisations per frame** | **13.57** | 72.0 % | 4.63 % |
+| three video streams | 3.40 | 18.0 % | 1.16 % |
+| one CPU affine warp per frame | 1.40 | 7.4 % | 0.48 % |
+| two device-to-host copies | 0.47 | 2.5 % | 0.16 % |
+
+Over 751 frames, accounting for 18.85 s of the step's 20.86 s;
+the remainder is setup before the loop, which is not bucketed.
+
+### Which kills the optimization it was meant to justify
+
+Moving those writes into memory recovers **the encode row and nothing else:
+3.40 s, 1.16 % of the job** — not the
+7.1 % the whole step represents. The same change
+was worth several percent elsewhere, which is precisely why it looked worth building
+here. The reason it is not is that those other writes were not sitting behind a render
+four times their size.
+
+**This is the fourth plausible optimization in this work measured before being built and
+found small.** The difference is that this one cost six minutes and one timer rather than
+an implementation and a comparison.
+
+### Host transfer is not the problem here
+
+Transfer is 0.47 s, 2.5 % of the step. Worth
+saying because another stage in this work looked identical from the outside and was the
+opposite: there the host transfer *was* the whole problem, at seventy-six times the bytes
+it needed. Same shape of suspicion, opposite answers — and the suspicion was not evidence
+either time.
+
 ## Writes that nobody reads
 
 One phase of the face-tracking stage writes two tensor files per frame into a directory named "debug". Their only reader has exactly two call sites, and neither of those functions is called from anywhere in the repository -- verified by parsing the source rather than searching it. So on every path the pipeline takes, these files are written and never read. The phase's outputs that ARE consumed are computed before the per-frame loop, so skipping the loop cannot be observed downstream: bit-exact by construction rather than by tolerance.

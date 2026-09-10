@@ -145,8 +145,8 @@
     },
     {
       "n": 17,
-      "change": "Cache the last few decoded frames in the renderer’s reader",
-      "what": "Not a roadmap item; it came out of the mechanism the three null arms exposed. The reader had one fast path, the next frame in sequence, while the renderer asks for five frames around each position — so every item opened with a one-frame backward step that re-decoded from the previous keyframe.",
+      "change": "Cache the last few decoded frames in the renderer\u2019s reader",
+      "what": "Not a roadmap item; it came out of the mechanism the three null arms exposed. The reader had one fast path, the next frame in sequence, while the renderer asks for five frames around each position \u2014 so every item opened with a one-frame backward step that re-decoded from the previous keyframe.",
       "effect": "measured",
       "detail": "-14.30% and -14.76% across two independent passes 0.53% apart, all clips same direction. The neural render falls 57.9% and accounts for the whole job saving. Output-neutral on every robust statistic; still default off pending a wider validation set",
       "section": "arms",
@@ -160,17 +160,17 @@
       "effect": "measured",
       "detail": "-9.61% paired across three clips with the tracking stage down 29.8%, but that is the UNCONFIRMED variant and a ceiling. The implementation kept instead confirms the top candidates against the sequential solver, trading a 9.3x iteration reduction for 3.7x to protect exactness; that configuration is untimed and not estimated here",
       "section": "arms",
-      "arm": "—",
+      "arm": "\u2014",
       "roadmap": false
     },
     {
       "n": 19,
       "change": "Made the selected camera focal observable",
-      "what": "The focal is the only value the calibration sweep exports, and not one line of that module’s logging reached any run log, so no job could report what focal it chose. One print, to the stream the logs already capture.",
+      "what": "The focal is the only value the calibration sweep exports, and not one line of that module\u2019s logging reached any run log, so no job could report what focal it chose. One print, to the stream the logs already capture.",
       "effect": "measured",
       "detail": "It immediately showed that the sweep is not reproducible: four reads on ONE clip at ONE seed gave 2900, 1850, 1830, 1810, with all four projection errors inside 0.48% of each other. Two of those were the unmodified sequential path, at 2900 and 1830",
       "section": "arms",
-      "arm": "—",
+      "arm": "\u2014",
       "roadmap": false
     },
     {
@@ -194,7 +194,7 @@
     {
       "n": 22,
       "change": "Ran the two kept changes together",
-      "what": "They target different stages, so they ought to add — but two earlier attempts at this test were void: one passed flags to an image built before either change existed, the other set the cache to a size that misses on every frame.",
+      "what": "They target different stages, so they ought to add \u2014 but two earlier attempts at this test were void: one passed flags to an image built before either change existed, the other set the cache to a size that misses on every frame.",
       "effect": "measured",
       "detail": "-22.66% together, and the renderer change REPLICATED at -13.66% against -14.30% measured separately on a different image. Predicting the combined arm from the two separate experiments lands 2.24s off, 0.57% of the job and inside the run-to-run spread, so the savings add. Each change moves only its own stage",
       "section": "arms",
@@ -206,7 +206,7 @@
       "change": "Tested whether a second job fits on the same accelerator",
       "what": "This was the largest untested lever in the work and the one the deployment arithmetic leaned on hardest: one job peaks at under half the card's memory and leaves it idle a third of the time, so a second job ought to have been nearly free. Two jobs were run in sequence, then the same two at once on the same clips at the same seed, with both kept optimizations on and the per-process memory cap lowered to 0.45 so two processes could not together claim more than the card holds. Hardware was sampled every two seconds throughout.",
       "effect": "measured",
-      "detail": "Density is WORSE, not free: total wall clock for two jobs rises from 715s to 780s, +9.1%, and throughput falls from 10.1 to 9.2 jobs per GPU-hour. Neither resource the projection reasoned about was the constraint — memory peaked at 56.7% of the card and utilization averaged 34.4% with 37.2% of samples at exactly zero. CPU cores and software video encoding bind. This retracts an earlier projection in this work that packing would roughly double throughput per card; a density test that fails because the accelerator was never scarce is direct evidence the pipeline is not accelerator-bound",
+      "detail": "Density is WORSE, not free: total wall clock for two jobs rises from 715s to 780s, +9.1%, and throughput falls from 10.1 to 9.2 jobs per GPU-hour. Neither resource the projection reasoned about was the constraint \u2014 memory peaked at 56.7% of the card and utilization averaged 34.4% with 37.2% of samples at exactly zero. CPU cores and software video encoding bind. This retracts an earlier projection in this work that packing would roughly double throughput per card; a density test that fails because the accelerator was never scarce is direct evidence the pipeline is not accelerator-bound",
       "section": "arms",
       "arm": "seqA/seqB vs parA/parB",
       "roadmap": false
@@ -247,6 +247,16 @@
       "detail": "REJECTED on latency, and kept anyway on a separate claim. The writing phase drops from 3.125s to 0.041s and the enclosing stage from 104.49s to 99.65s, which is unambiguous -- that phase spanned 0.4s across three runs without the change and lands four seconds outside the band with it. But the gate is 3% at the JOB level and the job level cannot resolve this: four comparable runs without the change span 2.97% among themselves, and the treated run sits 0.59% below the fastest of them. Comparing it against the slowest control alone gives -3.05% and would read as clearing the gate; that comparison is chosen after the fact and is not quoted. What the change does deliver is 1,502 fewer files and 1,065 MB less output per job for the same 14 delivered videos -- a storage and I/O-contention argument rather than a speed one, which matters most in the case the density test exposed. Honest one-line form: frees a gigabyte per job, bit-exact, no measurable speed change",
       "section": "arms",
       "arm": "dead1 vs four controls",
+      "roadmap": false
+    },
+    {
+      "n": 28,
+      "change": "Timed the three kinds of work inside the largest step",
+      "what": "It renders two meshes, copies both to the host and encodes three video streams per frame, and the split had never been measured \u2014 so the value of moving those writes into memory was unknown. Accumulators behind a flag, with a device synchronise before each clock read, and the uninstrumented function recovered by AST comparison so the measurement provably did not perturb what it measured.",
+      "effect": "measured",
+      "detail": "Render 72%, encode 18%, warp 7.4%, transfer 2.5%. The obvious optimization would recover the encode share only: 1.16% of the job, not the 7.1% the step represents. Killed before it was built, for six minutes and one timer",
+      "section": "arms",
+      "arm": "vis1",
       "roadmap": false
     }
   ],
