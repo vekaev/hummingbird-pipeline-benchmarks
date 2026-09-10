@@ -1250,6 +1250,31 @@ was synthesised by upscaling real face content. Encode cost tracks pixel count, 
 faithful, but upscaled frames are smoother than native 4K and encode faster — so a real
 4K upload should save more than this, not less.
 
+## Implemented: the 61 %, not the 80 %
+
+`PREPROCESS_FUSED=1` does the frame-rate conversion and any needed downscale in one
+encode, at the same `slow` / `crf 18` the first step already uses. Default off, because it
+changes the bytes handed to the pipeline.
+
+**The −80.2 % variant is deliberately not implemented, and checking why is the point.** It
+folded the trim into the same pass. But `adjust_video_length_to_audio`
+(`shared_utils/utils.py:530-552`) only trims when the audio is **shorter** than the video;
+otherwise it calls `reverse_concatenate_and_trim_video`, which **extends** the video by
+reversing and concatenating it before cutting. Folding a `-t` into preprocessing would
+truncate the source in exactly the case where the pipeline needs more of it. So the
+measured 80 % was never a shippable number — it was a benchmark of a transformation the
+production path does not always perform.
+
+**The risk in what did ship is geometry, not timing.** If the fused route computed a
+different target size than `resize_video` would, the pipeline would silently receive
+different frames. So the arithmetic is factored into `target_dims`, used by both routes,
+and gate 11 compares it against `resize_video`'s own expression of the rule — transcribed
+independently — across 15 boundary cases: at the limit, one pixel either side, portrait,
+4K, 8K, and non-16:9 shapes. All 15 agree.
+
+Job-level effect: **[UNMEASURED]**. It needs a production-representative source, which this
+box does not have, and the stage it sits in also fetches over the network.
+
 ## The architectural shape this suggests
 
 Split the job: a CPU worker pool does fetch, transcode, cut, stitch, mux and upload; the GPU
@@ -4391,3 +4416,60 @@ was free to read and told the truth.
 I set this measurement up specifically to read the stage bucket rather than the job, having
 written that lesson down four times. It still produced a −7.1 % job number that would have
 been wrong to publish. **The instrument matters more than the intention.**
+
+## MEASURED: the discarded rasterisation in face_recon is worth ~1.2 s
+
+**2026-09-10.** The dead tail in `FaceRecon.forward_test` — vertex normals, a landmark
+pass, a full mesh rasterisation and a warp, all packed into a return value the sole caller
+discards — priced at last.
+
+| | skip off | skip on | delta |
+|---|---:|---:|---:|
+| **`track_face`** | **105.50 s** | **104.30 s** | **−1.20 s, −1.14 %** |
+| job wall | 300.60 | 298.68 | −1.92 s, −0.64 % |
+
+**About 1.2 s, or 0.40 % of the job.** Above the 3 % gate? No. Not close.
+
+### How much to believe it
+
+`track_face`'s own run-to-run spread, measured earlier across three runs, is 0.5 % — about
+0.53 s at this stage size. A 1.20 s delta is roughly **2.3× that spread**, so it is probably
+real, but it is n=1 and should be treated as provisional.
+
+The job delta of 1.92 s is *larger* than the stage delta of 1.20 s, leaving 0.72 s
+unattributable — and the job's own repeat CV is 0.95 %, or 2.86 s here, so **the job number
+is entirely inside job noise and says nothing**. Sixth time. The stage number is the only
+one worth reading, and this time I built the measurement that way from the start.
+
+### A limitation of this measurement, stated
+
+I wanted `face_recon` specifically, not `track_face` which contains it. The image used here
+does not carry the sub-stage decorators — those live in a patched file from a different
+line of work that this run did not mount. So `track_face` is the finest granularity
+available, and it **bounds** the effect rather than isolating it: the true `face_recon`
+delta is ≤ 1.20 s, and could be less if any of that 1.20 s is noise elsewhere in the stage.
+
+### What it means for the change
+
+**Not worth taking on speed**, and it stays default off. The interesting part is the
+comparison with its neighbour:
+
+| dead work removed | rasterisations skipped | measured |
+|---|---|---:|
+| topology cache | none — a remap around the render | **0.35 s** |
+| **this tail** | **one full mesh render per frame** | **~1.2 s** |
+| *for scale:* `visualize_tracking`'s two renders | — | 13.57 s |
+
+Skipping an entire per-frame rasterisation here buys 1.2 s, while two rasterisations in
+`visualize_tracking` cost 13.57 s. **The same nominal operation differs by an order of
+magnitude between two call sites**, which is worth knowing before anyone reasons about
+"the cost of a render" in this pipeline as though it were one number. Why they differ —
+resolution, vertex-mask size, batching — is not established here. [UNMEASURED]
+
+### The tally on dead work
+
+Three pieces of provably dead work have now been found and priced: 1,502 redundant tensor
+writes (1.03 %), 1,502 redundant topology remaps (0.12 %), and a discarded rasterisation per
+frame (0.40 %). **All three are real, all three are bit-exact to remove, and none clears the
+gate.** Together they are about 1.5 % — worth having as tidiness, not as performance, and
+that is the honest way to offer them.
