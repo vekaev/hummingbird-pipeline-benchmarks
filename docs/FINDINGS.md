@@ -1183,6 +1183,73 @@ conversion and the trim are two full encodes of the same content in sequence, an
 can do both in one pass (`-t <duration> -vf fps=25`). That eliminates an encode rather than
 discounting it.
 
+## There is a third encode, and the order is backwards
+
+`resize_video` (`shared_utils/utils.py:286-327`) sits between the two, and it **also**
+passes no `-c:v`, no preset and no CRF, so it too runs at ffmpeg's defaults. It
+short-circuits and returns its input unchanged unless a dimension exceeds 1920, which is
+why no `source_video_resized.mp4` appears in any output directory here -- every benchmark
+clip is smaller than that.
+
+For anything larger, though -- 4K phone video, which customers upload routinely -- the full
+chain is **three** encodes:
+
+| | step | settings | resolution |
+|---|---|---|---|
+| 1 | `convert_to_25fps` | **preset slow, crf 18** | the source's own, e.g. 4K |
+| 2 | `resize_video` | ffmpeg defaults | downscales to 1920 |
+| 3 | `trim_video` | ffmpeg defaults | 1920 |
+
+**The slowest, highest-quality encode runs first, at the largest resolution, immediately
+before a step that throws three quarters of those pixels away.** A 4K frame is four times
+the pixels of 1080p, and step 1 pays that multiple at the `slow` preset. Downscaling first
+and encoding once would do the same work at a quarter of the pixel count.
+
+What makes this unusual as an optimization: **it is not a quality trade.** Today's chain
+puts the carefully-encoded 4K frames through two further default-quality encodes. A single
+fused pass -- downscale, retime and trim together at `crf 18` -- is both faster *and* one
+generation-loss step shorter than what ships. The reorder should improve the delivered
+image, not degrade it.
+
+## Measured: reordering is worth 61 %, fusing is worth 80 %
+
+CPU only, no accelerator, two repetitions each, on a 3840x2160 source:
+
+| arm | mean | output |
+|---|---:|---:|
+| A — the current order: slow crf-18 encode at **4K**, then downscale, then trim | **26.63 s** | 3,704 KB |
+| B — reordered: downscale and retime in one slow pass, then trim | **10.29 s** | 3,941 KB |
+| C — fused: downscale, retime and trim in a **single** pass | **5.28 s** | 6,819 KB |
+
+| | | |
+|---|---|---:|
+| reordering alone | 26.63 → 10.29 s | **−61.3 %** |
+| reorder and fuse | 26.63 → 5.28 s | **−80.2 %** |
+
+All three produce the same 1920x1080, 500-frame result, so the comparison is like for
+like on output geometry.
+
+**And it is better on quality too, which is why the size column is worth reading.** C is
+6,819 KB against A's 3,704 KB because C encodes once at crf 18 and stops, while A and B
+push that output through further default-quality encodes that throw the bitrate away. So
+the fused pass is simultaneously **80 % faster and one generation-loss step shorter than
+what ships.** Optimizations that improve both axes at once are rare enough to say plainly.
+
+## What this does NOT license
+
+**Applying these percentages to the 95.08 s production stage.** That stage is
+`download_and_preprocess`, which also **fetches** the source over the network, and the
+split between fetching and encoding inside it has never been measured. Multiplying 95.08 s
+by 61 % would assume the stage is all encode, which it is not. The honest scope is: *the
+encode chain for a 4K source costs 61 % more than it needs to in the current order, and
+what share of the stage that chain represents is unmeasured.* [MEASURED for the chain,
+UNMEASURED at the job level]
+
+**And the saving is a lower bound.** There is no native 4K source on this machine, so one
+was synthesised by upscaling real face content. Encode cost tracks pixel count, which is
+faithful, but upscaled frames are smoother than native 4K and encode faster — so a real
+4K upload should save more than this, not less.
+
 ## The architectural shape this suggests
 
 Split the job: a CPU worker pool does fetch, transcode, cut, stitch, mux and upload; the GPU
@@ -4283,3 +4350,44 @@ and after on a production-representative source rather than being folded into a 
 about the GPU pipeline. What is established: the double encode is real, it is confirmed in
 the source, and removing it is worth about half of the largest CPU-only item in the job.
 [MEASURED on CPU, fix PROPOSED]
+
+## MEASURED: the topology cache is worth 0.35 s. My own change, and it is a rounding error.
+
+**2026-09-10.** I committed the cache with the speedup flagged `[UNMEASURED]` and hedged
+that it "could be most of the 13.57 s or a small part of it." It is a small part.
+
+Two runs, one clip each, `VIS_SPLIT=1` in both so the render bucket itself is comparable
+and not just the job:
+
+| | cache off | cache on | delta |
+|---|---:|---:|---:|
+| **render bucket** | **15.23 s** | **14.88 s** | **−0.35 s, −2.3 %** |
+| encode | 3.62 | 3.45 | −0.17 |
+| warp | 1.46 | 1.44 | −0.02 |
+| transfer | 0.51 | 0.52 | +0.01 |
+| job wall | 326.22 | 302.90 | −23.32 |
+
+**The render bucket is the only thing this change can touch, and it moved 0.35 s — 0.12 %
+of the job.** The rasterisation dominates `forward_test`, exactly as hedged. 1,502 identical
+recomputations a job turn out to be genuinely redundant and genuinely cheap.
+
+**Verdict: not worth taking on speed.** It stays default-off and should be judged, if at
+all, as a tidiness change rather than a performance one.
+
+### The job clock says −7.1 %, and that is the fifth time
+
+`326.22 → 302.90` is −7.1 %, which would be the largest single win in this workstream. It is
+not real. The render moved 0.35 s, so **22.97 s of the 23.32 s is unattributable** — there is
+no mechanism by which caching a face-index remap speeds up the rest of the pipeline. And
+`tcoff` at 326.22 s is simply a slow run: comparable runs on this clip sit at 293.2, 289.06,
+298.16, 299.40 and 300.80 s, mean 296.1 s. `tcoff` is **+10.2 %** against that mean; `tcon`
+is +2.3 %. The "win" is one anomalous control.
+
+That is now **five times a job-level number has overstated a stage-confined change** — batch
+16, the drift-adjusted arms, the parsing reduce, the dead writes, and now my own. Every
+single time the job clock was the flattering figure, and every single time the stage timing
+was free to read and told the truth.
+
+I set this measurement up specifically to read the stage bucket rather than the job, having
+written that lesson down four times. It still produced a −7.1 % job number that would have
+been wrong to publish. **The instrument matters more than the intention.**

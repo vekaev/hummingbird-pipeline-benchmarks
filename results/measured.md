@@ -728,6 +728,30 @@ Output size checks the claim that quality is discarded. The current first pass p
 
 **Scope.** The largest source available for this test is 1026 square, roughly half the pixels of production video, so the absolute seconds are NOT production figures. Encode cost scales with pixel count while the ratios are far less resolution-sensitive, which is why this is reported as a percentage of the stage rather than as a number of seconds saved. Applying the ratio to the production stage cost suggests roughly 46 seconds, and that arithmetic is DERIVED rather than measured: it assumes the ratio holds at full resolution and that production sources compress similarly.
 
+### A third encode, and the order is backwards
+
+Following the same code path further found a THIRD encode, and the order of the three is backwards. A resize step sits between the other two and also passes no codec settings, so it runs at the encoder's defaults as well. It does nothing unless a dimension exceeds a threshold, which is why it never appeared in any output directory here -- every benchmark clip is below it. For a larger source, though, which is the routine case for phone video, the chain is three encodes and the slowest, highest-quality one runs FIRST at the full source resolution, immediately before the step that discards three quarters of those pixels.
+
+Measured on a 3840x2160 source, two repetitions each:
+
+| arm | mean | output |
+|---|---:|---:|
+| A — the current order: slow high-quality encode at full resolution, then downscale, then trim | **26.63 s** | 3,704 KB |
+| B — reordered: downscale and retime in one slow pass, then trim | **10.29 s** | 3,941 KB |
+| C — fused: downscale, retime and trim in a single pass | **5.28 s** | 6,819 KB |
+
+| | | |
+|---|---|---:|
+| reordering alone | 26.63 → 10.29 s | **-61.36 %** |
+| reorder and fuse | 26.63 → 5.28 s | **-80.17 %** |
+
+All three produce the same 1920x1080, 500 frames, so the comparison is like for like on
+output geometry. The size column is worth reading. The fused arm is the largest output because it encodes once at high quality and stops, while the other two push that output through further default-quality encodes that throw the bitrate away. So the fused pass is both far faster AND one generation-loss step shorter than what ships. Optimizations that improve both axes at once are rare enough to say plainly.
+
+**What this does not license.** Applying these percentages to the production stage cost. That stage also fetches the source over the network, and the split between fetching and encoding inside it has never been measured, so multiplying would assume the stage is all encode. The honest scope is that the encode chain for a large source costs 61% more than it needs to in the current order, and what share of the stage that chain represents is unmeasured.
+
+**And the saving is a lower bound.** There is no native high-resolution source on this machine, so one was synthesised by upscaling real face content. Encode cost tracks pixel count, which is faithful, but upscaled frames are smoother than native ones and encode faster -- so a real upload should save more than this, not less.
+
 **Status.** Not implemented. The change is on the preprocessing path, which no arm in this work touched, and it deserves its own before and after on a production-representative source rather than being folded into a study of the accelerator pipeline.
 
 ## A change that works and is rejected anyway

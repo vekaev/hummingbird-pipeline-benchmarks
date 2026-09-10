@@ -900,6 +900,31 @@ if (diff) {
   P(`${fmt(by.A.seconds / by.C.seconds, 2)}x the fastest setting tried.\n`);
   P(`${de.sizeCrossCheck}\n`);
   P(`**Scope.** ${de.scope} ${de.derivedIfApplied}\n`);
+  const ro = de.reorder;
+  if (ro) {
+    const byR = Object.fromEntries(ro.arms.map((a) => [a.id, a]));
+    P('### A third encode, and the order is backwards\n');
+    P(`${ro.note}\n`);
+    P(`Measured on a ${ro.sourceDims} source, two repetitions each:\n`);
+    P('| arm | mean | output |');
+    P('|---|---:|---:|');
+    for (const a of ro.arms) {
+      P(`| ${a.id} — ${a.label} | **${fmt(a.seconds, 2)} s** | ${a.kb.toLocaleString('en-US')} KB |`);
+    }
+    P('');
+    P('| | | |');
+    P('|---|---|---:|');
+    P(`| reordering alone | ${fmt(byR.A.seconds, 2)} → ${fmt(byR.B.seconds, 2)} s `
+      + `| **${signed(pct(byR.B.seconds, byR.A.seconds))} %** |`);
+    P(`| reorder and fuse | ${fmt(byR.A.seconds, 2)} → ${fmt(byR.C.seconds, 2)} s `
+      + `| **${signed(pct(byR.C.seconds, byR.A.seconds))} %** |`);
+    P('');
+    P(`All three produce the same ${ro.outputGeometry}, so the comparison is like for like on`);
+    P(`output geometry. ${ro.qualityNote}\n`);
+    P(`**What this does not license.** ${ro.notLicensed}\n`);
+    P(`**And the saving is a lower bound.** ${ro.lowerBound}\n`);
+  }
+
   P(`**Status.** ${de.status}\n`);
 }
 

@@ -266,6 +266,14 @@
       "effect": "measured",
       "detail": "Stopping the double encode is worth -51.5% of that pair. A combined -65.9% is available by also trimming in the same pass and is deliberately NOT the headline: that part depends on how much of the source the audio uses, an arbitrary ratio in this test, while encoding the same content twice is structural. Separately the discarded quality alone would cut the first pass 30.6% -- the slow setting costs 1.44x the surviving one and buys nothing that survives. Output sizes cross-check it: the fused pass lands within 1% of what the current pair produces. SCOPE: the test source is about half production resolution, so the seconds are not production figures and the result is quoted as a share of the stage; applying the ratio to the production stage cost suggests roughly 46s, and that arithmetic is derived rather than measured. NOT IMPLEMENTED -- the change is on the preprocessing path, which no arm here touched, and deserves its own before and after on a representative source",
       "section": "how"
+    },
+    {
+      "n": 30,
+      "change": "Found a third encode on the preprocessing path, with the three in the wrong order",
+      "what": "Following the same code path further: a resize step sits between the frame-rate conversion and the trim, and it also passes no codec settings, so it too runs at the encoder's defaults. It does nothing unless a dimension exceeds a threshold, which is why it never appeared in any output directory here -- every benchmark clip is below it. For a larger source, the routine case for phone video, the chain is three encodes and the slowest, highest-quality one runs FIRST at the full source resolution, immediately before the step that discards three quarters of those pixels.",
+      "effect": "measured",
+      "detail": "Measured on CPU, two reps, on a 3840x2160 source: the current order costs 26.63s, reordering to downscale first costs 10.29s (-61.4%), and fusing all three into one pass costs 5.28s (-80.2%). All three produce the same 1920x1080 500-frame output. The size column is the interesting part -- the fused arm produces the LARGEST file, 6,819 KB against 3,704 KB, because it encodes once at high quality and stops while the others push that output through further default-quality encodes that discard the bitrate. So the fused pass is both far faster and one generation-loss step shorter than what ships; both axes improve. NOT LICENSED: applying these percentages to the production stage cost, which also includes fetching the source over the network, a split never measured. And the saving is a LOWER bound: no native high-resolution source exists here, so one was synthesised by upscaling, and upscaled frames encode faster than native ones",
+      "section": "how"
     }
   ],
   "configurations": [
