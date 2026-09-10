@@ -1275,6 +1275,35 @@ independently — across 15 boundary cases: at the limit, one pixel either side,
 Job-level effect: **[UNMEASURED]**. It needs a production-representative source, which this
 box does not have, and the stage it sits in also fetches over the network.
 
+## REPLICATED on different hardware, a different encoder and a different clip
+
+The experiment box was released, so the benchmark was re-run on a laptop -- **Apple Silicon
+instead of x86, ffmpeg 7.1 instead of the box's build, and a different source clip**
+(a 654-square original upscaled, against the box's 1026-square one):
+
+| arm | box | laptop |
+|---|---:|---:|
+| A — current order | 26.63 s | 20.87 s |
+| B — reordered | 10.29 s | 7.38 s |
+| C — fused | 5.28 s | 3.74 s |
+| **reordering alone** | **−61.4 %** | **−64.6 %** |
+| **reorder and fuse** | **−80.2 %** | **−82.1 %** |
+
+**The absolute times differ, as they must, and the ratios agree within about three
+percentage points.** The size ordering replicates too: the fused arm again produces the
+largest output (7,988 KB against A's 3,984 KB), so the "faster *and* better quality"
+property is not an artefact of one encoder build.
+
+This is worth contrasting with the other replication in this session. The ground-truth
+fidelity numbers replicated in **ordering and decomposition but not in magnitude**, landing
+20–25 % lower, and the honest response was to soften the claim to "roughly +2 dB". Here the
+magnitude itself survives a change of CPU architecture, encoder version and source content.
+**A ratio between two encodes of the same content is a far more portable quantity than an
+absolute dB against a reference**, and that difference is the reason one claim is quoted
+tightly and the other loosely.
+
+**[MEASURED, replicated independently]**
+
 ## The architectural shape this suggests
 
 Split the job: a CPU worker pool does fetch, transcode, cut, stitch, mux and upload; the GPU

@@ -166,7 +166,7 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <div class="shell pack">
 
 <header class="masthead">
-  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T37</p>
+  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T38</p>
   <h1>Results pack: every number, with the table it came from</h1>
   <p class="standfirst">
     The companion to the <a href="index.html">article page</a>. Each figure is followed by the
@@ -229,7 +229,8 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <li><a href="#t34"><span class="tag">T34</span>Encoding the source twice</a></li>
 <li><a href="#t35"><span class="tag">T35</span>Which half of that saving transfers</a></li>
 <li><a href="#t36"><span class="tag">T36</span>Encode order on large sources</a></li>
-<li><a href="#t37"><span class="tag">T37</span>Configuration key</a></li></ul>
+<li><a href="#t37"><span class="tag">T37</span>Encode order, replicated</a></li>
+<li><a href="#t38"><span class="tag">T38</span>Configuration key</a></li></ul>
   <h2>Carry with the numbers</h2>
   <ul>
     <li><a href="#measured">What was measured</a></li>
@@ -1674,6 +1675,19 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 
 <div class="item" id="t37">
   <span class="id">T37</span>
+  <h3>Encode order, replicated</h3>
+  <p class="meta">The same benchmark on a different CPU architecture, a different encoder version and a different source clip. Absolute times differ; the ratios agree within about three percentage points. Contrast with the fidelity replication elsewhere in this pack, which reproduced the ordering and decomposition but landed 20-25% lower on magnitude -- which is why that claim is quoted loosely and this one tightly. A ratio between two encodes of the same content travels; an absolute measure against a reference does not.</p>
+  <div class="tw"><table><thead><tr><th>arm</th><th class="n">first machine</th><th class="n">second machine</th></tr></thead><tbody>
+<tr><td>A</td><td class="n">26.63 s</td><td class="n">20.87 s</td></tr>
+<tr><td>B</td><td class="n">10.29 s</td><td class="n">7.38 s</td></tr>
+<tr><td>C</td><td class="n">5.28 s</td><td class="n">3.74 s</td></tr>
+<tr><td><strong>reordering alone</strong></td><td class="n"><strong>-61.36 %</strong></td><td class="n"><strong>-64.64 %</strong></td></tr>
+<tr><td><strong>reorder and fuse</strong></td><td class="n"><strong>-80.17 %</strong></td><td class="n"><strong>-82.08 %</strong></td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t38">
+  <span class="id">T38</span>
   <h3>Configuration key</h3>
   <p class="meta">What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.</p>
   <div class="tw"><table><thead><tr><th>Configuration</th><th>Hardware</th><th>Video parameters</th><th>Deployment</th><th>Protocol</th></tr></thead><tbody>

@@ -70,6 +70,21 @@
     "outputGeometry": "1920x1080, 500 frames",
     "qualityNote": "The size column is worth reading. The fused arm is the largest output because it encodes once at high quality and stops, while the other two push that output through further default-quality encodes that throw the bitrate away. So the fused pass is both far faster AND one generation-loss step shorter than what ships. Optimizations that improve both axes at once are rare enough to say plainly.",
     "notLicensed": "Applying these percentages to the production stage cost. That stage also fetches the source over the network, and the split between fetching and encoding inside it has never been measured, so multiplying would assume the stage is all encode. The honest scope is that the encode chain for a large source costs 61% more than it needs to in the current order, and what share of the stage that chain represents is unmeasured.",
-    "lowerBound": "There is no native high-resolution source on this machine, so one was synthesised by upscaling real face content. Encode cost tracks pixel count, which is faithful, but upscaled frames are smoother than native ones and encode faster -- so a real upload should save more than this, not less."
+    "lowerBound": "There is no native high-resolution source on this machine, so one was synthesised by upscaling real face content. Encode cost tracks pixel count, which is faithful, but upscaled frames are smoother than native ones and encode faster -- so a real upload should save more than this, not less.",
+    "replication": {
+      "note": "The experiment machine was released, so the benchmark was re-run on a laptop: a different CPU architecture, a different encoder version, and a different source clip. Absolute times differ, as they must.",
+      "armsSeconds": {
+        "A": 20.87,
+        "B": 7.38,
+        "C": 3.74
+      },
+      "kb": {
+        "A": 3984,
+        "B": 4366,
+        "C": 7988
+      },
+      "verdict": "The ratios agree within about three percentage points, and the size ordering replicates -- the fused arm again produces the largest output, so faster-and-better-quality is not an artefact of one encoder build.",
+      "contrast": "Worth contrasting with the fidelity replication elsewhere in this work, which reproduced the ordering and the decomposition but landed 20 to 25 percent lower on magnitude, so that claim is quoted loosely. A ratio between two encodes of the same content is a far more portable quantity than an absolute measure against a reference, which is why this one is quoted tightly."
+    }
   }
 }

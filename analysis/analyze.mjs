@@ -923,6 +923,24 @@ if (diff) {
     P(`output geometry. ${ro.qualityNote}\n`);
     P(`**What this does not license.** ${ro.notLicensed}\n`);
     P(`**And the saving is a lower bound.** ${ro.lowerBound}\n`);
+
+    const rp = ro.replication;
+    if (rp) {
+      P('#### Replicated on different hardware\n');
+      P(`${rp.note}\n`);
+      P('| arm | first machine | second machine |');
+      P('|---|---:|---:|');
+      for (const id of ['A', 'B', 'C']) {
+        P(`| ${id} | ${fmt(byR[id].seconds, 2)} s | ${fmt(rp.armsSeconds[id], 2)} s |`);
+      }
+      P(`| **reordering alone** | **${signed(pct(byR.B.seconds, byR.A.seconds))} %** `
+        + `| **${signed(pct(rp.armsSeconds.B, rp.armsSeconds.A))} %** |`);
+      P(`| **reorder and fuse** | **${signed(pct(byR.C.seconds, byR.A.seconds))} %** `
+        + `| **${signed(pct(rp.armsSeconds.C, rp.armsSeconds.A))} %** |`);
+      P('');
+      P(`${rp.verdict}\n`);
+      P(`${rp.contrast}\n`);
+    }
   }
 
   P(`**Status.** ${de.status}\n`);

@@ -752,6 +752,22 @@ output geometry. The size column is worth reading. The fused arm is the largest 
 
 **And the saving is a lower bound.** There is no native high-resolution source on this machine, so one was synthesised by upscaling real face content. Encode cost tracks pixel count, which is faithful, but upscaled frames are smoother than native ones and encode faster -- so a real upload should save more than this, not less.
 
+#### Replicated on different hardware
+
+The experiment machine was released, so the benchmark was re-run on a laptop: a different CPU architecture, a different encoder version, and a different source clip. Absolute times differ, as they must.
+
+| arm | first machine | second machine |
+|---|---:|---:|
+| A | 26.63 s | 20.87 s |
+| B | 10.29 s | 7.38 s |
+| C | 5.28 s | 3.74 s |
+| **reordering alone** | **-61.36 %** | **-64.64 %** |
+| **reorder and fuse** | **-80.17 %** | **-82.08 %** |
+
+The ratios agree within about three percentage points, and the size ordering replicates -- the fused arm again produces the largest output, so faster-and-better-quality is not an artefact of one encoder build.
+
+Worth contrasting with the fidelity replication elsewhere in this work, which reproduced the ordering and the decomposition but landed 20 to 25 percent lower on magnitude, so that claim is quoted loosely. A ratio between two encodes of the same content is a far more portable quantity than an absolute measure against a reference, which is why this one is quoted tightly.
+
 **Status.** Not implemented. The change is on the preprocessing path, which no arm in this work touched, and it deserves its own before and after on a production-representative source rather than being folded into a study of the accelerator pipeline.
 
 ## A change that works and is rejected anyway
