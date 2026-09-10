@@ -1,0 +1,47 @@
+{
+  "note": "The largest CPU-only item in the job is fetching and preparing the source video, and it costs far more on production jobs than on the benchmark clips because production handles large customer video. Inside it, the frame-rate conversion encodes at a slow, high-quality setting, and the very next step re-encodes the result while passing no codec settings at all -- so the encoder applies its own defaults, at lower quality. The same content is encoded twice and the expensive quality is discarded before anything downstream sees it. Measured with the encoder alone, no accelerator involved, three repetitions per arm.",
+  "productionStageSeconds": 95.08,
+  "benchmarkStageSeconds": 6.95,
+  "arms": [
+    {
+      "id": "A",
+      "label": "current: convert at the slow, high-quality setting",
+      "seconds": 4.84,
+      "kb": 5428
+    },
+    {
+      "id": "B",
+      "label": "one pass at the settings that actually survive",
+      "seconds": 3.36,
+      "kb": 3479
+    },
+    {
+      "id": "C",
+      "label": "one pass at a much faster setting",
+      "seconds": 3.04,
+      "kb": 2727
+    },
+    {
+      "id": "D",
+      "label": "fused: convert and trim in a single pass",
+      "seconds": 2.36,
+      "kb": 2339
+    },
+    {
+      "id": "E",
+      "label": "the trim re-encode that today follows A",
+      "seconds": 2.09,
+      "kb": 2318
+    }
+  ],
+  "currentPair": [
+    "A",
+    "E"
+  ],
+  "decomposition": "The headline that the fused pass implies conflates two effects, and only one of them generalises. Encoding the same content twice instead of once is structural and applies to every job. Trimming in the same pass additionally avoids encoding the part that gets thrown away, and that depends entirely on how much of the source the audio uses -- here 20 seconds of a 30 second clip, a ratio chosen arbitrarily.",
+  "discardedQualityNote": "Separately, the discarded quality has its own cost: the slow, high-quality setting buys nothing that survives the next step. Even leaving the double encode in place, matching the settings to what survives would recover that much on its own.",
+  "sizeCrossCheck": "Output size checks the claim that quality is discarded. The current first pass produces 5,428 KB, the second step reduces it to 2,318 KB, and the fused pass reaches 2,339 KB directly -- within 1% of each other. The fused pass delivers what the current pair delivers.",
+  "scope": "The largest source available for this test is 1026 square, roughly half the pixels of production video, so the absolute seconds are NOT production figures. Encode cost scales with pixel count while the ratios are far less resolution-sensitive, which is why this is reported as a percentage of the stage rather than as a number of seconds saved.",
+  "derivedIfApplied": "Applying the ratio to the production stage cost suggests roughly 46 seconds, and that arithmetic is DERIVED rather than measured: it assumes the ratio holds at full resolution and that production sources compress similarly.",
+  "status": "Not implemented. The change is on the preprocessing path, which no arm in this work touched, and it deserves its own before and after on a production-representative source rather than being folded into a study of the accelerator pipeline."
+}

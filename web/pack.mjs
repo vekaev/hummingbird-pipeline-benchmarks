@@ -166,7 +166,11 @@ const TABLES = [
     note: 'The control runs span nearly 3% among themselves and the treated run sits under 1% below the fastest of them, so a single pair cannot resolve a roughly 1% job effect. Comparing against the slowest control alone would read as clearing the 3% gate; that comparison is chosen after the fact and is not quoted. Included because a rejected change with a clean stage-level effect is the case where the gate does real work.' },
   { id: 'T33', file: 'results/measured.md', heading: 'The output claim, verified rather than asserted', title: 'Output neutrality of that change',
     note: 'The bottom two rows are pairs that differ in NO code at all, so they set the floor this pipeline can reach -- it is nondeterministic at a fixed seed. The treated pair has to land at that floor, not below it; below would mean something downstream saw a difference and the reachability argument was wrong. It lands above it. Included because the phrase \'bit-exact by construction\' had been written down and published before any output was ever compared.' },
-  { id: 'T34', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
+  { id: 'T34', file: 'results/measured.md', heading: 'The same content, encoded twice', title: 'Encoding the source twice',
+    note: 'Measured with the encoder alone, no accelerator. The two arms marked in use today run in sequence in every job: the first converts the frame rate at a slow, high-quality setting and the second re-encodes the result at lower quality, passing no codec settings of its own. Read with T35, which separates the part of the saving that generalises from the part that does not. Absolute seconds are not production figures -- the test source is about half production resolution.' },
+  { id: 'T35', file: 'results/measured.md', heading: 'One number here generalises and one does not', title: 'Which half of that saving transfers',
+    note: 'Encoding the same content twice instead of once is structural and applies to every job. Trimming in the same pass additionally avoids encoding the discarded tail, and that depends on how much of the source the audio uses -- an arbitrary ratio in this test. The first row is the claim; the combined figure is not.' },
+  { id: 'T36', file: 'results/reporting.md', heading: 'Configuration key', title: 'Configuration key',
     note: 'What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.' },
 ];
 

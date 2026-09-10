@@ -4219,3 +4219,67 @@ is not reported.
 What can be said without a measurement is that the work is **provably redundant** — the same
 inputs to a pure function — and that this is the fourth thing in this stage found by reading
 the code rather than by timing it. [UNMEASURED]
+
+---
+
+# The double encode, measured on CPU: 52 % of the largest CPU item
+
+**2026-09-09.** `download_and_preprocess` is the largest CPU-only item in the job --
+**95.08 s on production jobs** against 6.95 s on the benchmark clips, because production
+fetches and transcodes large customer source video. Inside it, `convert_to_25fps` encodes
+at `-preset slow -crf 18`, and `trim_video` then re-encodes the result passing **no codec
+flags at all**, so ffmpeg applies preset medium and CRF 23. The same content is encoded
+twice and the expensive quality is discarded before anything downstream sees it.
+
+Measured with ffmpeg alone, no GPU involved, three repetitions each:
+
+| arm | mean | output |
+|---|---:|---:|
+| A — current: fps25, **preset slow, crf 18** | 4.84 s | 5,428 KB |
+| B — one pass at the settings that survive (medium, crf 23) | 3.36 s | 3,479 KB |
+| C — one pass, veryfast, crf 23 | 3.04 s | 2,727 KB |
+| D — **fused**: fps25 **and** trim in a single pass | 2.36 s | 2,339 KB |
+| E — the trim re-encode that today follows A | 2.09 s | 2,318 KB |
+
+Today's pipeline for this content is **A then E = 6.93 s**.
+
+## The 66 % figure conflates two effects, so it is not the headline
+
+| | | |
+|---|---|---:|
+| stop double-encoding, one pass at full length | 6.93 → 3.36 s | **−51.5 %** |
+| *also* trim in the same pass, never encoding the tail | 3.36 → 2.36 s | −29.8 % |
+| combined | 6.93 → 2.36 s | −65.9 % |
+
+**Only the first generalises.** Encoding the same content twice instead of once is
+structural and applies to every job. The second depends entirely on how much of the source
+the audio actually uses -- I trimmed 20 s of a 30 s clip, a ratio I picked arbitrarily, and
+in production it could be anything. **So the defensible claim is ~52 % of this CPU item,
+not 66 %.**
+
+**And the discarded quality alone costs 44 %.** A over B is 1.44x: the slow preset and
+CRF 18 buy nothing that survives `trim_video`. Even leaving the double encode in place,
+matching the settings to what survives would recover that.
+
+**Output size cross-checks the "discarded" claim.** A produces 5,428 KB, E reduces it to
+2,318 KB, and the fused pass reaches 2,339 KB directly -- within 0.9 % of each other. The
+fused pass delivers what the current pair delivers.
+
+## Scope, stated rather than implied
+
+The largest source available on the box is **1026 x 1026**, roughly half the pixels of
+production 1080p, so **the absolute seconds above are not production figures**. Encode cost
+scales with pixel count; the *ratios* are far less resolution-sensitive, which is why the
+result is reported as a percentage of the stage and not as "saves N seconds". Applying
+−51.5 % to the production 95.08 s would give about 46 s, and that arithmetic is
+**[DERIVED]**, not measured -- it assumes the ratio holds at 1080p and that production
+sources are similarly compressible.
+
+## Status
+
+The fix is **not implemented.** It is a change to `shared_utils/utils.py` on the
+preprocessing path, which no arm in this session touched, and it deserves its own before
+and after on a production-representative source rather than being folded into a session
+about the GPU pipeline. What is established: the double encode is real, it is confirmed in
+the source, and removing it is worth about half of the largest CPU-only item in the job.
+[MEASURED on CPU, fix PROPOSED]

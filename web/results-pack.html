@@ -166,7 +166,7 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <div class="shell pack">
 
 <header class="masthead">
-  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T34</p>
+  <p class="eyebrow">Evidence pack &middot; for the writers &middot; figures F1&ndash;F8, tables T1&ndash;T36</p>
   <h1>Results pack: every number, with the table it came from</h1>
   <p class="standfirst">
     The companion to the <a href="index.html">article page</a>. Each figure is followed by the
@@ -226,7 +226,9 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 <li><a href="#t31"><span class="tag">T31</span>Removing writes nobody reads</a></li>
 <li><a href="#t32"><span class="tag">T32</span>Why that change fails the gate</a></li>
 <li><a href="#t33"><span class="tag">T33</span>Output neutrality of that change</a></li>
-<li><a href="#t34"><span class="tag">T34</span>Configuration key</a></li></ul>
+<li><a href="#t34"><span class="tag">T34</span>Encoding the source twice</a></li>
+<li><a href="#t35"><span class="tag">T35</span>Which half of that saving transfers</a></li>
+<li><a href="#t36"><span class="tag">T36</span>Configuration key</a></li></ul>
   <h2>Carry with the numbers</h2>
   <ul>
     <li><a href="#measured">What was measured</a></li>
@@ -1632,6 +1634,30 @@ ol.sources li { font-size:13.8px; margin:0 0 11px; max-width:82ch; }
 
 <div class="item" id="t34">
   <span class="id">T34</span>
+  <h3>Encoding the source twice</h3>
+  <p class="meta">Measured with the encoder alone, no accelerator. The two arms marked in use today run in sequence in every job: the first converts the frame rate at a slow, high-quality setting and the second re-encodes the result at lower quality, passing no codec settings of its own. Read with T35, which separates the part of the saving that generalises from the part that does not. Absolute seconds are not production figures -- the test source is about half production resolution.</p>
+  <div class="tw"><table><thead><tr><th>arm</th><th class="n">mean</th><th class="n">output</th></tr></thead><tbody>
+<tr><td>A — current: convert at the slow, high-quality setting <em>(in use today)</em></td><td class="n">4.84 s</td><td class="n">5,428 KB</td></tr>
+<tr><td>B — one pass at the settings that actually survive</td><td class="n">3.36 s</td><td class="n">3,479 KB</td></tr>
+<tr><td>C — one pass at a much faster setting</td><td class="n">3.04 s</td><td class="n">2,727 KB</td></tr>
+<tr><td>D — fused: convert and trim in a single pass</td><td class="n">2.36 s</td><td class="n">2,339 KB</td></tr>
+<tr><td>E — the trim re-encode that today follows A <em>(in use today)</em></td><td class="n">2.09 s</td><td class="n">2,318 KB</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t35">
+  <span class="id">T35</span>
+  <h3>Which half of that saving transfers</h3>
+  <p class="meta">Encoding the same content twice instead of once is structural and applies to every job. Trimming in the same pass additionally avoids encoding the discarded tail, and that depends on how much of the source the audio uses -- an arbitrary ratio in this test. The first row is the claim; the combined figure is not.</p>
+  <div class="tw"><table><thead><tr><th></th><th></th><th class="n"></th></tr></thead><tbody>
+<tr><td>stop encoding twice, one pass at full length</td><td>6.93 → 3.36 s</td><td class="n"><strong>-51.52 %</strong></td></tr>
+<tr><td><em>also</em> trim in the same pass</td><td>3.36 → 2.36 s</td><td class="n">-29.76 %</td></tr>
+<tr><td>combined</td><td>6.93 → 2.36 s</td><td class="n">-65.95 %</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="item" id="t36">
+  <span class="id">T36</span>
   <h3>Configuration key</h3>
   <p class="meta">What each configuration in T2 actually is: which deployment produced it and under what protocol. "Harvested" means taken from live traffic rather than driven for the study.</p>
   <div class="tw"><table><thead><tr><th>Configuration</th><th>Hardware</th><th>Video parameters</th><th>Deployment</th><th>Protocol</th></tr></thead><tbody>

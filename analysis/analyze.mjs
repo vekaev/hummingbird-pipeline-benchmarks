@@ -858,6 +858,51 @@ if (diff) {
   P(`**Not claimed about speed:** ${dw.notClaimed}\n`);
 }
 
+// ------------------------------------------------- the same content, encoded twice
+{
+  const de = raw('double-encode');
+  const by = Object.fromEntries(de.arms.map((a) => [a.id, a]));
+  const cur = de.currentPair.reduce((t, id) => t + by[id].seconds, 0);
+  const one = by.B.seconds;   // one pass, full length
+  const fused = by.D.seconds; // one pass, trimmed too
+  const pct = (a, b) => 100 * (a - b) / b;
+
+  P('## The same content, encoded twice\n');
+  P(`${de.note}\n`);
+  P('| arm | mean | output |');
+  P('|---|---:|---:|');
+  for (const a of de.arms) {
+    const mark = de.currentPair.includes(a.id);
+    P(`| ${a.id} — ${a.label}${mark ? ' *(in use today)*' : ''} `
+      + `| ${fmt(a.seconds, 2)} s | ${a.kb.toLocaleString('en-US')} KB |`);
+  }
+  P('');
+  P(`Today the job runs ${de.currentPair.join(' then ')}, so **${fmt(cur, 2)} s** for this content.\n`);
+
+  P('### One number here generalises and one does not\n');
+  P('| | | |');
+  P('|---|---|---:|');
+  P(`| stop encoding twice, one pass at full length | ${fmt(cur, 2)} → ${fmt(one, 2)} s `
+    + `| **${signed(pct(one, cur))} %** |`);
+  P(`| *also* trim in the same pass | ${fmt(one, 2)} → ${fmt(fused, 2)} s `
+    + `| ${signed(pct(fused, one))} % |`);
+  P(`| combined | ${fmt(cur, 2)} → ${fmt(fused, 2)} s | ${signed(pct(fused, cur))} % |`);
+  P('');
+  P(`${de.decomposition} **So the defensible figure is ${fmt(Math.abs(pct(one, cur)))} %`);
+  P(`of this stage, not ${fmt(Math.abs(pct(fused, cur)))} %.**\n`);
+  // The cost of the discarded quality, computed from the two arms rather than stated.
+  // Two denominators are available here and they read very differently, so both are
+  // named: the saving as a share of the pass being changed, and the multiple by which
+  // the current setting is dearer.
+  P(`${de.discardedQualityNote} Measured, changing only that setting would cut the first`);
+  P(`pass by **${fmt(Math.abs(pct(by.B.seconds, by.A.seconds)))} %** — equivalently, the slow`);
+  P(`setting costs **${fmt(by.A.seconds / by.B.seconds, 2)}x** what the surviving one does, and`);
+  P(`${fmt(by.A.seconds / by.C.seconds, 2)}x the fastest setting tried.\n`);
+  P(`${de.sizeCrossCheck}\n`);
+  P(`**Scope.** ${de.scope} ${de.derivedIfApplied}\n`);
+  P(`**Status.** ${de.status}\n`);
+}
+
 // ---------------------------------------------------------------- parse argmax
 {
   const pa = raw('parse-argmax');
