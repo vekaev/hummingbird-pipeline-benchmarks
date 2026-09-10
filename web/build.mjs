@@ -167,6 +167,13 @@ const dwRaw = JSON.parse(readFileSync(join(root, 'results/raw/dead-writes.json')
 const dwFilesGone = (dwRaw.artifacts.tensorFilesWithout - dwRaw.artifacts.tensorFilesWith).toLocaleString('en-US');
 const dwMbGone = (dwRaw.artifacts.outputMbWithout - dwRaw.artifacts.outputMbWith).toLocaleString('en-US');
 const dwVideos = dwRaw.artifacts.deliveredVideosWith;
+const deRaw = JSON.parse(readFileSync(join(root, 'results/raw/double-encode.json'), 'utf8'));
+const deBy = Object.fromEntries(deRaw.arms.map((a) => [a.id, a]));
+const deCur = deRaw.currentPair.reduce((t, id) => t + deBy[id].seconds, 0);
+const deOnePass = `${(100 * (deBy.B.seconds - deCur) / deCur).toFixed(1)}%`;
+const roBy = Object.fromEntries(deRaw.reorder.arms.map((a) => [a.id, a]));
+const roReorder = `${(100 * (roBy.B.seconds - roBy.A.seconds) / roBy.A.seconds).toFixed(1)}%`;
+const roFused = `${(100 * (roBy.C.seconds - roBy.A.seconds) / roBy.A.seconds).toFixed(1)}%`;
 const coFc = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3fc5<', 4);
 const coBoth = mdCell('results/measured.md', 'Do the two kept changes compose?', '>j3both<', 4);
 const coInd = `${coRaw.independentCacheMeasurement.pct.toFixed(2)}%`;
@@ -704,6 +711,56 @@ ${mdTable('results/measured.md', 'And it still fails the gate')}
     bandwidth that was already the binding resource. The honest one-line form is
     <em>frees a gigabyte per job, bit-exact, no measurable speed change</em>, and anyone
     quoting it as a speedup is quoting the stage in place of the job.
+  </p>
+</div>
+
+<h3>The source video is encoded two or three times</h3>
+<p>
+  This one is not on the accelerator at all. The largest CPU-only item in the job prepares
+  the source video, and it costs far more in production than on the benchmark clips because
+  production handles large customer uploads. Reading that path: the frame-rate conversion
+  encodes at a slow, high-quality setting, and the next step re-encodes the result while
+  passing <em>no</em> codec settings at all, so the encoder falls back to its own defaults at
+  lower quality. The expensive quality is discarded before anything downstream sees it.
+</p>
+${mdTable('results/measured.md', 'The same content, encoded twice')}
+<div class="verdict"><b>Encoding the content once instead of twice is ${deOnePass} of that
+pair.</b> A larger combined figure is available by also trimming in the same pass, and it is
+deliberately not the headline: that part depends on how much of the source the audio uses,
+which was an arbitrary ratio in this test, while encoding the same content twice is
+structural.</div>
+<p>
+  Following the same path further found a <b>third</b> encode. A resize step sits between the
+  other two and also passes no codec settings. It does nothing below a resolution threshold,
+  which is why it never appeared in any benchmark output here &mdash; but above it, which is
+  the routine case for phone video, the slowest and highest-quality encode runs
+  <em>first</em>, at the full source resolution, immediately before the step that discards
+  three quarters of those pixels.
+</p>
+${mdTable('results/measured.md', 'A third encode, and the order is backwards')}
+<div class="verdict"><b>Reordering so the downscale happens first is ${roReorder}; fusing all
+three into one pass is ${roFused}.</b> And read the size column: the fused pass produces the
+<em>largest</em> file, because it encodes once at high quality and stops rather than pushing
+that output through two more default-quality encodes. It is faster <em>and</em> one
+generation-loss step shorter than what ships.</div>
+<div class="caveat">
+  <span class="caveat-label">What these percentages are not</span>
+  <p>
+    They are not a job-level saving. The stage they sit in also fetches the source over the
+    network, and the split between fetching and encoding inside it has never been measured,
+    so multiplying the stage cost by these figures would assume the stage is all encode. What
+    is established is that the encode chain costs this much more than it needs to.
+  </p>
+  <p>
+    They are also a lower bound, and the reason is worth stating: there is no native
+    high-resolution source on the test machine, so one was synthesised by upscaling real
+    footage. Encode cost tracks pixel count, which is faithful, but upscaled frames are
+    smoother than native ones and encode faster. A real upload should save more than this.
+  </p>
+  <p>
+    None of it is implemented. The change is on the preprocessing path, which no arm in this
+    work touched, and it deserves its own before and after on a representative source rather
+    than being folded into a study of the accelerator pipeline.
   </p>
 </div>
 <div class="caveat">

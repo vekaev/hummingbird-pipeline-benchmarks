@@ -985,6 +985,66 @@ for the same 14 delivered videos</b> &mdash; the writing phase itself drops
     quoting it as a speedup is quoting the stage in place of the job.
   </p>
 </div>
+
+<h3>The source video is encoded two or three times</h3>
+<p>
+  This one is not on the accelerator at all. The largest CPU-only item in the job prepares
+  the source video, and it costs far more in production than on the benchmark clips because
+  production handles large customer uploads. Reading that path: the frame-rate conversion
+  encodes at a slow, high-quality setting, and the next step re-encodes the result while
+  passing <em>no</em> codec settings at all, so the encoder falls back to its own defaults at
+  lower quality. The expensive quality is discarded before anything downstream sees it.
+</p>
+<div class="tw"><table><thead><tr><th>arm</th><th class="n">mean</th><th class="n">output</th></tr></thead><tbody>
+<tr><td>A — current: convert at the slow, high-quality setting <em>(in use today)</em></td><td class="n">4.84 s</td><td class="n">5,428 KB</td></tr>
+<tr><td>B — one pass at the settings that actually survive</td><td class="n">3.36 s</td><td class="n">3,479 KB</td></tr>
+<tr><td>C — one pass at a much faster setting</td><td class="n">3.04 s</td><td class="n">2,727 KB</td></tr>
+<tr><td>D — fused: convert and trim in a single pass</td><td class="n">2.36 s</td><td class="n">2,339 KB</td></tr>
+<tr><td>E — the trim re-encode that today follows A <em>(in use today)</em></td><td class="n">2.09 s</td><td class="n">2,318 KB</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Encoding the content once instead of twice is -51.5% of that
+pair.</b> A larger combined figure is available by also trimming in the same pass, and it is
+deliberately not the headline: that part depends on how much of the source the audio uses,
+which was an arbitrary ratio in this test, while encoding the same content twice is
+structural.</div>
+<p>
+  Following the same path further found a <b>third</b> encode. A resize step sits between the
+  other two and also passes no codec settings. It does nothing below a resolution threshold,
+  which is why it never appeared in any benchmark output here &mdash; but above it, which is
+  the routine case for phone video, the slowest and highest-quality encode runs
+  <em>first</em>, at the full source resolution, immediately before the step that discards
+  three quarters of those pixels.
+</p>
+<div class="tw"><table><thead><tr><th>arm</th><th class="n">mean</th><th class="n">output</th></tr></thead><tbody>
+<tr><td>A — the current order: slow high-quality encode at full resolution, then downscale, then trim</td><td class="n"><strong>26.63 s</strong></td><td class="n">3,704 KB</td></tr>
+<tr><td>B — reordered: downscale and retime in one slow pass, then trim</td><td class="n"><strong>10.29 s</strong></td><td class="n">3,941 KB</td></tr>
+<tr><td>C — fused: downscale, retime and trim in a single pass</td><td class="n"><strong>5.28 s</strong></td><td class="n">6,819 KB</td></tr>
+</tbody></table></div>
+<div class="verdict"><b>Reordering so the downscale happens first is -61.4%; fusing all
+three into one pass is -80.2%.</b> And read the size column: the fused pass produces the
+<em>largest</em> file, because it encodes once at high quality and stops rather than pushing
+that output through two more default-quality encodes. It is faster <em>and</em> one
+generation-loss step shorter than what ships.</div>
+<div class="caveat">
+  <span class="caveat-label">What these percentages are not</span>
+  <p>
+    They are not a job-level saving. The stage they sit in also fetches the source over the
+    network, and the split between fetching and encoding inside it has never been measured,
+    so multiplying the stage cost by these figures would assume the stage is all encode. What
+    is established is that the encode chain costs this much more than it needs to.
+  </p>
+  <p>
+    They are also a lower bound, and the reason is worth stating: there is no native
+    high-resolution source on the test machine, so one was synthesised by upscaling real
+    footage. Encode cost tracks pixel count, which is faithful, but upscaled frames are
+    smoother than native ones and encode faster. A real upload should save more than this.
+  </p>
+  <p>
+    None of it is implemented. The change is on the preprocessing path, which no arm in this
+    work touched, and it deserves its own before and after on a representative source rather
+    than being folded into a study of the accelerator pipeline.
+  </p>
+</div>
 <div class="caveat">
   <span class="caveat-label">The caveat, now priced</span>
   <p>
